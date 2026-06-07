@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+static/
+postgres_data/
+.venv/
+modules/feeds/.state

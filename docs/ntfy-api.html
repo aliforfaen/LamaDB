@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NTFY API Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f8f7f4; --surface: #ffffff; --border: #e8e4db; --text-primary: #14171e; --text-secondary: #5a6070; --text-muted: #9ba3b4;
+  --accent: #16a34a; --accent-light: #f0fdf4; --accent-mid: #bbf7d0;
+  --green: #16a34a; --green-light: #f0fdf4; --blue: #2563eb; --blue-light: #eff6ff; --amber: #d97706; --amber-light: #fffbeb; --red: #dc2626; --red-light: #fef2f2; --purple: #7c3aed; --purple-light: #f5f3ff;
+  --mono-bg: #f3f2ee; --radius: 10px; --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04); --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+  --code-bg: #1c1c1e; --code-text: #e2e2e5; --scrollbar-thumb: #d0cdc8;
+}
+[data-theme="dark"] {
+  --bg: #111114; --surface: #1a1a1f; --border: #2a2a32; --text-primary: #ececf0; --text-secondary: #8b8b9a; --text-muted: #55555f;
+  --accent: #22c55e; --accent-light: #0f2a1a; --accent-mid: #14532d;
+  --green: #22c55e; --green-light: #0f2a1a; --blue: #60a5fa; --blue-light: #0e1a2e; --amber: #fbbf24; --amber-light: #2a1f00; --red: #ef4444; --red-light: #2a0f0f; --purple: #a78bfa; --purple-light: #1a0f2e;
+  --mono-bg: #14141a; --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.25); --shadow-lg: 0 4px 16px rgba(0,0,0,0.35);
+  --code-bg: #0d0d11; --code-text: #d4d4dc; --scrollbar-thumb: #3a3a44;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text-primary); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--accent-mid); color: var(--text-primary); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+
+.layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+.sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--surface); border-right: 1px solid var(--border); padding: 28px 0; display: flex; flex-direction: column; gap: 4px; }
+.sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.sidebar-logo .logo-mark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text-primary); }
+.sidebar-logo .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sidebar-logo .logo-icon svg { color: white; }
+.sidebar-logo .logo-text { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.sidebar-logo .logo-sub { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
+.sidebar-section { padding: 0 12px; margin-bottom: 4px; }
+.sidebar-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); padding: 10px 8px 4px; }
+.sidebar a { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; text-decoration: none; color: var(--text-secondary); font-size: 13.5px; font-weight: 500; transition: all 0.15s; }
+.sidebar a:hover { background: var(--bg); color: var(--text-primary); }
+.sidebar a.active { background: var(--accent-light); color: var(--accent); }
+[data-theme="dark"] .sidebar a:hover { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .sidebar a.active { background: var(--accent-light); color: var(--accent); }
+
+.method-badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 5px; display: inline-block; min-width: 48px; text-align: center; }
+.badge-GET { background: var(--green-light); color: var(--green); }
+.badge-POST { background: var(--blue-light); color: var(--blue); }
+.badge-DELETE { background: var(--red-light); color: var(--red); }
+.badge-PUT { background: var(--purple-light); color: var(--purple); }
+
+.main { padding: 40px 48px 80px; max-width: 900px; }
+.hero { margin-bottom: 48px; }
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-light); padding: 4px 10px; border-radius: 20px; margin-bottom: 14px; }
+.hero h1 { font-family: 'DM Serif Display', serif; font-size: 42px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 12px; }
+.hero p { font-size: 17px; color: var(--text-secondary); max-width: 580px; line-height: 1.7; }
+.hero-meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+.hero-meta-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+.hero-meta-item strong { color: var(--text-primary); }
+
+.section { margin-bottom: 48px; }
+.section h2 { font-family: 'DM Serif Display', serif; font-size: 28px; font-weight: 400; letter-spacing: -0.015em; margin-bottom: 8px; padding-top: 8px; }
+.section-intro { font-size: 15px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.7; }
+
+.info-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px; box-shadow: var(--shadow); }
+[data-theme="dark"] .info-card h3 svg { color: var(--accent); }
+.info-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+.code-block { background: var(--code-bg); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+.code-block .code-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.06); }
+.code-header-left { display: flex; align-items: center; gap: 8px; }
+.code-dots { display: flex; gap: 5px; }
+.code-dots span { width: 10px; height: 10px; border-radius: 50%; }
+.code-dots span:nth-child(1) { background: #ff5f57; }
+.code-dots span:nth-child(2) { background: #febc2e; }
+.code-dots span:nth-child(3) { background: #28c840; }
+.code-lang { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.code-block pre { padding: 18px 20px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.65; color: var(--code-text); margin: 0; }
+.code-block pre .k { color: #ff7b72; }
+.code-block pre .s { color: #a5d6ff; }
+.code-block pre .c { color: #8b949e; font-style: italic; }
+.code-block pre .n { color: #79c0ff; }
+.code-block pre .p { color: #d2a8ff; }
+.code-block pre .b { color: #ffa657; }
+.code-block pre .t { color: #7ee787; }
+
+.schema-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13.5px; }
+.schema-table th { text-align: left; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border); font-weight: 600; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.schema-table td { padding: 10px 12px; border: 1px solid var(--border); vertical-align: top; }
+.schema-table tr:nth-child(even) td { background: var(--bg); }
+.schema-table .field-name { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--accent); white-space: nowrap; }
+.schema-table .field-type { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--blue); white-space: nowrap; }
+.schema-table .field-required { font-size: 10px; font-weight: 600; color: var(--red); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.schema-table .field-desc { color: var(--text-secondary); font-size: 13px; }
+.schema-table .field-enum { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--purple); }
+
+.endpoint { margin-bottom: 32px; }
+.endpoint-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.endpoint-path { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 500; color: var(--text-primary); background: var(--bg); border: 1px solid var(--border); padding: 5px 12px; border-radius: 8px; }
+.endpoint-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.endpoint-desc { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.6; }
+
+.divider { height: 1px; background: var(--border); margin: 40px 0; }
+
+.topbar { position: sticky; top: 0; z-index: 10; background: rgba(248,247,244,0.88); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 48px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+[data-theme="dark"] .topbar { background: rgba(17,17,20,0.88); }
+.topbar-links { display: flex; gap: 20px; }
+.topbar-links a { font-size: 13px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: color 0.15s; }
+.topbar-links a:hover { color: var(--text-primary); }
+.topbar-version { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg); border: 1px solid var(--border); padding: 3px 10px; border-radius: 6px; color: var(--text-secondary); }
+
+.theme-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+.theme-btn:hover { color: var(--text-primary); background: var(--border); }
+.icon-sun { display: block; }
+.icon-moon { display: none; }
+[data-theme="dark"] .icon-sun { display: none; }
+[data-theme="dark"] .icon-moon { display: block; }
+
+.mobile-header { display: none; background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 20px; position: sticky; top: 0; z-index: 10; }
+.mobile-header .logo-text { font-weight: 700; font-size: 16px; }
+
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .mobile-header { display: flex; align-items: center; justify-content: space-between; }
+  .main { padding: 24px 20px 60px; }
+  .hero h1 { font-size: 30px; }
+  .topbar { padding: 0 20px; }
+  .schema-table { font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="mobile-header">
+  <span class="logo-text">NTFY API</span>
+  <span class="method-badge badge-GET">v1</span>
+</div>
+
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="#" class="logo-mark">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+      </div>
+      <div>
+        <div class="logo-text">NTFY</div>
+        <div class="logo-sub">API Reference v1</div>
+      </div>
+    </a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Getting Started</div>
+    <a href="#overview" class="active">Overview</a>
+    <a href="#authentication">Authentication</a>
+    <a href="#topics">Topics & Permissions</a>
+    <a href="#rate-limiting">Rate Limits</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Sending</div>
+    <a href="#send-get"><span class="method-badge badge-GET">GET</span> Send (GET)</a>
+    <a href="#send-post"><span class="method-badge badge-POST">POST</span> Send (POST)</a>
+    <a href="#scheduled">Scheduled Messages</a>
+    <a href="#batch">Batch Messages</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Topics</div>
+    <a href="#list-topics"><span class="method-badge badge-GET">GET</span> List topics</a>
+    <a href="#topic-stats"><span class="method-badge badge-GET">GET</span> Topic stats</a>
+    <a href="#topic-tiers">Tier Management</a>
+    <a href="#topic-members"><span class="method-badge badge-GET">GET</span> Members</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Users</div>
+    <a href="#get-user"><span class="method-badge badge-GET">GET</span> Get user</a>
+    <a href="#update-user"><span class="method-badge badge-POST">POST</span> Update user</a>
+    <a href="#pricing">Pricing / Tiers</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Ntfy.sh</div>
+    <a href="#self-hosted">Self-Hosted</a>
+    <a href="#cli">CLI Reference</a>
+    <a href="#libraries">Libraries</a>
+  </div>
+</nav>
+
+<main class="main">
+<div class="topbar">
+  <div class="topbar-links">
+    <a href="https://ntfy.sh" target="_blank">Website</a>
+    <a href="https://docs.ntfy.sh" target="_blank">Docs</a>
+    <a href="https://github.com/binwiederhier/ntfy" target="_blank">GitHub</a>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="topbar-version">API v1</span>
+  </div>
+</div>
+
+<div class="content-wrap">
+
+<div class="hero">
+  <div class="hero-eyebrow">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+    REST API v1
+  </div>
+  <h1>NTFY API Reference</h1>
+  <p>NTFY is a simple pub-sub notification service. Send push notifications to your phone or desktop via HTTP requests. No signup, no server required — or self-host it on your own infrastructure.</p>
+  <div class="hero-meta">
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      Base URL: <strong>ntfy.sh</strong>
+    </div>
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      Auth: <strong>Optional token auth</strong>
+    </div>
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+      Format: <strong>Plaintext / JSON</strong>
+    </div>
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+      Latency: <strong>&lt;200ms</strong>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="overview">
+  <h2>Overview</h2>
+  <p class="section-intro">NTFY (pronounced "notify") uses a topic-based publish/subscribe model. Messages are sent to a topic, and all subscribers to that topic receive the message instantly via WebSocket, SSE, or polling.</p>
+  
+  <div class="info-card">
+    <h3>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+      Key Concepts
+    </h3>
+    <div style="display:grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 8px;">
+      <div style="background: var(--green-light); border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--green); font-weight:600; margin-bottom:4px;">Topics</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">Arbitrarily named channels. Create by publishing to them — no setup required.</div>
+      </div>
+      <div style="background: var(--blue-light); border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--blue); font-weight:600; margin-bottom:4px;">Messages</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">UTF-8 text up to 4096 bytes. Can include tags, priority, and click actions.</div>
+      </div>
+      <div style="background: var(--amber-light); border: 1px solid #fde68a; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--amber); font-weight:600; margin-bottom:4px;">Subscribers</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">Users or apps that receive notifications from topics they're subscribed to.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section" id="authentication">
+  <h2>Authentication</h2>
+  <p class="section-intro">NTFY supports optional token-based authentication to protect topics from unauthorized access. Self-hosted instances can enforce required auth.</p>
+  
+  <div class="code-block">
+    <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">http</span></div></div>
+    <pre><span class="k">GET</span> <span class="s">/mytopic</span>
+<span class="b">Authorization</span>: <span class="t">Bearer</span> <span class="s">tk_xxxxxxxxxxxxxxxxxxxx</span></pre>
+  </div>
+  
+  <p class="section-intro">To require authentication on a topic, set an access token in the topic settings or via the API.</p>
+</div>
+
+<div class="divider"></div>
+
+<div class="section" id="send-get">
+  <h2>Sending Messages</h2>
+  <p class="section-intro">The simplest way to send a notification — just an HTTP GET request. The message body becomes the notification text.</p>
+  
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/{topic}</span>
+    </div>
+    <p class="endpoint-desc">Publish a message to a topic via GET. The topic is created automatically if it doesn't exist. If the topic is protected, include the auth token.</p>
+    
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">topic</span></td><td>path</td><td class="field-type">string</td><td class="field-desc">Topic name (2-64 chars, lowercase a-z, 0-9, _, -)</td></tr>
+        <tr><td><span class="field-name">X-Title</span></td><td>header</td><td class="field-type">string</td><td class="field-desc">Notification title (defaults to topic name)</td></tr>
+        <tr><td><span class="field-name">X-Message</span></td><td>header</td><td class="field-type">string</td><td class="field-desc">Notification body text</td></tr>
+        <tr><td><span class="field-name">X-Priority</span></td><td>header</td><td class="field-type">int</td><td class="field-desc">Priority 1-5 (1=min, 3=default, 5=max)</td></tr>
+        <tr><td><span class="field-name">X-Tags</span></td><td>header</td><td class="field-type">string</td><td class="field-desc">Comma-separated emoji tags (e.g., "warning,fire")</td></tr>
+        <tr><td><span class="field-name">X-Click</span></td><td>header</td><td class="field-type">string</td><td class="field-desc">URL to open when notification is tapped</td></tr>
+        <tr><td><span class="field-name">X-Icon</span></td><td>header</td><td class="field-type">string</td><td class="field-desc">URL to an icon to display</td></tr>
+        <tr><td><span class="field-name">X-Delay</span></td><td>header</td><td class="field-type">string</td><td class="field-desc">ISO 8601 datetime or "+15m" relative delay</td></tr>
+        <tr><td><span class="field-name">X-Email</span></td><td>header</td><td class="field-type">string</td><td class="field-desc">Email address for email notifications</td></tr>
+        <tr><td><span class="field-name">X-Firebase</span></td><td>header</td><td class="field-type">string</td><td class="field-desc">"yes" to forward to Firebase Cloud Messaging</td></tr>
+      </tbody>
+    </table>
+    
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+      <pre><span class="c"># Basic notification</span>
+curl <span class="s">ntfy.sh/mytopic</span><span class="s">/mytopic</span> -d <span class="s">"Server backup completed successfully"</span>
+
+<span class="c"># With title, priority, and tags</span>
+curl <span class="s">ntfy.sh/mytopic</span> \
+  -H <span class="s">"X-Title: Backup Report"</span> \
+  -H <span class="s">"X-Priority: 4"</span> \
+  -H <span class="s">"X-Tags: white_check_mark,server"</span> \
+  -d <span class="s">"Production DB backup finished. Size: 2.3GB in 4m 22s"</span>
+
+<span class="c"># Delayed message (send after 15 minutes)</span>
+curl <span class="s">ntfy.sh/mytopic</span> -H <span class="s">"X-Delay: +15m"</span> -d <span class="s">"Reminder: deploy window closes in 1 hour"</span></pre>
+    </div>
+  </div>
+  
+  <div class="endpoint" id="send-post">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/{topic}</span>
+    </div>
+    <p class="endpoint-desc">POST to a topic for full control. The message body can be larger and supports JSON for structured metadata.</p>
+    
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">topic</span></td><td class="field-type">string</td><td class="field-desc">Topic name (can be passed in URL or JSON body)</td></tr>
+        <tr><td><span class="field-name">message</span></td><td class="field-type">string</td><td class="field-desc">Notification body text (required)</td></tr>
+        <tr><td><span class="field-name">title</span></td><td class="field-type">string</td><td class="field-desc">Notification title</td></tr>
+        <tr><td><span class="field-name">priority</span></td><td class="field-type">int</td><td class="field-desc">Priority 1-5</td></tr>
+        <tr><td><span class="field-name">tags</span></td><td class="field-type">string[]</td><td class="field-desc">Array of emoji tag names</td></tr>
+        <tr><td><span class="field-name">click</span></td><td class="field-type">string</td><td class="field-desc">URL to open on tap</td></tr>
+        <tr><td><span class="field-name">attach</span></td><td class="field-type">string</td><td class="field-desc">URL to an attachment (shown in notification)</td></tr>
+        <tr><td><span class="field-name">filename</span></td><td class="field-type">string</td><td class="field-desc">Attachment filename</td></tr>
+        <tr><td><span class="field-name">icon</span></td><td class="field-type">string</td><td class="field-desc">Icon URL</td></tr>
+        <tr><td><span class="field-name">delay</span></td><td class="field-type">string</td><td class="field-desc">ISO 8601 datetime or relative (+1h, +30m)</td></tr>
+        <tr><td><span class="field-name">email</span></td><td class="field-type">string</td><td class="field-desc">Email address for email bridge</td></tr>
+        <tr><td><span class="field-name">actions</span></td><td class="field-type">object[]</td><td class="field-desc">Interactive notification buttons</td></tr>
+      </tbody>
+    </table>
+    
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+      <pre><span class="k">POST</span> <span class="s">https://ntfy.sh/mytopic</span>
+<span class="b">Content-Type</span>: <span class="t">application/json</span>
+
+{
+  <span class="key">"topic"</span>: <span class="s">"mytopic"</span>,
+  <span class="key">"message"</span>: <span class="s">"Disk space running low on web-01"</span>,
+  <span class="key">"title"</span>: <span class="s">"⚠️ Server Alert"</span>,
+  <span class="key">"priority"</span>: <span class="n">4</span>,
+  <span class="key">"tags"</span>: <span class="p">[</span><span class="s">"warning"</span>, <span class="s">"warning"</span><span class="p">]</span>,
+  <span class="key">"click"</span>: <span class="s">"https://grafana.example.com/d/disk"</span>,
+  <span class="key">"actions"</span>: <span class="p">[</span>
+    <span class="p">{</span> <span class="key">"action"</span>: <span class="s">"view"</span>, <span class="key">"label"</span>: <span class="s">"View Dashboard"</span>, <span class="key">"url"</span>: <span class="s">"https://grafana.example.com"</span> <span class="p">}</span>,
+    <span class="key">"action"</span>: <span class="s">"http"</span>, <span class="key">"label"</span>: <span class="s">"Acknowledge"</span>, <span class="key">"url"</span>: <span class="s">"https://api.example.com/ack"</span>, <span class="key">"method"</span>: <span class="s">"POST"</span> <span class="p">}</span>
+  <span class="p">]</span>
+}</pre>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section" id="scheduled">
+  <h2>Scheduled Messages</h2>
+  <p class="section-intro">Messages can be scheduled for future delivery using the X-Delay header or the delay field in JSON. Relative formats like "+1h" and absolute ISO 8601 timestamps are both supported.</p>
+  
+  <div class="code-block">
+    <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+    <pre><span class="c"># Relative delays</span>
+curl <span class="s">ntfy.sh/reminder</span> -H <span class="s">"X-Delay: +2h30m"</span> -d <span class="s">"Time to check on the build"</span>
+
+<span class="c"># Absolute timestamp</span>
+curl <span class="s">ntfy.sh/scheduled</span> -H <span class="s">"X-Delay: 2025-06-15T09:00:00Z"</span> -d <span class="s">"Daily report is ready"</span>
+
+<span class="c"># List pending scheduled messages</span>
+curl <span class="s">ntfy.sh/mytopic/json?poll=1</span></pre>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section" id="topics">
+  <h2>Topic Management</h2>
+  <p class="section-intro">Topics are created on-demand. For persistent topics with access control, you can manage them via the API.</p>
+  
+  <div class="endpoint" id="topic-stats">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/{topic}/stats</span>
+    </div>
+    <p class="endpoint-desc">Get statistics for a topic — message count, last activity, subscriber count.</p>
+    
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{
+  <span class="key">"topic"</span>: <span class="s">"mytopic"</span>,
+  <span class="key">"subscribers"</span>: <span class="n">3</span>,
+  <span class="key">"messages"</span>: <span class="n">1247</span>,
+  <span class="key">"last_message"</span>: <span class="s">"2025-05-30T14:22:00Z"</span>,
+  <span class="key">"owner"</span>: <span class="s">"tk_xxxxx"</span>
+}</pre>
+    </div>
+  </div>
+  
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/{topic}</span>
+      <span style="font-size:12px;color:var(--text-muted);">multipart/form-data</span>
+    </div>
+    <p class="endpoint-desc">Upload a file attachment to a topic. Files are temporarily stored and served as notification attachments.</p>
+    
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+      <pre><span class="k">POST</span> <span class="s">https://ntfy.sh/mytopic</span>
+<span class="b">Content-Type</span>: <span class="t">multipart/form-data</span>
+
+<span class="key">file</span>=@error.log
+<span class="key">message</span>=<span class="s">"New error detected in production"</span>
+<span class="key">filename</span>=<span class="s">"error.log"</span>
+<span class="key">Content-Type</span>=<span class="s">"text/plain"</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section" id="rate-limiting">
+  <h2>Rate Limits</h2>
+  <p class="section-intro">The public ntfy.sh instance has rate limits to prevent abuse. Self-hosted instances can configure their own limits.</p>
+  
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 20px;">
+    <div style="background: var(--green-light); border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--green);">60</div>
+      <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">requests/minute per IP (anonymous)</div>
+    </div>
+    <div style="background: var(--blue-light); border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--blue);">300</div>
+      <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">requests/minute (authenticated)</div>
+    </div>
+    <div style="background: var(--amber-light); border: 1px solid #fde68a; border-radius: 8px; padding: 12px 16px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--amber);">4KB</div>
+      <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">max message size</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section" id="self-hosted">
+  <h2>Self-Hosted Setup</h2>
+  <p class="section-intro">Run your own NTFY server with Docker, Kubernetes, or from source. Full control over authentication, storage, and rate limits.</p>
+  
+  <div class="code-block">
+    <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">yaml</span></div></div>
+    <pre><span class="c"># docker-compose.yml</span>
+<span class="key">services</span>:
+  <span class="key">ntfy</span>:
+    <span class="key">image</span>: <span class="s">binwiederhier/ntfy</span>
+    <span class="key">command</span>: <span class="p">[</span><span class="s">"serve"</span>, <span class="s">"--config-file"</span>, <span class="s">"/etc/ntfy/server.yml"</span><span class="p">]</span>
+    <span class="key">ports</span>:
+      - <span class="s">"80:80"</span>
+    <span class="key">volumes</span>:
+      - <span class="s">./server.yml:/etc/ntfy/server.yml</span>
+      - <span class="s">./cache:/var/cache/ntfy</span>
+      - <span class="s">./data:/var/lib/ntfy</span>
+    <span class="key">environment</span>:
+      - <span class="key">NTFY_AUTH_FILE</span>: <span class="s">/var/lib/ntfy/user.db</span>
+      <span class="key">NTFY_BASICAUTH_FILE</span>: <span class="s">/var/lib/ntfy/auth.db</span></pre>
+  </div>
+</div>
+
+</div>
+</main>
+</div>
+
+<script>
+function switchTab(btn, id) {
+  btn.parentElement.parentElement.querySelectorAll('.response-tab-btn').forEach(b => b.classList.remove('active'));
+  btn.parentElement.parentElement.querySelectorAll('.response-tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) { e.preventDefault(); el.scrollIntoView({behavior:'smooth'}); }
+    });
+  });
+});
+</script>
+</body>
+</html>

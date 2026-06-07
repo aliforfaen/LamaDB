@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AudiobookShelf API Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f8f7f4; --surface: #ffffff; --border: #e8e4db; --text-primary: #14171e; --text-secondary: #5a6070; --text-muted: #9ba3b4;
+  --accent: #c2410c; --accent-light: #fff7ed; --accent-mid: #fed7aa;
+  --green: #16a34a; --green-light: #f0fdf4; --blue: #2563eb; --blue-light: #eff6ff; --amber: #d97706; --amber-light: #fffbeb; --red: #dc2626; --red-light: #fef2f2; --purple: #7c3aed; --purple-light: #f5f3ff;
+  --mono-bg: #f3f2ee; --radius: 10px; --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04); --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+  --code-bg: #1c1c1e; --code-text: #e2e2e5; --scrollbar-thumb: #d0cdc8;
+}
+[data-theme="dark"] {
+  --bg: #111114; --surface: #1a1a1f; --border: #2a2a32; --text-primary: #ececf0; --text-secondary: #8b8b9a; --text-muted: #55555f;
+  --accent: #fb923c; --accent-light: #2a150a; --accent-mid: #4a2510;
+  --green: #22c55e; --green-light: #0f2a1a; --blue: #60a5fa; --blue-light: #0e1a2e; --amber: #fbbf24; --amber-light: #2a1f00; --red: #ef4444; --red-light: #2a0f0f; --purple: #a78bfa; --purple-light: #1a0f2e;
+  --mono-bg: #14141a; --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.25); --shadow-lg: 0 4px 16px rgba(0,0,0,0.35);
+  --code-bg: #0d0d11; --code-text: #d4d4dc; --scrollbar-thumb: #3a3a44;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text-primary); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--accent-mid); color: var(--text-primary); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+
+.layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+.sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--surface); border-right: 1px solid var(--border); padding: 28px 0; display: flex; flex-direction: column; gap: 4px; }
+.sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.sidebar-logo .logo-mark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text-primary); }
+.sidebar-logo .logo-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sidebar-logo .logo-icon svg { color: white; }
+.sidebar-logo .logo-text { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.sidebar-logo .logo-sub { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
+.sidebar-section { padding: 0 12px; margin-bottom: 4px; }
+.sidebar-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); padding: 10px 8px 4px; }
+.sidebar a { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 7px; text-decoration: none; color: var(--text-secondary); font-size: 13.5px; font-weight: 500; transition: all 0.15s; }
+.sidebar a:hover { background: var(--bg); color: var(--text-primary); }
+.sidebar a.active { background: var(--accent-light); color: var(--accent); }
+[data-theme="dark"] .sidebar a:hover { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .sidebar a.active { background: var(--accent-light); color: var(--accent); }
+
+.method-badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 5px; display: inline-block; min-width: 48px; text-align: center; }
+.badge-GET { background: var(--green-light); color: var(--green); }
+.badge-POST { background: var(--blue-light); color: var(--blue); }
+.badge-PATCH { background: var(--amber-light); color: var(--amber); }
+.badge-DELETE { background: var(--red-light); color: var(--red); }
+
+.main { padding: 40px 48px 80px; max-width: 900px; }
+.hero { margin-bottom: 48px; }
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-light); padding: 4px 10px; border-radius: 20px; margin-bottom: 14px; }
+.hero h1 { font-family: 'DM Serif Display', serif; font-size: 42px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 12px; }
+.hero p { font-size: 17px; color: var(--text-secondary); max-width: 580px; line-height: 1.7; }
+.hero-meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+.hero-meta-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+.hero-meta-item strong { color: var(--text-primary); }
+
+.section { margin-bottom: 48px; }
+.section h2 { font-family: 'DM Serif Display', serif; font-size: 28px; font-weight: 400; letter-spacing: -0.015em; margin-bottom: 8px; padding-top: 8px; }
+.section-intro { font-size: 15px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.7; }
+
+.info-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.info-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+[data-theme="dark"] .info-card h3 svg { color: var(--accent); }
+
+.code-block { background: var(--code-bg); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+.code-block .code-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.06); }
+.code-header-left { display: flex; align-items: center; gap: 8px; }
+.code-dots { display: flex; gap: 5px; }
+.code-dots span { width: 10px; height: 10px; border-radius: 50%; }
+.code-dots span:nth-child(1) { background: #ff5f57; }
+.code-dots span:nth-child(2) { background: #febc2e; }
+.code-dots span:nth-child(3) { background: #28c840; }
+.code-lang { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.code-block pre { padding: 18px 20px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.65; color: var(--code-text); margin: 0; }
+.code-block pre .k { color: #ff7b72; }
+.code-block pre .s { color: #a5d6ff; }
+.code-block pre .c { color: #8b949e; font-style: italic; }
+.code-block pre .n { color: #79c0ff; }
+.code-block pre .p { color: #d2a8ff; }
+.code-block pre .b { color: #ffa657; }
+.code-block pre .t { color: #7ee787; }
+
+.schema-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13.5px; }
+.schema-table th { text-align: left; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border); font-weight: 600; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.schema-table td { padding: 10px 12px; border: 1px solid var(--border); vertical-align: top; }
+.schema-table tr:nth-child(even) td { background: var(--bg); }
+.schema-table .field-name { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--accent); white-space: nowrap; }
+.schema-table .field-type { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--blue); white-space: nowrap; }
+.schema-table .field-required { font-size: 10px; font-weight: 600; color: var(--red); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.schema-table .field-desc { color: var(--text-secondary); font-size: 13px; }
+.schema-table .field-enum { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--purple); }
+
+.endpoint { margin-bottom: 32px; }
+.endpoint-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.endpoint-path { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 500; color: var(--text-primary); background: var(--bg); border: 1px solid var(--border); padding: 5px 12px; border-radius: 8px; }
+.endpoint-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.endpoint-desc { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.6; }
+
+.divider { height: 1px; background: var(--border); margin: 40px 0; }
+
+.token-block { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 20px; font-size: 13px; box-shadow: var(--shadow); }
+.token-block .token-icon { color: var(--accent); flex-shrink: 0; }
+.token-block .token-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-secondary); flex: 1; word-break: break-all; }
+.token-block .token-copy { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; font-family: 'Outfit', sans-serif; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; flex-shrink: 0; }
+
+.topbar { position: sticky; top: 0; z-index: 10; background: rgba(248,247,244,0.88); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 48px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+[data-theme="dark"] .topbar { background: rgba(17,17,20,0.88); }
+.topbar-links { display: flex; gap: 20px; }
+.topbar-links a { font-size: 13px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: color 0.15s; }
+.topbar-links a:hover { color: var(--text-primary); }
+.topbar-version { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--bg); border: 1px solid var(--border); padding: 3px 10px; border-radius: 6px; color: var(--text-secondary); }
+
+.mobile-header { display: none; background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 20px; position: sticky; top: 0; z-index: 10; }
+
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .mobile-header { display: flex; align-items: center; justify-content: space-between; }
+  .main { padding: 24px 20px 60px; }
+  .hero h1 { font-size: 30px; }
+  .topbar { padding: 0 20px; }
+  .schema-table { font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="mobile-header">
+  <span class="logo-text">AudiobookShelf API</span>
+  <span class="method-badge badge-GET">v1</span>
+</div>
+
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="#" class="logo-mark">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+      </div>
+      <div>
+        <div class="logo-text">AudiobookShelf</div>
+        <div class="logo-sub">API Reference v1</div>
+      </div>
+    </a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Getting Started</div>
+    <a href="#overview" class="active">Overview</a>
+    <a href="#authentication">Authentication</a>
+    <a href="#filters">Filter &amp; Sort</a>
+    <a href="#pagination">Pagination</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Library</div>
+    <a href="#libraries"><span class="method-badge badge-GET">GET</span> List libraries</a>
+    <a href="#library-stats"><span class="method-badge badge-GET">GET</span> Library stats</a>
+    <a href="#library-items"><span class="method-badge badge-GET">GET</span> Items</a>
+    <a href="#series"><span class="method-badge badge-GET">GET</span> Series</a>
+    <a href="#collections"><span class="method-badge badge-GET">GET</span> Collections</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Books &amp; Podcasts</div>
+    <a href="#get-book"><span class="method-badge badge-GET">GET</span> Get book</a>
+    <a href="#update-book"><span class="method-badge badge-PATCH">PATCH</span> Update book</a>
+    <a href="#mark-finished"><span class="method-badge badge-POST">POST</span> Mark finished</a>
+    <a href="#get-chapters"><span class="method-badge badge-GET">GET</span> Chapters</a>
+    <a href="#get-tracks"><span class="method-badge badge-GET">GET</span> Tracks / Audio</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Playback</div>
+    <a href="#get-stream"><span class="method-badge badge-GET">GET</span> Stream track</a>
+    <a href="#sync-progress"><span class="method-badge badge-POST">POST</span> Sync progress</a>
+    <a href="#get-progress"><span class="method-badge badge-GET">GET</span> Get progress</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Users &amp; Media</div>
+    <a href="#users"><span class="method-badge badge-GET">GET</span> List users</a>
+    <a href="#me"><span class="method-badge badge-GET">GET</span> Me</a>
+    <a href="#upload-cover"><span class="method-badge badge-POST">POST</span> Upload cover</a>
+    <a href="#search"><span class="method-badge badge-GET">GET</span> Search</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Media</div>
+    <a href="#podcasts"><span class="method-badge badge-GET">GET</span> Podcasts</a>
+    <a href="#episodes"><span class="method-badge badge-GET">GET</span> Episodes</a>
+    <a href="#feeds">Podcast RSS Feeds</a>
+  </div>
+</nav>
+
+<main class="main">
+<div class="topbar">
+  <div class="topbar-links">
+    <a href="https://audiobookshelf.org" target="_blank">Website</a>
+    <a href="https://www.audiobookshelf.org/guides/api" target="_blank">Docs</a>
+    <a href="https://github.com/advplyr/audiobookshelf" target="_blank">GitHub</a>
+  </div>
+  <span class="topbar-version">API v1</span>
+</div>
+
+<div class="content-wrap">
+
+<div class="hero">
+  <div class="hero-eyebrow">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+    REST API v1
+  </div>
+  <h1>AudiobookShelf API Reference</h1>
+  <p>AudiobookShelf is a self-hosted audiobook and podcast server. The API lets you manage libraries, sync listening progress across devices, stream audio, and control playback programmatically.</p>
+  <div class="hero-meta">
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      Base URL: <strong>{server}:3333/api/v1</strong>
+    </div>
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      Auth: <strong>Personal token or user/pass</strong>
+    </div>
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+      Format: <strong>JSON</strong>
+    </div>
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+      Content: <strong>Audiobooks + Podcasts</strong>
+    </div>
+  </div>
+</div>
+
+<div class="section" id="overview">
+  <h2>Overview</h2>
+  <p class="section-intro">AudiobookShelf organizes media into Libraries. Libraries contain Items (books or podcasts). Items contain Tracks (audio files) and Chapters. Users have per-item Progress tracking their listening position.</p>
+
+  <div class="info-card">
+    <h3>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></circle></svg>
+      Data Model
+    </h3>
+    <div style="display:grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 8px;">
+      <div style="background: var(--green-light); border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--green); font-weight:600; margin-bottom:4px;">Library</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">Container for a media type (audiobooks or podcasts).</div>
+      </div>
+      <div style="background: var(--blue-light); border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--blue); font-weight:600; margin-bottom:4px;">Item</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">A single book or podcast in a library.</div>
+      </div>
+      <div style="background: var(--amber-light); border: 1px solid #fde68a; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--amber); font-weight:600; margin-bottom:4px;">Track</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">An audio file within an item. Multiple tracks = chapters.</div>
+      </div>
+      <div style="background: var(--purple-light); border: 1px solid #ddd6fe; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--purple); font-weight:600; margin-bottom:4px;">Progress</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">User's listening position within an item.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section" id="authentication">
+  <h2>Authentication</h2>
+  <p class="section-intro">Authenticate using a personal access token (recommended) or email/password. Tokens are scoped to a user and inherit their permissions.</p>
+
+  <div class="token-block">
+    <div class="token-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+    </div>
+    <div class="token-text">Authorization: Bearer AbsToken xxxxxxxxxxxxxxxxxxxxxxxxxxxxx</div>
+    <button class="token-copy" onclick="copyToken(this)">Copy</button>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">http</span></div></div>
+    <pre><span class="c"># With personal token</span>
+<span class="k">GET</span> <span class="s">/api/v1/libraries</span>
+<span class="b">Authorization</span>: <span class="t">Bearer</span> <span class="s">AbsToken xxxxxxxxxxxxxxxxxxxxx</span>
+
+<span class="c"># With email + password (returns token)</span>
+<span class="k">POST</span> <span class="s">/api/v1/login</span>
+<span class="b">Content-Type</span>: <span class="t">application/json</span>
+
+{ <span class="key">"email"</span>: <span class="s">"user@example.com"</span>, <span class="key">"password"</span>: <span class="s">"secret"</span> }</pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+    <pre>{
+  <span class="key">"user"</span>: <span class="p">{</span> <span class="key">"id"</span>: <span class="s">"usr_abc"</span>, <span class="key">"username"</span>: <span class="s">"alice"</span>, <span class="key">"type"</span>: <span class="s">"user"</span> <span class="p">}</span>,
+  <span class="key">"token"</span>: <span class="s">"AbsToken xxxxxxxxxxxxxxxxxxxxx"</span>,
+  <span class="key">"mediaProgress"</span>: <span class="p">[]</span>,
+  <span class="key">" bookshelves"</span>: <span class="p">[]</span>
+<span class="p">}</span></pre>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section" id="libraries">
+  <h2>Libraries</h2>
+  <p class="section-intro">Libraries are the top-level containers in AudiobookShelf. Each library has a type (<code>book</code> or <code>podcast</code>) and its own media files.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/libraries</span>
+    </div>
+    <p class="endpoint-desc">List all libraries visible to the authenticated user.</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{
+  <span class="key">"libraries"</span>: <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="key">"id"</span>: <span class="s">"lib_audiobooks"</span>,
+      <span class="key">"name"</span>: <span class="s">"Audiobooks"</span>,
+      <span class="key">"icon"</span>: <span class="s">"book"</span>,
+      <span class="key">"mediaType"</span>: <span class="s">"book"</span>,
+      <span class="key">"bookCount"</span>: <span class="n">247</span>,
+      <span class="key">"lastUpdate"</span>: <span class="s">"2025-05-29T18:00:00Z"</span>
+    <span class="p">}</span>,
+    <span class="p">{</span>
+      <span class="key">"id"</span>: <span class="s">"lib_podcasts"</span>,
+      <span class="key">"name"</span>: <span class="s">"Podcasts"</span>,
+      <span class="key">"icon"</span>: <span class="s">"microphone"</span>,
+      <span class="key">"mediaType"</span>: <span class="s">"podcast"</span>,
+      <span class="key">"podcastCount"</span>: <span class="n">12</span>
+    <span class="p">}</span>
+  <span class="p">]</span>
+<span class="p">}</span></pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="library-stats">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/libraries/{id}/stats</span>
+    </div>
+    <p class="endpoint-desc">Get statistics for a library — total items, total duration, genre breakdown.</p>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{
+  <span class="key">"totalItems"</span>: <span class="n">247</span>,
+  <span class="key">"totalDuration"</span>: <span class="n">1459320</span>,  <span class="c">// seconds</span>
+  <span class="key">"totalSize"</span>: <span class="n">48392743936</span>,  <span class="c">// bytes</span>
+  <span class="key">"genres"</span>: <span class="p">[</span>
+    <span class="p">{</span> <span class="key">"name"</span>: <span class="s">"Science Fiction"</span>, <span class="key">"count"</span>: <span class="n">58</span> <span class="p">}</span>,
+    <span class="key">"name"</span>: <span class="s">"Fantasy"</span>, <span class="key">"count"</span>: <span class="n">47</span> <span class="p">}</span>,
+    <span class="key">"name"</span>: <span class="s">"Mystery"</span>, <span class="key">"count"</span>: <span class="n">31</span> <span class="p">}</span>
+  <span class="p">]</span>,
+  <span class="key">"authors"</span>: <span class="n">143</span>
+<span class="p">}</span></pre>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="section" id="library-items">
+  <h2>Library Items</h2>
+  <p class="section-intro">Items are the individual books or podcasts in a library. Use filter and sort params to query them.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/libraries/{library_id}/items</span>
+    </div>
+    <p class="endpoint-desc">List items in a library with optional filtering, sorting, and pagination.</p>
+
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">sort</span></td><td>query</td><td class="field-type">string</td><td>media.metadata.title</td><td class="field-desc">Sort field: <span class="field-enum">media.metadata.title, media.metadata.authorName, media.duration, media.numTracks, createdAt, updatedAt, media.size</span></td></tr>
+        <tr><td><span class="field-name">order</span></td><td>query</td><td class="field-type">enum</td><td>asc</td><td class="field-desc"><span class="field-enum">asc, desc</span></td></tr>
+        <tr><td><span class="field-name">filter</span></td><td>query</td><td class="field-type">string</td><td>—</td><td class="field-desc">Filter expression (see Filter Syntax below)</td></tr>
+        <tr><td><span class="field-name">limit</span></td><td>query</td><td class="field-type">int</td><td>10</td><td class="field-desc">Max results per page (max 100)</td></tr>
+        <tr><td><span class="field-name">offset</span></td><td>query</td><td class="field-type">int</td><td>0</td><td class="field-desc">Pagination offset</td></tr>
+        <tr><td><span class="field-name">minified</span></td><td>query</td><td class="field-type">bool</td><td>false</td><td class="field-desc">Return compact response (less data)</td></tr>
+        <tr><td><span class="field-name">include</span></td><td>query</td><td class="field-type">string</td><td>—</td><td class="field-desc">Comma-separated includes: <span class="field-enum">media,progress,rss</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+      <pre><span class="c"># Get books by a specific author, sorted by duration</span>
+curl <span class="s">"http://localhost:3333/api/v1/libraries/lib_abc/items?filter=author=Dune&amp;sort=media.duration&amp;order=desc"</span> \
+  -H <span class="s">"Authorization: Bearer AbsToken xxxx"</span>
+
+<span class="c"># All unfinished books with progress</span>
+curl <span class="s">"http://localhost:3333/api/v1/libraries/lib_abc/items?filter=missing=0&amp;include=progress"</span> \
+  -H <span class="s">"Authorization: Bearer AbsToken xxxx"</span></pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="get-book">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/items/{id}</span>
+    </div>
+    <p class="endpoint-desc">Get a single library item with full media metadata.</p>
+
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">include</span></td><td>query</td><td class="field-type">string</td><td class="field-desc">Includes: <span class="field-enum">media,progress,chapters,tracks,rss</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{
+  <span class="key">"id"</span>: <span class="s">"item_xyz789"</span>,
+  <span class="key">"libraryId"</span>: <span class="s">"lib_audiobooks"</span>,
+  <span class="key">"folderId"</span>: <span class="s">"fld_001"</span>,
+  <span class="key">"path"</span>: <span class="s">"/audiobooks/Dune"</span>,
+  <span class="key">"media"</span>: <span class="p">{</span>
+    <span class="key">"id"</span>: <span class="s">"med_abc"</span>,
+    <span class="key">"metadata"</span>: <span class="p">{</span>
+      <span class="key">"title"</span>: <span class="s">"Dune"</span>,
+      <span class="key">"authorName"</span>: <span class="s">"Frank Herbert"</span>,
+      <span class="key">"authorNameLF"</span>: <span class="s">"Herbert, Frank"</span>,
+      <span class="key">"narratorName"</span>: <span class="s">"Scott Brick"</span>,
+      <span class="key">"series"</span>: <span class="s">"Dune Saga"</span>,
+      <span class="key">"genres"</span>: <span class="p">[</span><span class="s">"Science Fiction"</span>, <span class="s">"Space Opera"</span><span class="p">]</span>,
+      <span class="key">"description"</span>: <span class="s">"Set in the distant future amidst..."</span>,
+      <span class="key">"isbn"</span>: <span class="s">"978-0441013593"</span>,
+      <span class="key">"language"</span>: <span class="s">"English"</span>,
+      <span class="key">"publishedYear"</span>: <span class="n">1965</span>
+    <span class="p">}</span>,
+    <span class="key">"duration"</span>: <span class="n">19800</span>,
+    <span class="key">"tracks"</span>: <span class="p">[</span>
+      <span class="p">{</span> <span class="key">"index"</span>: <span class="n">1</span>, <span class="key">"startOffset"</span>: <span class="n">0</span>, <span class="key">"duration"</span>: <span class="n">3600</span>, <span class="key">"title"</span>: <span class="s">"Part I"</span> <span class="p">}</span>
+    <span class="p">]</span>,
+    <span class="key">"chapters"</span>: <span class="p">[</span>
+      <span class="p">{</span> <span class="key">"id"</span>: <span class="n">0</span>, <span class="key">"title"</span>: <span class="s">"Book One: Dune — Part I"</span>, <span class="key">"start"</span>: <span class="n">0</span>, <span class="key">"end"</span>: <span class="n">3600</span> <span class="p">}</span>
+    <span class="p">]</span>
+  <span class="p">}</span>,
+  <span class="key">"progress"</span>: <span class="p">{</span>
+    <span class="key">"id"</span>: <span class="s">"prog_abc"</span>,
+    <span class="key">"libraryItemId"</span>: <span class="s">"item_xyz789"</span>,
+    <span class="key">"episodeId"</span>: <span class="t">null</span>,
+    <span class="key">"mediaId"</span>: <span class="s">"med_abc"</span>,
+    <span class="key">"mediaType"</span>: <span class="s">"book"</span>,
+    <span class="key">"userId"</span>: <span class="s">"usr_123"</span>,
+    <span class="key">"currentTime"</span>: <span class="n">7240</span>,
+    <span class="key">"duration"</span>: <span class="n">19800</span>,
+    <span class="key">"progress"</span>: <span class="n">0.366</span>,
+    <span

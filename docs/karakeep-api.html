@@ -1,0 +1,2084 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karakeep API Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f8f7f4;
+  --surface: #ffffff;
+  --border: #e8e4db;
+  --text-primary: #14171e;
+  --text-secondary: #5a6070;
+  --text-muted: #9ba3b4;
+  --accent: #d4580a;
+  --accent-light: #fff3e8;
+  --accent-mid: #f0c9a8;
+  --green: #16a34a;
+  --green-light: #f0fdf4;
+  --blue: #2563eb;
+  --blue-light: #eff6ff;
+  --amber: #d97706;
+  --amber-light: #fffbeb;
+  --red: #dc2626;
+  --red-light: #fef2f2;
+  --purple: #7c3aed;
+  --purple-light: #f5f3ff;
+  --mono-bg: #f3f2ee;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+  --code-bg: #1c1c1e;
+  --code-text: #e2e2e5;
+  --scrollbar-thumb: #d0cdc8;
+}
+
+[data-theme="dark"] {
+  --bg: #111114;
+  --surface: #1a1a1f;
+  --border: #2a2a32;
+  --text-primary: #ececf0;
+  --text-secondary: #8b8b9a;
+  --text-muted: #55555f;
+  --accent: #e87030;
+  --accent-light: #2a1a0e;
+  --accent-mid: #4a2810;
+  --green: #22c55e;
+  --green-light: #0f2a1a;
+  --blue: #60a5fa;
+  --blue-light: #0e1a2e;
+  --amber: #fbbf24;
+  --amber-light: #2a1f00;
+  --red: #ef4444;
+  --red-light: #2a0f0f;
+  --purple: #a78bfa;
+  --purple-light: #1a0f2e;
+  --mono-bg: #14141a;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.25);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.35);
+  --code-bg: #0d0d11;
+  --code-text: #d4d4dc;
+  --scrollbar-thumb: #3a3a44;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--accent-mid); color: var(--text-primary); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+
+/* ===== LAYOUT ===== */
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 28px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-logo {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.sidebar-logo .logo-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+.sidebar-logo .logo-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sidebar-logo .logo-icon svg { color: white; }
+.sidebar-logo .logo-text {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.sidebar-logo .logo-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 1px;
+}
+
+.sidebar-section { padding: 0 12px; margin-bottom: 4px; }
+.sidebar-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 10px 8px 4px;
+}
+.sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 7px;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.sidebar a:hover { background: var(--bg); color: var(--text-primary); }
+.sidebar a.active { background: var(--accent-light); color: var(--accent); }
+
+[data-theme="dark"] .sidebar a:hover { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .sidebar a.active { background: var(--accent-light); color: var(--accent); }
+.sidebar a .method-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.method-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 5px;
+  display: inline-block;
+  min-width: 48px;
+  text-align: center;
+}
+.badge-GET { background: var(--green-light); color: var(--green); }
+.badge-POST { background: var(--blue-light); color: var(--blue); }
+.badge-PATCH { background: var(--amber-light); color: var(--amber); }
+.badge-DELETE { background: var(--red-light); color: var(--red); }
+.badge-PUT { background: var(--purple-light); color: var(--purple); }
+
+/* ===== MAIN CONTENT ===== */
+.main { padding: 40px 48px 80px; max-width: 900px; }
+
+.hero { margin-bottom: 48px; }
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-bottom: 14px;
+}
+.hero h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 42px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+}
+.hero p {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 580px;
+  line-height: 1.7;
+}
+.hero-meta {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.hero-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.hero-meta-item strong { color: var(--text-primary); }
+
+/* ===== SECTIONS ===== */
+.section { margin-bottom: 48px; }
+.section h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  margin-bottom: 8px;
+  padding-top: 8px;
+}
+.section-intro {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.7;
+}
+
+/* ===== CARDS ===== */
+.info-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+
+[data-theme="dark"] .info-card h3 svg { color: var(--accent); }
+.info-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===== CODE BLOCKS ===== */
+.code-block {
+  background: var(--code-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.code-block .code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.code-header-left { display: flex; align-items: center; gap: 8px; }
+.code-dots { display: flex; gap: 5px; }
+.code-dots span {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.code-dots span:nth-child(1) { background: #ff5f57; }
+.code-dots span:nth-child(2) { background: #febc2e; }
+.code-dots span:nth-child(3) { background: #28c840; }
+.code-lang { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.copy-btn {
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
+  font-family: 'Outfit', sans-serif;
+}
+.copy-btn:hover { color: var(--text-secondary); }
+.code-block pre {
+  padding: 18px 20px;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--code-text);
+  margin: 0;
+}
+.code-block pre .k { color: #ff7b72; }
+.code-block pre .s { color: #a5d6ff; }
+.code-block pre .c { color: #8b949e; font-style: italic; }
+.code-block pre .n { color: #79c0ff; }
+.code-block pre .p { color: #d2a8ff; }
+.code-block pre .b { color: #ffa657; }
+.code-block pre .t { color: #7ee787; }
+.code-block pre .str { color: #a5d6ff; }
+.code-block pre .key { color: #ff7b72; }
+.code-block pre .val { color: #79c0ff; }
+
+/* ===== TABLES ===== */
+.schema-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 13.5px;
+}
+.schema-table th {
+  text-align: left;
+  padding: 9px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.schema-table td {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+.schema-table tr:nth-child(even) td { background: var(--bg); }
+.schema-table .field-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.schema-table .field-type {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--blue);
+  white-space: nowrap;
+}
+.schema-table .field-required {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--red);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.schema-table .field-desc { color: var(--text-secondary); font-size: 13px; }
+.schema-table .field-enum { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--purple); }
+
+/* ===== ENDPOINT CARDS ===== */
+.endpoint { margin-bottom: 32px; }
+.endpoint-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.endpoint-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 5px 12px;
+  border-radius: 8px;
+}
+
+[data-theme="dark"] .mobile-header {
+  background: rgba(17,17,20,0.9);
+  border-bottom-color: var(--border);
+}
+.endpoint-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.endpoint-desc { font-size: 13.5px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.6; }
+
+.param-grid {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.param-row {
+  display: contents;
+}
+.param-row > * {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.param-row:last-child > * { border-bottom: none; }
+.param-row > *:nth-child(1) {
+  background: var(--bg);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.param-row > *:nth-child(2) { color: var(--text-secondary); }
+
+.response-tabs { margin-bottom: 16px; }
+.response-tab-btn {
+  background: none;
+  border: 1px solid var(--border);
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 6px;
+  transition: all 0.15s;
+  color: var(--text-secondary);
+}
+.response-tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.response-tab-btn.success { border-color: var(--green); color: var(--green); }
+.response-tab-btn.success.active { background: var(--green); color: white; }
+.response-tab-btn.error { border-color: var(--red); color: var(--red); }
+.response-tab-btn.error.active { background: var(--red); color: white; }
+.response-tab-content { display: none; }
+.response-tab-content.active { display: block; }
+
+/* ===== DIVIDERS & TAGS ===== */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 40px 0;
+}
+
+.type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.type-link { background: #eff6ff; color: #2563eb; }
+.type-text { background: #f5f3ff; color: #7c3aed; }
+.type-asset { background: #fffbeb; color: #d97706; }
+
+.qualifier-table { margin-bottom: 20px; }
+.qualifier-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.qual-row-head {
+  padding: 9px 14px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+.qual-row-body { padding: 9px 14px; color: var(--text-secondary); line-height: 1.5; }
+.qual-row-example {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--text-primary);
+  background: var(--mono-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
+/* ===== ANCHOR LINKS ===== */
+a.anchor {
+  opacity: 0;
+  transition: opacity 0.15s;
+  margin-left: 6px;
+  font-size: 0.85em;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+h2:hover a.anchor, h3:hover a.anchor { opacity: 1; }
+
+/* ===== NAV TOP BAR ===== */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(248,247,244,0.88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 48px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+[data-theme="dark"] .topbar {
+  background: rgba(17,17,20,0.88);
+}
+.topbar-links { display: flex; gap: 20px; }
+.topbar-links a {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.topbar-links a:hover { color: var(--text-primary); }
+.topbar-version {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+}
+
+.theme-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.theme-btn:hover { color: var(--text-primary); background: var(--border); }
+
+/* Icon visibility */
+.icon-sun { display: block; }
+.icon-moon { display: none; }
+[data-theme="dark"] .icon-sun { display: none; }
+[data-theme="dark"] .icon-moon { display: block; }
+
+.content-wrap { padding-top: 0; }
+
+/* Dark mode: color-coded type chips need darker backgrounds */
+[data-theme="dark"] .type-link { background: #0e1a2e; color: #93c5fd; }
+[data-theme="dark"] .type-text { background: #1a0f2e; color: #c4b5fd; }
+[data-theme="dark"] .type-asset { background: #2a1f00; color: #fcd34d; }
+
+/* Dark mode: status boxes */
+[data-theme="dark"] .hero-eyebrow {
+  background: var(--accent-light);
+  border-color: var(--accent-mid);
+}
+
+/* ===== QUICK COPY ===== */
+.token-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+}
+.token-block .token-icon { color: var(--accent); flex-shrink: 0; }
+.token-block .token-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-secondary); flex: 1; word-break: break-all; }
+
+[data-theme="dark"] .token-block .token-copy:hover { background: rgba(255,255,255,0.08); }
+.token-block .token-copy {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.token-block .token-copy:hover { background: var(--border); color: var(--text-primary); }
+
+.hint-box {
+  background: #fffbf5;
+  border: 1px solid var(--accent-mid);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  font-size: 13.5px;
+  color: #7a4820;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  line-height: 1.5;
+}
+.hint-box svg { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+[data-theme="dark"] .hint-box {
+  background: #2a1a0e;
+  color: #e8c8a0;
+  border-color: #4a2810;
+}
+
+.mobile-header {
+  display: none;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.mobile-header .logo-text { font-weight: 700; font-size: 16px; }
+
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .mobile-header { display: flex; align-items: center; justify-content: space-between; }
+  .main { padding: 24px 20px 60px; }
+  .hero h1 { font-size: 30px; }
+  .topbar { padding: 0 20px; }
+  .schema-table { font-size: 12px; }
+  .param-grid { grid-template-columns: 140px 1fr; }
+}
+
+@media print {
+  .sidebar, .topbar { display: none; }
+  .layout { grid-template-columns: 1fr; }
+  .main { padding: 20px; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- Mobile Header -->
+<div class="mobile-header">
+  <span class="logo-text">Karakeep API</span>
+  <span class="method-badge badge-GET">v1.0.0</span>
+</div>
+
+<div class="layout">
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <a href="#" class="logo-mark">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+      </div>
+      <div>
+        <div class="logo-text">Karakeep</div>
+        <div class="logo-sub">API Reference v1.0.0</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Getting Started</div>
+    <a href="#overview" class="active">Overview</a>
+    <a href="#authentication">Authentication</a>
+    <a href="#pagination">Pagination</a>
+    <a href="#errors">Errors &amp; Rate Limits</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Bookmarks</div>
+    <a href="#list-bookmarks"><span class="method-badge badge-GET">GET</span> List bookmarks</a>
+    <a href="#create-bookmark"><span class="method-badge badge-POST">POST</span> Create bookmark</a>
+    <a href="#search-bookmarks"><span class="method-badge badge-GET">GET</span> Search bookmarks</a>
+    <a href="#check-url"><span class="method-badge badge-GET">GET</span> Check URL</a>
+    <a href="#get-bookmark"><span class="method-badge badge-GET">GET</span> Get bookmark</a>
+    <a href="#update-bookmark"><span class="method-badge badge-PATCH">PATCH</span> Update bookmark</a>
+    <a href="#delete-bookmark"><span class="method-badge badge-DELETE">DELETE</span> Delete bookmark</a>
+    <a href="#summarize-bookmark"><span class="method-badge badge-POST">POST</span> Summarize bookmark</a>
+    <a href="#bookmark-tags"><span class="method-badge badge-POST">POST</span> Attach tags</a>
+    <a href="#bookmark-tags-remove"><span class="method-badge badge-DELETE">DELETE</span> Detach tags</a>
+    <a href="#bookmark-highlights"><span class="method-badge badge-GET">GET</span> Highlights</a>
+    <a href="#bookmark-assets"><span class="method-badge badge-POST">POST</span> Attach asset</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Lists</div>
+    <a href="#list-lists"><span class="method-badge badge-GET">GET</span> List lists</a>
+    <a href="#create-list"><span class="method-badge badge-POST">POST</span> Create list</a>
+    <a href="#get-list"><span class="method-badge badge-GET">GET</span> Get list</a>
+    <a href="#update-list"><span class="method-badge badge-PATCH">PATCH</span> Update list</a>
+    <a href="#delete-list"><span class="method-badge badge-DELETE">DELETE</span> Delete list</a>
+    <a href="#list-bookmarks-in-list"><span class="method-badge badge-GET">GET</span> List's bookmarks</a>
+    <a href="#add-bookmark-to-list"><span class="method-badge badge-POST">POST</span> Add to list</a>
+    <a href="#remove-bookmark-from-list"><span class="method-badge badge-DELETE">DELETE</span> Remove from list</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Tags</div>
+    <a href="#list-tags"><span class="method-badge badge-GET">GET</span> List tags</a>
+    <a href="#create-tag"><span class="method-badge badge-POST">POST</span> Create tag</a>
+    <a href="#get-tag"><span class="method-badge badge-GET">GET</span> Get tag</a>
+    <a href="#update-tag"><span class="method-badge badge-PATCH">PATCH</span> Update tag</a>
+    <a href="#delete-tag"><span class="method-badge badge-DELETE">DELETE</span> Delete tag</a>
+    <a href="#tag-bookmarks"><span class="method-badge badge-GET">GET</span> Tag's bookmarks</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Highlights</div>
+    <a href="#list-highlights"><span class="method-badge badge-GET">GET</span> List highlights</a>
+    <a href="#create-highlight"><span class="method-badge badge-POST">POST</span> Create highlight</a>
+    <a href="#get-highlight"><span class="method-badge badge-GET">GET</span> Get highlight</a>
+    <a href="#update-highlight"><span class="method-badge badge-PATCH">PATCH</span> Update highlight</a>
+    <a href="#delete-highlight"><span class="method-badge badge-DELETE">DELETE</span> Delete highlight</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Assets</div>
+    <a href="#upload-asset"><span class="method-badge badge-POST">POST</span> Upload asset</a>
+    <a href="#get-asset"><span class="method-badge badge-GET">GET</span> Get asset</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Users &amp; Admin</div>
+    <a href="#get-current-user"><span class="method-badge badge-GET">GET</span> Current user</a>
+    <a href="#get-user-stats"><span class="method-badge badge-GET">GET</span> User stats</a>
+    <a href="#admin-update-user"><span class="method-badge badge-PATCH">PATCH</span> Admin update user</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Backups</div>
+    <a href="#list-backups"><span class="method-badge badge-GET">GET</span> List backups</a>
+    <a href="#create-backup"><span class="method-badge badge-POST">POST</span> Trigger backup</a>
+    <a href="#get-backup"><span class="method-badge badge-GET">GET</span> Get backup</a>
+    <a href="#download-backup"><span class="method-badge badge-GET">GET</span> Download backup</a>
+    <a href="#delete-backup"><span class="method-badge badge-DELETE">DELETE</span> Delete backup</a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Reference</div>
+    <a href="#bookmark-model">Bookmark Model</a>
+    <a href="#search-syntax">Search Syntax</a>
+    <a href="#sdk-clients">SDKs &amp; Clients</a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-links">
+    <a href="https://karakeep.app" target="_blank">Website</a>
+    <a href="https://docs.karakeep.app" target="_blank">Docs</a>
+    <a href="https://github.com/karakeep-app/karakeep" target="_blank">GitHub</a>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="topbar-version">API v1.0.0</span>
+  </div>
+</div>
+
+<div class="content-wrap">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+    REST API v1.0.0
+  </div>
+  <h1>Karakeep API Reference</h1>
+  <p>The Karakeep REST API lets you manage bookmarks, lists, tags, highlights, assets, and backups programmatically. Everything you need to build a powerful dashboard or automation layer on top of your Karakeep instance.</p>
+  <div class="hero-meta">
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      Base URL: <strong>{server}/api/v1</strong>
+    </div>
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      Auth: <strong>Bearer token (JWT)</strong>
+    </div>
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+      Format: <strong>JSON</strong>
+    </div>
+    <div class="hero-meta-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      <strong>40+</strong> endpoints
+    </div>
+  </div>
+</div>
+
+<!-- OVERVIEW -->
+<div class="section" id="overview">
+  <h2>Overview<a name="overview" class="anchor">#</a></h2>
+  <p class="section-intro">Karakeep is a self-hostable bookmarking and read-it-later service. Its REST API exposes every core entity — bookmarks, lists, tags, highlights, assets, and backups — so you can build dashboards, integrations, and automation on top of it.</p>
+
+  <div class="info-card">
+    <h3>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+      Bookmark Types
+    </h3>
+    <div style="display:grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 8px;">
+      <div style="background: var(--blue-light); border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--blue); font-weight:600; margin-bottom:4px;">link</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">A URL bookmark with optional crawled metadata, screenshot, PDF, or full-page archive.</div>
+      </div>
+      <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--purple); font-weight:600; margin-bottom:4px;">text</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">A plain text note or snippet stored directly as a bookmark.</div>
+      </div>
+      <div style="background: var(--amber-light); border: 1px solid #fde68a; border-radius: 8px; padding: 12px 14px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color: var(--amber); font-weight:600; margin-bottom:4px;">asset</div>
+        <div style="font-size:12.5px; color: var(--text-secondary);">An uploaded file — image or PDF — stored and attached to a bookmark.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-card">
+    <h3>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+      Base URL &amp; Server
+    </h3>
+    <table class="schema-table" style="margin-bottom:0;">
+      <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name" style="color: var(--text-primary);">address</span></td><td><span class="field-type">https://try.karakeep.app</span></td><td class="field-desc">Your Karakeep server address. Include no trailing slash.</td></tr>
+        <tr><td><span class="field-name" style="color: var(--text-primary);">full base URL</span></td><td><span class="field-type">{address}/api/v1</span></td><td class="field-desc">All endpoints are relative to this base path.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- AUTHENTICATION -->
+<div class="section" id="authentication">
+  <h2>Authentication<a name="authentication" class="anchor">#</a></h2>
+  <p class="section-intro">All API endpoints require a Bearer token in the <code>Authorization</code> header. Generate an API key from your Karakeep instance at <strong>Settings → API Keys → New API Key</strong>.</p>
+
+  <div class="token-block">
+    <div class="token-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+    </div>
+    <div class="token-text">Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</div>
+    <button class="token-copy" onclick="copyToken(this)">Copy</button>
+  </div>
+
+  <div class="hint-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+    <span><strong>Granular scopes:</strong> API keys can now be scoped to specific resources. Give agents read access to bookmarks but not admin actions, for example. Check the API key settings in your Karakeep instance.</span>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-header-left">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <span class="code-lang">http</span>
+      </div>
+    </div>
+    <pre><span class="k">GET</span> <span class="s">/api/v1/bookmarks</span>
+<span class="b">Authorization</span>: <span class="t">Bearer</span> <span class="s">your-api-key-here</span>
+<span class="b">Content-Type</span>: <span class="t">application/json</span></pre>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- PAGINATION -->
+<div class="section" id="pagination">
+  <h2>Pagination<a name="pagination" class="anchor">#</a></h2>
+  <p class="section-intro">All list endpoints use cursor-based pagination. Pass the <code>cursor</code> from a response's <code>nextCursor</code> field to fetch the next page. When <code>nextCursor</code> is <code>null</code>, you've reached the end.</p>
+
+  <table class="schema-table">
+    <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="field-name">cursor</span></td><td class="field-type">query</td>
+        <td class="field-type">string</td><td class="field-desc">—</td>
+        <td class="field-desc">Opaque cursor from a previous response's <code>nextCursor</code> field.</td>
+      </tr>
+      <tr>
+        <td><span class="field-name">limit</span></td><td class="field-type">query</td>
+        <td class="field-type">integer</td><td class="field-desc">20</td>
+        <td class="field-desc">Number of items to return per page.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div>
+    </div>
+    <pre>{
+  <span class="key">"bookmarks"</span>: <span class="p">[...]</span>,
+  <span class="key">"nextCursor"</span>: <span class="s">"abc123xyz"</span>   <span class="c">// pass this as ?cursor=abc123xyz for next page</span>
+}</pre>
+  </div>
+
+  <div class="hint-box">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+    <span><strong>includeContent:</strong> Endpoints that return bookmarks accept an <code>includeContent</code> query param (defaults to <code>true</code> for backward compatibility, but will switch to <code>false</code> in future releases). Pass <code>?includeContent=false</code> if you don't need the full archive content — it'll save bandwidth.</span>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ERRORS -->
+<div class="section" id="errors">
+  <h2>Errors &amp; Rate Limits<a name="errors" class="anchor">#</a></h2>
+  <p class="section-intro">The API uses conventional HTTP status codes. When rate limiting is enabled, exceeding the per-IP limit returns a <code>429</code> with a <code>Retry-After</code> header.</p>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 20px;">
+    <div style="background: var(--green-light); border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--green);">2xx</div>
+      <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">Success — request succeeded</div>
+    </div>
+    <div style="background: var(--blue-light); border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--blue);">4xx</div>
+      <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">Client error — check your request</div>
+    </div>
+    <div style="background: var(--red-light); border: 1px solid #fecaca; border-radius: 8px; padding: 12px 16px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--red);">429</div>
+      <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">Rate limit exceeded — retry after</div>
+    </div>
+    <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 12px 16px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:700; color:var(--purple);">5xx</div>
+      <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">Server error — Karakeep issue</div>
+    </div>
+  </div>
+
+  <table class="schema-table">
+    <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><span class="field-name" style="color:var(--green);">200 OK</span></td><td class="field-desc">Request succeeded. Bookmark with this URL already existed (for link creation).</td></tr>
+      <tr><td><span class="field-name" style="color:var(--green);">201 Created</span></td><td class="field-desc">Bookmark/resource was created successfully.</td></tr>
+      <tr><td><span class="field-name" style="color:var(--red);">400 Bad Request</span></td><td class="field-desc">Invalid input data — missing required fields or malformed request.</td></tr>
+      <tr><td><span class="field-name" style="color:var(--red);">401 Unauthorized</span></td><td class="field-desc">Bearer token is missing, invalid, or expired.</td></tr>
+      <tr><td><span class="field-name" style="color:var(--red);">403 Forbidden</span></td><td class="field-desc">You don't have permission for this action (e.g., admin endpoint without admin role).</td></tr>
+      <tr><td><span class="field-name" style="color:var(--red);">404 Not Found</span></td><td class="field-desc">The requested resource doesn't exist.</td></tr>
+      <tr><td><span class="field-name" style="color:var(--amber);">429 Too Many Requests</span></td><td class="field-desc">Rate limit exceeded. Check the <code>Retry-After</code> header for seconds to wait.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== BOOKMARKS ===== -->
+<div class="section" id="list-bookmarks">
+  <h2>Bookmarks<a name="list-bookmarks" class="anchor">#</a></h2>
+  <p class="section-intro">The core entity. Bookmarks hold URLs, text notes, or uploaded files. Each bookmark carries metadata, tags, highlights, and asset references.</p>
+
+  <!-- GET /bookmarks -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/bookmarks</span>
+    </div>
+    <p class="endpoint-desc">Retrieve a paginated list of all bookmarks for the authenticated user. Supports filtering by archived/favourited status and sorting by date.</p>
+
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">cursor</span></td><td>query</td><td class="field-type">string</td><td>—</td><td class="field-desc">Pagination cursor from a previous response.</td></tr>
+        <tr><td><span class="field-name">limit</span></td><td>query</td><td class="field-type">integer</td><td>20</td><td class="field-desc">Number of bookmarks per page.</td></tr>
+        <tr><td><span class="field-name">archived</span></td><td>query</td><td class="field-type">boolean</td><td>false</td><td class="field-desc">Set to <code>true</code> to list only archived bookmarks.</td></tr>
+        <tr><td><span class="field-name">favourited</span></td><td>query</td><td class="field-type">boolean</td><td>false</td><td class="field-desc">Set to <code>true</code> to list only favourited bookmarks.</td></tr>
+        <tr><td><span class="field-name">sortOrder</span></td><td>query</td><td class="field-type">enum</td><td>newest</td><td class="field-desc">Sort order: <span class="field-enum">newest, oldest, recentlyUsed</span></td></tr>
+        <tr><td><span class="field-name">includeContent</span></td><td>query</td><td class="field-type">boolean</td><td>true</td><td class="field-desc">Whether to include full bookmark content (can be large). Will default to <code>false</code> in future releases.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="response-tabs">
+      <button class="response-tab-btn success active" onclick="switchTab(this, 'tab-list-200')">200 OK</button>
+      <button class="response-tab-btn error" onclick="switchTab(this, 'tab-list-401')">401</button>
+    </div>
+    <div id="tab-list-200" class="response-tab-content active">
+      <div class="code-block">
+        <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+        <pre>{
+  <span class="key">"bookmarks"</span>: <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="key">"id"</span>: <span class="s">"ieidlxygmwj87oxz5hxttoc8"</span>,
+      <span class="key">"createdAt"</span>: <span class="s">"2024-01-15T10:30:00Z"</span>,
+      <span class="key">"modifiedAt"</span>: <span class="s">"2024-01-15T14:22:00Z"</span>,
+      <span class="key">"title"</span>: <span class="s">"Docker Compose Best Practices"</span>,
+      <span class="key">"archived"</span>: <span class="t">false</span>,
+      <span class="key">"favourited"</span>: <span class="t">true</span>,
+      <span class="key">"taggingStatus"</span>: <span class="s">"success"</span>,
+      <span class="key">"summarizationStatus"</span>: <span class="s">"success"</span>,
+      <span class="key">"note"</span>: <span class="s">"Important for homelab setup"</span>,
+      <span class="key">"summary"</span>: <span class="s">"This article covers advanced Docker patterns..."</span>,
+      <span class="key">"source"</span>: <span class="s">"extension"</span>,
+      <span class="key">"userId"</span>: <span class="s">"clx00000000000000001"</span>,
+      <span class="key">"tags"</span>: <span class="p">[</span>
+        <span class="p">{</span> <span class="key">"id"</span>: <span class="s">"abc123"</span>, <span class="key">"name"</span>: <span class="s">"docker"</span>, <span class="key">"attachedBy"</span>: <span class="s">"ai"</span> <span class="p">}</span>
+      <span class="p">],</span>
+      <span class="key">"content"</span>: <span class="p">{</span>
+        <span class="key">"type"</span>: <span class="s">"link"</span>,
+        <span class="key">"url"</span>: <span class="s">"https://example.com/docker-patterns"</span>,
+        <span class="key">"description"</span>: <span class="s">"Advanced patterns for production Docker deployments"</span>,
+        <span class="key">"imageUrl"</span>: <span class="s">"https://example.com/og-image.png"</span>,
+        <span class="key">"favicon"</span>: <span class="s">"https://example.com/favicon.ico"</span>,
+        <span class="key">"crawledAt"</span>: <span class="s">"2024-01-15T10:31:00Z"</span>,
+        <span class="key">"crawlStatus"</span>: <span class="s">"success"</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="key">"nextCursor"</span>: <span class="s">"next_page_token"</span>
+<span class="p">}</span></pre>
+      </div>
+    </div>
+    <div id="tab-list-401" class="response-tab-content">
+      <div class="code-block"><div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{ <span class="key">"error"</span>: <span class="s">"Unauthorized"</span> }</pre>
+    </div>
+  </div>
+
+  <!-- POST /bookmarks -->
+  <div class="endpoint" id="create-bookmark">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/bookmarks</span>
+    </div>
+    <p class="endpoint-desc">Create a new bookmark. The type (<code>link</code>, <code>text</code>, or <code>asset</code>) is determined by the <code>type</code> field in the request body. For link bookmarks, if the URL already exists, the existing bookmark is returned with a <strong>200</strong> status.</p>
+
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">type</span></td><td class="field-type">enum</td><td><span class="field-required">yes</span></td><td class="field-desc">Bookmark type: <span class="field-enum">"link", "text", "asset"</span></td></tr>
+        <tr><td><span class="field-name">url</span></td><td class="field-type">string</td><td><span class="field-required">yes*</span></td><td class="field-desc">Required for <code>link</code> type. The URL to bookmark.</td></tr>
+        <tr><td><span class="field-name">text</span></td><td class="field-type">string</td><td><span class="field-required">yes*</span></td><td class="field-desc">Required for <code>text</code> type. The text content of the note.</td></tr>
+        <tr><td><span class="field-name">name</span></td><td class="field-type">string</td><td>no</td><td class="field-desc">Optional display name for the bookmark.</td></tr>
+        <tr><td><span class="field-name">listId</span></td><td class="field-type">string</td><td>no</td><td class="field-desc">ID of the list to add the bookmark to immediately.</td></tr>
+        <tr><td><span class="field-name">listIds</span></td><td class="field-type">string[]</td><td>no</td><td class="field-desc">IDs of multiple lists to add the bookmark to.</td></tr>
+        <tr><td><span class="field-name">tagIds</span></td><td class="field-type">string[]</td><td>no</td><td class="field-desc">IDs of tags to attach at creation time.</td></tr>
+        <tr><td><span class="field-name">shouldFetchMetadata</span></td><td class="field-type">boolean</td><td>no</td><td class="field-desc">Auto-fetch title, description, and image for link bookmarks. Default: <code>true</code>.</td></tr>
+        <tr><td><span class="field-name">shouldTag</span></td><td class="field-type">boolean</td><td>no</td><td class="field-desc">Trigger AI auto-tagging. Requires OpenAI/Ollama configured. Default: <code>true</code>.</td></tr>
+        <tr><td><span class="field-name">shouldSummarize</span></td><td class="field-type">boolean</td><td>no</td><td class="field-desc">Trigger AI summarization. Default: <code>false</code>.</td></tr>
+        <tr><td><span class="field-name">assetId</span></td><td class="field-type">string</td><td>no</td><td class="field-desc">Required for <code>asset</code> type. The ID of the pre-uploaded asset.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="response-tabs">
+      <button class="response-tab-btn success" onclick="switchTab(this, 'tab-create-200')">200 Exists</button>
+      <button class="response-tab-btn success active" onclick="switchTab(this, 'tab-create-201')">201 Created</button>
+      <button class="response-tab-btn error" onclick="switchTab(this, 'tab-create-400')">400</button>
+      <button class="response-tab-btn error" onclick="switchTab(this, 'tab-create-401')">401</button>
+    </div>
+    <div id="tab-create-201" class="response-tab-content active">
+      <div class="code-block">
+        <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+        <pre><span class="k">POST</span> <span class="s">/api/v1/bookmarks</span>
+<span class="b">Authorization</span>: <span class="t">Bearer</span> <span class="s">your-api-key</span>
+<span class="b">Content-Type</span>: <span class="t">application/json</span>
+
+{
+  <span class="key">"type"</span>: <span class="s">"link"</span>,
+  <span class="key">"url"</span>: <span class="s">"https://example.com/advanced-docker-patterns"</span>,
+  <span class="key">"listId"</span>: <span class="s">"ieidlxygmwj87oxz5hxttoc8"</span>,
+  <span class="key">"shouldFetchMetadata"</span>: <span class="t">true</span>,
+  <span class="key">"shouldTag"</span>: <span class="t">true</span>
+}</pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+        <pre><span class="k">POST</span> <span class="s">/api/v1/bookmarks</span>
+<span class="b">Authorization</span>: <span class="t">Bearer</span> <span class="s">your-api-key</span>
+<span class="b">Content-Type</span>: <span class="t">application/json</span>
+
+{
+  <span class="key">"type"</span>: <span class="s">"text"</span>,
+  <span class="key">"text"</span>: <span class="s">"Remember to review the PR for the auth refactor"</span>
+}</pre>
+      </div>
+    </div>
+    <div id="tab-create-200" class="response-tab-content">
+      <div class="code-block"><div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{ <span class="key">"message"</span>: <span class="s">"Bookmark with this URL already exists"</span>, <span class="key">"bookmark"</span>: <span class="p">{...existing bookmark...}</span> }</pre>
+    </div>
+    <div id="tab-create-400" class="response-tab-content">
+      <div class="code-block"><div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{ <span class="key">"error"</span>: <span class="s">"Bad Request — invalid input data"</span> }</pre>
+    </div>
+    <div id="tab-create-401" class="response-tab-content">
+      <div class="code-block"><div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{ <span class="key">"error"</span>: <span class="s">"Unauthorized"</span> }</pre>
+    </div>
+  </div>
+
+  <!-- GET /bookmarks/search -->
+  <div class="endpoint" id="search-bookmarks">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/bookmarks/search</span>
+    </div>
+    <p class="endpoint-desc">Full-text search across all bookmarks. Searches titles, content, descriptions, and notes. Results are sorted by relevance by default. Supports the full Karakeep <a href="#search-syntax" style="color: var(--accent);">search query language</a>.</p>
+
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">q</span></td><td>query</td><td class="field-type">string</td><td class="field-desc">Search query. Supports qualifiers like <span class="field-enum">is:fav, #tag, list:name, url:github.com, age:&lt;1w</span></td></tr>
+        <tr><td><span class="field-name">cursor</span></td><td>query</td><td class="field-type">string</td><td class="field-desc">Pagination cursor.</td></tr>
+        <tr><td><span class="field-name">limit</span></td><td>query</td><td class="field-type">integer</td><td class="field-desc">Results per page (default 20).</td></tr>
+        <tr><td><span class="field-name">sortOrder</span></td><td>query</td><td class="field-type">enum</td><td class="field-desc">Sort: <span class="field-enum">relevance, newest, oldest</span></td></tr>
+        <tr><td><span class="field-name">includeContent</span></td><td>query</td><td class="field-type">boolean</td><td class="field-desc">Include full bookmark content (default true).</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+      <pre><span class="c"># Favorited bookmarks from 2024 tagged "important"</span>
+<span class="k">GET</span> <span class="s">/api/v1/bookmarks/search?q=is:fav%20after:2024-01-01%20before:2024-12-31%20%23important</span>
+
+<span class="c"># Untagged bookmarks in the "reading" list</span>
+<span class="k">GET</span> <span class="s">/api/v1/bookmarks/search?q=list:reading%20-is:tagged</span>
+
+<span class="c"># Full-text search combined with qualifiers</span>
+<span class="k">GET</span> <span class="s">/api/v1/bookmarks/search?q=machine%20learning%20is:fav</span></pre>
+    </div>
+  </div>
+
+  <!-- GET /bookmarks/check-url -->
+  <div class="endpoint" id="check-url">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/bookmarks/check-url</span>
+    </div>
+    <p class="endpoint-desc">Check if a URL already exists in the authenticated user's bookmarks. Useful for deduplication before creating a new bookmark.</p>
+
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">url</span></td><td>query</td><td class="field-type">string</td><td class="field-desc">The URL to check (URL-encoded).</td></tr>
+      </tbody>
+    </table>
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+      <pre><span class="k">GET</span> <span class="s">/api/v1/bookmarks/check-url?url=https%3A%2F%2Fexample.com</span></pre>
+    </div>
+  </div>
+
+  <!-- GET /bookmarks/:id -->
+  <div class="endpoint" id="get-bookmark">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}</span>
+    </div>
+    <p class="endpoint-desc">Retrieve a single bookmark by its ID. Returns the full bookmark object including content, tags, and metadata.</p>
+    <div class="param-grid">
+      <div class="param-row"><div><span class="field-name">bookmarkId</span></div><div>Path — string — The unique ID of the bookmark</div></div>
+      <div class="param-row"><div><span class="field-name">includeContent</span></div><div>Query — boolean — Include full content (default true)</div></div>
+    </div>
+  </div>
+
+  <!-- PATCH /bookmarks/:id -->
+  <div class="endpoint" id="update-bookmark">
+    <div class="endpoint-header">
+      <span class="method-badge badge-PATCH">PATCH</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}</span>
+    </div>
+    <p class="endpoint-desc">Update a bookmark's fields. All fields are optional — only provided fields are updated.</p>
+    <div class="param-grid">
+      <div class="param-row"><div><span class="field-name">bookmarkId</span></div><div>Path — string — The bookmark ID</div></div>
+    </div>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">url</span></td><td class="field-type">string</td><td class="field-desc">Update the URL (for link bookmarks).</td></tr>
+        <tr><td><span class="field-name">title</span></td><td class="field-type">string</td><td class="field-desc">Update the display title.</td></tr>
+        <tr><td><span class="field-name">summary</span></td><td class="field-type">string</td><td class="field-desc">Update the AI-generated summary.</td></tr>
+        <tr><td><span class="field-name">note</span></td><td class="field-type">string</td><td class="field-desc">Update the personal note attached to the bookmark.</td></tr>
+        <tr><td><span class="field-name">archived</span></td><td class="field-type">boolean</td><td class="field-desc">Archive or unarchive the bookmark.</td></tr>
+        <tr><td><span class="field-name">favourited</span></td><td class="field-type">boolean</td><td class="field-desc">Favourite or unfavourite the bookmark.</td></tr>
+        <tr><td><span class="field-name">createdAt</span></td><td class="field-type">string (ISO 8601)</td><td class="field-desc">Update the creation date.</td></tr>
+        <tr><td><span class="field-name">text</span></td><td class="field-type">string</td><td class="field-desc">Update text content (for text bookmarks).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DELETE /bookmarks/:id -->
+  <div class="endpoint" id="delete-bookmark">
+    <div class="endpoint-header">
+      <span class="method-badge badge-DELETE">DELETE</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}</span>
+    </div>
+    <p class="endpoint-desc">Permanently delete a bookmark. This action cannot be undone.</p>
+    <div class="param-grid">
+      <div class="param-row"><div><span class="field-name">bookmarkId</span></div><div>Path — string — The bookmark ID</div></div>
+    </div>
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+      <pre><span class="k">DELETE</span> <span class="s">/api/v1/bookmarks/ieidlxygmwj87oxz5hxttoc8</span></pre>
+    </div>
+  </div>
+
+  <!-- POST /bookmarks/:id/summarize -->
+  <div class="endpoint" id="summarize-bookmark">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}/summarize</span>
+    </div>
+    <p class="endpoint-desc">Trigger AI summarization for a bookmark. Reads the crawled content and generates an AI summary. Requires OpenAI or Ollama to be configured.</p>
+  </div>
+
+  <!-- POST /bookmarks/:id/tags -->
+  <div class="endpoint" id="bookmark-tags">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}/tags</span>
+    </div>
+    <p class="endpoint-desc">Attach one or more tags to a bookmark.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">tagIds</span></td><td class="field-type">string[]</td><td><span class="field-required">yes</span></td><td class="field-desc">Array of tag IDs to attach.</td></tr>
+        <tr><td><span class="field-name">attachedBy</span></td><td class="field-type">enum</td><td>no</td><td class="field-desc">Mark as <span class="field-enum">"human"</span> or <span class="field-enum">"ai"</span> attached. Default: <code>human</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DELETE /bookmarks/:id/tags -->
+  <div class="endpoint" id="bookmark-tags-remove">
+    <div class="endpoint-header">
+      <span class="method-badge badge-DELETE">DELETE</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}/tags</span>
+    </div>
+    <p class="endpoint-desc">Detach one or more tags from a bookmark.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">tagIds</span></td><td class="field-type">string[]</td><td><span class="field-required">yes</span></td><td class="field-desc">Array of tag IDs to detach.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- GET /bookmarks/:id/lists -->
+  <div class="endpoint" id="bookmark-lists">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}/lists</span>
+    </div>
+    <p class="endpoint-desc">Get all lists that a bookmark belongs to.</p>
+  </div>
+
+  <!-- GET /bookmarks/:id/highlights -->
+  <div class="endpoint" id="bookmark-highlights">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}/highlights</span>
+    </div>
+    <p class="endpoint-desc">Retrieve all text highlights attached to a specific bookmark.</p>
+  </div>
+
+  <!-- POST /bookmarks/:id/assets -->
+  <div class="endpoint" id="bookmark-assets">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}/assets</span>
+    </div>
+    <p class="endpoint-desc">Attach an uploaded asset (image/PDF) to a bookmark.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">assetId</span></td><td class="field-type">string</td><td><span class="field-required">yes</span></td><td class="field-desc">ID of the pre-uploaded asset.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PUT /bookmarks/:id/assets -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-PUT">PUT</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}/assets</span>
+    </div>
+    <p class="endpoint-desc">Replace the current asset on a bookmark with a new one.</p>
+  </div>
+
+  <!-- DELETE /bookmarks/:id/assets -->
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-DELETE">DELETE</span>
+      <span class="endpoint-path">/bookmarks/{bookmarkId}/assets</span>
+    </div>
+    <p class="endpoint-desc">Detach the asset from a bookmark without deleting the asset itself.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== LISTS ===== -->
+<div class="section" id="list-lists">
+  <h2>Lists<a name="list-lists" class="anchor">#</a></h2>
+  <p class="section-intro">Lists are collections of bookmarks. They can be <strong>manual</strong> (you add bookmarks individually) or <strong>smart</strong> (they're defined by a search query and update automatically).</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/lists</span>
+    </div>
+    <p class="endpoint-desc">Retrieve all bookmark lists for the authenticated user, including both manual and smart lists.</p>
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{
+  <span class="key">"lists"</span>: <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="key">"id"</span>: <span class="s">"list_abc123"</span>,
+      <span class="key">"name"</span>: <span class="s">"DevOps"</span>,
+      <span class="key">"description"</span>: <span class="s">"Docker, Kubernetes, and infra links"</span>,
+      <span class="key">"type"</span>: <span class="s">"manual"</span>,   <span class="c">// or "smart"</span>
+      <span class="key">"query"</span>: <span class="t">null</span>,         <span class="c">// set for smart lists</span>
+      <span class="key">"createdAt"</span>: <span class="s">"2024-01-10T08:00:00Z"</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="key">"nextCursor"</span>: <span class="t">null</span>
+<span class="p">}</span></pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="create-list">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/lists</span>
+    </div>
+    <p class="endpoint-desc">Create a new list.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">name</span></td><td class="field-type">string</td><td><span class="field-required">yes</span></td><td class="field-desc">Display name of the list.</td></tr>
+        <tr><td><span class="field-name">description</span></td><td class="field-type">string</td><td>no</td><td class="field-desc">Short description shown beside the list name.</td></tr>
+        <tr><td><span class="field-name">type</span></td><td class="field-type">enum</td><td>no</td><td class="field-desc"><span class="field-enum">"manual"</span> (default) or <span class="field-enum">"smart"</span></td></tr>
+        <tr><td><span class="field-name">query</span></td><td class="field-type">string</td><td>no</td><td class="field-desc">Required for smart lists. The search query that defines membership.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="endpoint" id="get-list">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/lists/{listId}</span>
+    </div>
+    <p class="endpoint-desc">Get a single list by ID.</p>
+  </div>
+
+  <div class="endpoint" id="update-list">
+    <div class="endpoint-header">
+      <span class="method-badge badge-PATCH">PATCH</span>
+      <span class="endpoint-path">/lists/{listId}</span>
+    </div>
+    <p class="endpoint-desc">Update a list's name, description, or query (for smart lists).</p>
+  </div>
+
+  <div class="endpoint" id="delete-list">
+    <div class="endpoint-header">
+      <span class="method-badge badge-DELETE">DELETE</span>
+      <span class="endpoint-path">/lists/{listId}</span>
+    </div>
+    <p class="endpoint-desc">Delete a list. Bookmarks in the list are not deleted — only removed from this list.</p>
+  </div>
+
+  <div class="endpoint" id="list-bookmarks-in-list">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/lists/{listId}/bookmarks</span>
+    </div>
+    <p class="endpoint-desc">Get all bookmarks in a specific list, with pagination support.</p>
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">listId</span></td><td>path</td><td class="field-type">string</td><td class="field-desc">The list ID.</td></tr>
+        <tr><td><span class="field-name">cursor</span></td><td>query</td><td class="field-type">string</td><td class="field-desc">Pagination cursor.</td></tr>
+        <tr><td><span class="field-name">limit</span></td><td>query</td><td class="field-type">integer</td><td class="field-desc">Results per page (default 20).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="endpoint" id="add-bookmark-to-list">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/lists/{listId}/bookmarks</span>
+    </div>
+    <p class="endpoint-desc">Add a bookmark to a list.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">bookmarkId</span></td><td class="field-type">string</td><td><span class="field-required">yes</span></td><td class="field-desc">ID of the bookmark to add.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="endpoint" id="remove-bookmark-from-list">
+    <div class="endpoint-header">
+      <span class="method-badge badge-DELETE">DELETE</span>
+      <span class="endpoint-path">/lists/{listId}/bookmarks/{bookmarkId}</span>
+    </div>
+    <p class="endpoint-desc">Remove a bookmark from a list without deleting the bookmark itself.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== TAGS ===== -->
+<div class="section" id="list-tags">
+  <h2>Tags<a name="list-tags" class="anchor">#</a></h2>
+  <p class="section-intro">Tags are lightweight labels for categorizing bookmarks. Tags can be attached by users or auto-generated by AI. Each tag tracks how many bookmarks it's attached to.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/tags</span>
+    </div>
+    <p class="endpoint-desc">Get a paginated list of all tags, with usage counts and optional filtering.</p>
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">query</span></td><td>query</td><td class="field-type">string</td><td class="field-desc">Filter tags by name prefix/partial match.</td></tr>
+        <tr><td><span class="field-name">attachedBy</span></td><td>query</td><td class="field-type">enum</td><td class="field-desc">Filter: <span class="field-enum">"ai", "human"</span></td></tr>
+        <tr><td><span class="field-name">sortOrder</span></td><td>query</td><td class="field-type">enum</td><td class="field-desc">Sort by: <span class="field-enum">name, usageCount, recentlyUsed</span></td></tr>
+        <tr><td><span class="field-name">cursor</span>, <span class="field-name">limit</span></td><td>query</td><td class="field-type">string / int</td><td class="field-desc">Pagination controls.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="endpoint" id="create-tag">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/tags</span>
+    </div>
+    <p class="endpoint-desc">Create a new tag.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">name</span></td><td class="field-type">string</td><td><span class="field-required">yes</span></td><td class="field-desc">The tag name (lowercase, no spaces recommended).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="endpoint" id="get-tag">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/tags/{tagId}</span>
+    </div>
+    <p class="endpoint-desc">Get a single tag by its ID.</p>
+  </div>
+
+  <div class="endpoint" id="update-tag">
+    <div class="endpoint-header">
+      <span class="method-badge badge-PATCH">PATCH</span>
+      <span class="endpoint-path">/tags/{tagId}</span>
+    </div>
+    <p class="endpoint-desc">Rename a tag.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">name</span></td><td class="field-type">string</td><td><span class="field-required">yes</span></td><td class="field-desc">New tag name.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="endpoint" id="delete-tag">
+    <div class="endpoint-header">
+      <span class="method-badge badge-DELETE">DELETE</span>
+      <span class="endpoint-path">/tags/{tagId}</span>
+    </div>
+    <p class="endpoint-desc">Delete a tag. Removes it from all bookmarks it's attached to.</p>
+  </div>
+
+  <div class="endpoint" id="tag-bookmarks">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/tags/{tagId}/bookmarks</span>
+    </div>
+    <p class="endpoint-desc">Get all bookmarks with a specific tag.</p>
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">cursor</span>, <span class="field-name">limit</span></td><td>query</td><td class="field-type">string / int</td><td class="field-desc">Pagination controls.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== HIGHLIGHTS ===== -->
+<div class="section" id="list-highlights">
+  <h2>Highlights<a name="list-highlights" class="anchor">#</a></h2>
+  <p class="section-intro">Highlights let you mark and annotate specific text within saved bookmark pages. Each highlight can have a color code and an optional note.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/highlights</span>
+    </div>
+    <p class="endpoint-desc">List all highlights across the authenticated user's bookmarks.</p>
+    <table class="schema-table">
+      <thead><tr><th>Parameter</th><th>In</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">bookmarkId</span></td><td>query</td><td class="field-type">string</td><td class="field-desc">Filter highlights to a specific bookmark.</td></tr>
+        <tr><td><span class="field-name">cursor</span>, <span class="field-name">limit</span></td><td>query</td><td class="field-type">string / int</td><td class="field-desc">Pagination controls.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="endpoint" id="create-highlight">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/highlights</span>
+    </div>
+    <p class="endpoint-desc">Create a new text highlight on a bookmark.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">bookmarkId</span></td><td class="field-type">string</td><td><span class="field-required">yes</span></td><td class="field-desc">ID of the bookmark to highlight.</td></tr>
+        <tr><td><span class="field-name">text</span></td><td class="field-type">string</td><td><span class="field-required">yes</span></td><td class="field-desc">The highlighted text.</td></tr>
+        <tr><td><span class="field-name">color</span></td><td class="field-type">string</td><td>no</td><td class="field-desc">Hex color code, e.g. <code>"#fef08a"</code></td></tr>
+        <tr><td><span class="field-name">note</span></td><td class="field-type">string</td><td>no</td><td class="field-desc">Optional personal note attached to the highlight.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="endpoint" id="get-highlight">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/highlights/{highlightId}</span>
+    </div>
+    <p class="endpoint-desc">Get a single highlight by its ID.</p>
+  </div>
+
+  <div class="endpoint" id="update-highlight">
+    <div class="endpoint-header">
+      <span class="method-badge badge-PATCH">PATCH</span>
+      <span class="endpoint-path">/highlights/{highlightId}</span>
+    </div>
+    <p class="endpoint-desc">Update a highlight's text, color, or note.</p>
+  </div>
+
+  <div class="endpoint" id="delete-highlight">
+    <div class="endpoint-header">
+      <span class="method-badge badge-DELETE">DELETE</span>
+      <span class="endpoint-path">/highlights/{highlightId}</span>
+    </div>
+    <p class="endpoint-desc">Delete a highlight.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== ASSETS ===== -->
+<div class="section" id="upload-asset">
+  <h2>Assets<a name="upload-asset" class="anchor">#</a></h2>
+  <p class="section-intro">Assets are binary files — images and PDFs — uploaded to Karakeep. They're stored separately and attached to bookmarks via asset IDs. Useful for archiving screenshots, uploaded images, or PDF documents.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/assets</span>
+    </div>
+    <p class="endpoint-desc">Upload a new asset (image or PDF) as <code>multipart/form-data</code>. Returns the asset ID and metadata.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">file</span></td><td class="field-type">binary</td><td><span class="field-required">yes</span></td><td class="field-desc">The file to upload. Content-Type: <code>multipart/form-data</code></td></tr>
+      </tbody>
+    </table>
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+      <pre><span class="k">POST</span> <span class="s">/api/v1/assets</span>
+<span class="b">Authorization</span>: <span class="t">Bearer</span> <span class="s">your-api-key</span>
+<span class="b">Content-Type</span>: <span class="t">multipart/form-data</span>
+
+<span class="c"># Using curl</span>
+curl -X POST <span class="s">/api/v1/assets</span> \
+  -H <span class="s">"Authorization: Bearer your-api-key"</span> \
+  -F <span class="s">"file=@document.pdf"</span>
+
+<span class="c"># Response</span>
+{
+  <span class="key">"id"</span>: <span class="s">"asset_xyz789"</span>,
+  <span class="key">"filename"</span>: <span class="s">"document.pdf"</span>,
+  <span class="key">"mimeType"</span>: <span class="s">"application/pdf"</span>,
+  <span class="key">"size"</span>: <span class="n">245760</span>,
+  <span class="key">"url"</span>: <span class="s">"/api/v1/assets/asset_xyz789"</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="get-asset">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/assets/{assetId}</span>
+    </div>
+    <p class="endpoint-desc">Retrieve an asset's metadata or download the binary file directly.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== USERS ===== -->
+<div class="section" id="get-current-user">
+  <h2>Users<a name="get-current-user" class="anchor">#</a></h2>
+  <p class="section-intro">Retrieve profile and statistics for the currently authenticated user.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/users/me</span>
+    </div>
+    <p class="endpoint-desc">Get the current user's profile information.</p>
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{
+  <span class="key">"id"</span>: <span class="s">"clx00000000000000001"</span>,
+  <span class="key">"email"</span>: <span class="s">"you@example.com"</span>,
+  <span class="key">"name"</span>: <span class="s">"Jane Doe"</span>,
+  <span class="key">"createdAt"</span>: <span class="s">"2023-06-01T00:00:00Z"</span>,
+  <span class="key">"role"</span>: <span class="s">"user"</span>,   <span class="c">// or "admin"</span>
+  <span class="key">"authType"</span>: <span class="s">"email"</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="get-user-stats">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/users/me/stats</span>
+    </div>
+    <p class="endpoint-desc">Get usage statistics for the current user. Useful for dashboard widgets.</p>
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{
+  <span class="key">"totalBookmarks"</span>: <span class="n">1247</span>,
+  <span class="key">"totalLists"</span>: <span class="n">8</span>,
+  <span class="key">"totalTags"</span>: <span class="n">42</span>,
+  <span class="key">"totalHighlights"</span>: <span class="n">156</span>,
+  <span class="key">"archivedCount"</span>: <span class="n">312</span>,
+  <span class="key">"favouritedCount"</span>: <span class="n">89</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="admin-update-user">
+    <div class="endpoint-header">
+      <span class="method-badge badge-PATCH">PATCH</span>
+      <span class="endpoint-path">/admin/users/{userId}</span>
+    </div>
+    <p class="endpoint-desc"><strong>Admin only.</strong> Update a user's role, name, or other profile fields.</p>
+    <table class="schema-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="field-name">role</span></td><td class="field-type">enum</td><td class="field-desc">Change user role: <span class="field-enum">"user", "admin"</span></td></tr>
+        <tr><td><span class="field-name">name</span></td><td class="field-type">string</td><td class="field-desc">Update display name.</td></tr>
+        <tr><td><span class="field-name">disabled</span></td><td class="field-type">boolean</td><td class="field-desc">Disable or re-enable the user account.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== BACKUPS ===== -->
+<div class="section" id="list-backups">
+  <h2>Backups<a name="list-backups" class="anchor">#</a></h2>
+  <p class="section-intro">Create and manage full account backups as downloadable ZIP archives. Backups include bookmarks, lists, tags, highlights, and all metadata. Asset files are not included in backups.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/backups</span>
+    </div>
+    <p class="endpoint-desc">List all backups for the current user.</p>
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">json</span></div></div>
+      <pre>{
+  <span class="key">"backups"</span>: <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="key">"id"</span>: <span class="s">"bk_abc123"</span>,
+      <span class="key">"createdAt"</span>: <span class="s">"2024-11-01T12:00:00Z"</span>,
+      <span class="key">"status"</span>: <span class="s">"ready"</span>,    <span class="c">// "ready", "pending", "failed"</span>
+      <span class="key">"size"</span>: <span class="n">2048576</span>      <span class="c">// bytes</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="key">"nextCursor"</span>: <span class="t">null</span>
+<span class="p">}</span></pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="create-backup">
+    <div class="endpoint-header">
+      <span class="method-badge badge-POST">POST</span>
+      <span class="endpoint-path">/backups</span>
+    </div>
+    <p class="endpoint-desc">Trigger a new full account backup. The backup is generated asynchronously — poll <code>GET /backups/{id}</code> until status is <code>ready</code>.</p>
+  </div>
+
+  <div class="endpoint" id="get-backup">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/backups/{backupId}</span>
+    </div>
+    <p class="endpoint-desc">Get metadata and status for a specific backup.</p>
+  </div>
+
+  <div class="endpoint" id="download-backup">
+    <div class="endpoint-header">
+      <span class="method-badge badge-GET">GET</span>
+      <span class="endpoint-path">/backups/{backupId}/download</span>
+    </div>
+    <p class="endpoint-desc">Download the backup ZIP file. Returns a binary stream with <code>Content-Type: application/zip</code>.</p>
+    <div class="code-block">
+      <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+      <pre><span class="k">GET</span> <span class="s">/api/v1/backups/bk_abc123/download</span>
+<span class="b">Authorization</span>: <span class="t">Bearer</span> <span class="s">your-api-key</span>
+
+<span class="c"># Save to file</span>
+curl -L -o backup.zip \
+  -H <span class="s">"Authorization: Bearer your-api-key"</span> \
+  <span class="s">"https://your-karakeep.com/api/v1/backups/bk_abc123/download"</span></pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="delete-backup">
+    <div class="endpoint-header">
+      <span class="method-badge badge-DELETE">DELETE</span>
+      <span class="endpoint-path">/backups/{backupId}</span>
+    </div>
+    <p class="endpoint-desc">Delete a backup. Useful for cleanup after downloading.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== BOOKMARK MODEL ===== -->
+<div class="section" id="bookmark-model">
+  <h2>Bookmark Model<a name="bookmark-model" class="anchor">#</a></h2>
+  <p class="section-intro">Complete reference for the Bookmark object returned by all bookmark endpoints.</p>
+
+  <table class="schema-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="field-name">id</span></td><td class="field-type">string</td><td class="field-desc">Unique identifier (example: <code>ieidlxygmwj87oxz5hxttoc8</code>)</td></tr>
+      <tr><td><span class="field-name">createdAt</span></td><td class="field-type">string (ISO 8601)</td><td class="field-desc">Creation timestamp</td></tr>
+      <tr><td><span class="field-name">modifiedAt</span></td><td class="field-type">string | null</td><td class="field-desc">Last modification timestamp</td></tr>
+      <tr><td><span class="field-name">title</span></td><td class="field-type">string | null</td><td class="field-desc">Display title (AI-generated or user-set)</td></tr>
+      <tr><td><span class="field-name">archived</span></td><td class="field-type">boolean</td><td class="field-desc">Whether the bookmark is archived (hidden from homepage)</td></tr>
+      <tr><td><span class="field-name">favourited</span></td><td class="field-type">boolean</td><td class="field-desc">Whether the bookmark is starred/favourited</td></tr>
+      <tr><td><span class="field-name">taggingStatus</span></td><td class="field-type">enum | null</td><td class="field-desc"><span class="field-enum">"success", "failure", "pending"</span> — AI tagging job status</td></tr>
+      <tr><td><span class="field-name">summarizationStatus</span></td><td class="field-type">enum | null</td><td class="field-desc"><span class="field-enum">"success", "failure", "pending"</span> — AI summarization job status</td></tr>
+      <tr><td><span class="field-name">note</span></td><td class="field-type">string | null</td><td class="field-desc">Personal note attached by the user</td></tr>
+      <tr><td><span class="field-name">summary</span></td><td class="field-type">string | null</td><td class="field-desc">AI-generated summary of the bookmark content</td></tr>
+      <tr><td><span class="field-name">source</span></td><td class="field-type">enum | null</td><td class="field-desc">How the bookmark was created: <span class="field-enum">api, web, cli, mobile, extension, singlefile, rss, import</span></td></tr>
+      <tr><td><span class="field-name">userId</span></td><td class="field-type">string</td><td class="field-desc">ID of the user who owns this bookmark</td></tr>
+      <tr><td><span class="field-name">tags</span></td><td class="field-type">Tag[]</td><td class="field-desc">Array of attached tags with <code>id</code>, <code>name</code>, and <code>attachedBy</code> (<code>"ai"</code> or <code>"human"</code>)</td></tr>
+      <tr><td><span class="field-name">content</span></td><td class="field-type">LinkContent | TextContent | AssetContent</td><td class="field-desc">Type-specific content (see below)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:17px; font-weight:600; margin: 20px 0 12px; color: var(--text-secondary);">LinkContent</h3>
+  <table class="schema-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="field-name">type</span></td><td class="field-type">"link"</td><td class="field-desc">Always <code>"link"</code> for URL bookmarks</td></tr>
+      <tr><td><span class="field-name">url</span></td><td class="field-type">string</td><td class="field-desc">The bookmarked URL</td></tr>
+      <tr><td><span class="field-name">title</span></td><td class="field-type">string | null</td><td class="field-desc">Auto-fetched or user-set page title</td></tr>
+      <tr><td><span class="field-name">description</span></td><td class="field-type">string | null</td><td class="field-desc">Auto-fetched meta description</td></tr>
+      <tr><td><span class="field-name">imageUrl</span></td><td class="field-type">string | null</td><td class="field-desc">Open Graph image URL</td></tr>
+      <tr><td><span class="field-name">imageAssetId</span></td><td class="field-type">string | null</td><td class="field-desc">Asset ID of the saved preview image</td></tr>
+      <tr><td><span class="field-name">screenshotAssetId</span></td><td class="field-type">string | null</td><td class="field-desc">Asset ID of the full-page screenshot</td></tr>
+      <tr><td><span class="field-name">pdfAssetId</span></td><td class="field-type">string | null</td><td class="field-desc">Asset ID of the saved PDF</td></tr>
+      <tr><td><span class="field-name">fullPageArchiveAssetId</span></td><td class="field-type">string | null</td><td class="field-desc">Asset ID of the monolith full-page archive</td></tr>
+      <tr><td><span class="field-name">videoAssetId</span></td><td class="field-type">string | null</td><td class="field-desc">Asset ID of the archived video (via yt-dlp)</td></tr>
+      <tr><td><span class="field-name">favicon</span></td><td class="field-type">string | null</td><td class="field-desc">URL of the site's favicon</td></tr>
+      <tr><td><span class="field-name">htmlContent</span></td><td class="field-type">string | null</td><td class="field-desc">Crawled HTML content (large — opt out with <code>includeContent=false</code>)</td></tr>
+      <tr><td><span class="field-name">crawledAt</span></td><td class="field-type">string | null</td><td class="field-desc">When the page was crawled</td></tr>
+      <tr><td><span class="field-name">crawlStatus</span></td><td class="field-type">string</td><td class="field-desc">Crawl result: <code>"success"</code>, <code>"failure"</code>, <code>"pending"</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== SEARCH SYNTAX ===== -->
+<div class="section" id="search-syntax">
+  <h2>Search Query Syntax<a name="search-syntax" class="anchor">#</a></h2>
+  <p class="section-intro">Karakeep's search is powered by Meilisearch and supports a rich query language combining full-text search with structured qualifiers. Spaces between conditions act as implicit AND.</p>
+
+  <h3 style="font-size:15px; font-weight:600; margin-bottom:10px; color:var(--text-secondary);">Boolean Operators</h3>
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:20px;">
+    <div class="qualifier-row"><div class="qual-row-head">AND / OR</div><div class="qual-row-body">Explicit boolean logic between conditions</div></div>
+    <div class="qualifier-row"><div class="qual-row-head">- prefix</div><div class="qual-row-body">Negate a qualifier (e.g. <span class="qual-row-example">-is:archived</span>)</div></div>
+    <div class="qualifier-row"><div class="qual-row-head">( ) grouping</div><div class="qual-row-body">Group conditions (groups themselves cannot be negated)</div></div>
+    <div class="qualifier-row"><div class="qual-row-head">plain text</div><div class="qual-row-body">Full-text search across title, content, and notes</div></div>
+  </div>
+
+  <h3 style="font-size:15px; font-weight:600; margin-bottom:10px; color:var(--text-secondary);">Qualifiers</h3>
+
+  <div class="qualifier-row" style="margin-bottom:4px; border-radius:8px 8px 0 0;"><div class="qual-row-head" style="background:#f0fdf4; color:var(--green);">Status qualifiers</div><div class="qual-row-body" style="border-top-right-radius:0;"></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">is:fav</div><div class="qual-row-body">Favourited bookmarks<span class="qual-row-example">is:fav</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">is:archived</div><div class="qual-row-body">Archived bookmarks<span class="qual-row-example">is:archived</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">is:tagged</div><div class="qual-row-body">Bookmarks with at least one tag<span class="qual-row-example">is:tagged</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">is:inlist</div><div class="qual-row-body">Bookmarks in one or more lists<span class="qual-row-example">is:inlist</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">is:link</div><div class="qual-row-body">Link bookmarks only<span class="qual-row-example">is:link</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">is:text</div><div class="qual-row-body">Text/note bookmarks<span class="qual-row-example">is:text</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">is:media</div><div class="qual-row-body">Media bookmarks (images/PDFs)<span class="qual-row-example">is:media</span></div></div>
+  <div class="qualifier-row" style="border-radius:0 0 8px 8px; margin-bottom:16px;"><div class="qual-row-head">is:broken</div><div class="qual-row-body">Bookmarks with failed crawls or non-2xx responses<span class="qual-row-example">is:broken</span></div></div>
+
+  <div class="qualifier-row" style="margin-bottom:4px; border-radius:8px 8px 0 0;"><div class="qual-row-head" style="background:#eff6ff; color:var(--blue);">Content qualifiers</div><div class="qual-row-body" style="border-top-right-radius:0;"></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">url:</div><div class="qual-row-body">Match URL substring<span class="qual-row-example">url:github.com</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">title:</div><div class="qual-row-body">Match title substring (supports quoted strings)<span class="qual-row-example">title:"rust async"</span></div></div>
+  <div class="qualifier-row" style="border-radius:0 0 8px 8px; margin-bottom:16px;"><div class="qual-row-head"># or tag:</div><div class="qual-row-body">Match bookmarks with a specific tag<span class="qual-row-example">#important, tag:"work in progress"</span></div></div>
+
+  <div class="qualifier-row" style="margin-bottom:4px; border-radius:8px 8px 0 0;"><div class="qual-row-head" style="background:#fffbeb; color:var(--amber);">Time &amp; Organization</div><div class="qual-row-body" style="border-top-right-radius:0;"></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">list:</div><div class="qual-row-body">Match bookmarks in a specific list<span class="qual-row-example">list:reading</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">after:</div><div class="qual-row-body">Created on or after date (YYYY-MM-DD)<span class="qual-row-example">after:2024-01-01</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">before:</div><div class="qual-row-body">Created on or before date<span class="qual-row-example">before:2024-12-31</span></div></div>
+  <div class="qualifier-row" style="border-radius:0; margin-bottom:6px;"><div class="qual-row-head">age:</div><div class="qual-row-body">Filter by creation age. Units: d, w, m, y. Use &lt; / &gt; for max/min<span class="qual-row-example">age:&lt;1w, age:&gt;2w, age:&lt;6m</span></div></div>
+  <div class="qualifier-row" style="border-radius:0 0 8px 8px; margin-bottom:16px;"><div class="qual-row-head">feed:</div><div class="qual-row-body">Bookmarks imported from a specific RSS feed<span class="qual-row-example">feed:Hackernews</span></div></div>
+
+  <div class="qualifier-row" style="margin-bottom:4px; border-radius:8px 8px 0 0;"><div class="qual-row-head" style="background:#f5f3ff; color:var(--purple);">Source qualifiers</div><div class="qual-row-body" style="border-top-right-radius:0;"></div></div>
+  <div class="qualifier-row" style="border-radius:0 0 8px 8px; margin-bottom:20px;"><div class="qual-row-head">source:</div><div class="qual-row-body">Filter by capture source<span class="qual-row-example">source:rss, source:extension, -source:web</span></div></div>
+
+  <h3 style="font-size:15px; font-weight:600; margin-bottom:10px; color:var(--text-secondary);">Example Queries</h3>
+  <div class="code-block">
+    <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">search examples</span></div></div>
+    <pre><span class="c"># Favorited bookmarks from 2024 tagged "important"</span>
+<span class="s">is:fav after:2024-01-01 before:2024-12-31 #important</span>
+
+<span class="c"># Archived bookmarks in "reading" list or tagged "work"</span>
+<span class="s">is:archived and (list:reading or #work)</span>
+
+<span class="c"># Untagged or unorganized bookmarks</span>
+<span class="s">-is:tagged or -is:inlist</span>
+
+<span class="c"># Recent bookmarks from the last week</span>
+<span class="s">age:&lt;1w</span>
+
+<span class="c"># Full-text search combined with qualifiers</span>
+<span class="s">machine learning is:fav -is:archived</span>
+
+<span class="c"># All bookmarks from a specific RSS feed</span>
+<span class="s">feed:Hackernews</span>
+
+<span class="c"># Broken links from GitHub</span>
+<span class="s">url:github.com is:broken</span></pre>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== SDKs & CLIENTS ===== -->
+<div class="section" id="sdk-clients">
+  <h2>SDKs &amp; Clients<a name="sdk-clients" class="anchor">#</a></h2>
+  <p class="section-intro">Official and community-built clients for integrating with Karakeep.</p>
+
+  <div style="display:grid; gap:14px;">
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 22px; box-shadow:var(--shadow);">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <div style="font-weight:700; font-size:15px;">Official Karakeep SDKs</div>
+        <div style="display:flex; gap:6px;">
+          <span style="font-size:11px; font-weight:600; background:var(--blue-light); color:var(--blue); padding:2px 8px; border-radius:4px;">TypeScript</span>
+        </div>
+      </div>
+      <p style="font-size:13.5px; color:var(--text-secondary); margin-bottom:12px;">Official generated SDKs for TypeScript/JavaScript from the OpenAPI spec. Available via npm. Maintained by the Karakeep core team.</p>
+      <div class="code-block" style="margin-bottom:0;">
+        <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+        <pre>npm install <span class="t">@karakeep/sdk</span></pre>
+      </div>
+    </div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 22px; box-shadow:var(--shadow);">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <div style="font-weight:700; font-size:15px;">Python API Client &amp; CLI</div>
+        <div style="display:flex; gap:6px;">
+          <span style="font-size:11px; font-weight:600; background:var(--amber-light); color:var(--amber); padding:2px 8px; border-radius:4px;">Python</span>
+          <span style="font-size:11px; font-weight:600; background:var(--green-light); color:var(--green); padding:2px 8px; border-radius:4px;">CLI</span>
+        </div>
+      </div>
+      <p style="font-size:13.5px; color:var(--text-secondary); margin-bottom:12px;">Community-driven Python library with full Pydantic model support and a CLI tool. Covers all API endpoints. By <strong>@thiswillbeyourgithub</strong>.</p>
+      <div class="code-block" style="margin-bottom:0;">
+        <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+        <pre>pip install karakeep-python-api
+python -m karakeep_python_api --help</pre>
+      </div>
+    </div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 22px; box-shadow:var(--shadow);">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <div style="font-weight:700; font-size:15px;">Official CLI</div>
+        <div style="display:flex; gap:6px;">
+          <span style="font-size:11px; font-weight:600; background:var(--blue-light); color:var(--blue); padding:2px 8px; border-radius:4px;">Node.js</span>
+          <span style="font-size:11px; font-weight:600; background:var(--green-light); color:var(--green); padding:2px 8px; border-radius:4px;">CLI</span>
+        </div>
+      </div>
+      <p style="font-size:13.5px; color:var(--text-secondary); margin-bottom:12px;">Official Karakeep CLI tool for managing bookmarks, lists, and tags from the terminal. Supports auth config file for persistent credentials.</p>
+      <div class="code-block" style="margin-bottom:0;">
+        <div class="code-header"><div class="code-header-left"><div class="code-dots"><span></span><span></span><span></span></div><span class="code-lang">bash</span></div></div>
+        <pre>npm install -g @karakeep/cli
+
+<span class="c"># Authenticate</span>
+karakeep auth init
+
+<span class="c"># Quick commands</span>
+karakeep bookmarks add --link "https://example.com"
+karakeep bookmarks search "is:fav #work"
+karakeep lists list</pre>
+      </div>
+    </div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 22px; box-shadow:var(--shadow);">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <div style="font-weight:700; font-size:15px;">Karakeep MCP Server</div>
+        <div style="display:flex; gap:6px;">
+          <span style="font-size:11px; font-weight:600; background:var(--purple-light); color:var(--purple); padding:2px 8px; border-radius:4px;">MCP</span>
+        </div>
+      </div>
+      <p style="font-size:13.5px; color:var(--text-secondary); margin-bottom:12px;">Model Context Protocol server enabling AI agents to interact with Karakeep. Lets agents find, hoard, and digest content autonomously.</p>
+    </div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 22px; box-shadow:var(--shadow);">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <div style="font-weight:700; font-size:15px;">karakeep-sync</div>
+        <div style="display:flex; gap:6px;">
+          <span style="font-size:11px; font-weight:600; background:var(--blue-light); color:var(--blue); padding:2px 8px; border-radius:4px;">TypeScript</span>
+        </div>
+      </div>
+      <p style="font-size:13.5px; color:var(--text-secondary); margin-bottom:8px;">Sync links from Hacker News upvotes, Reddit Saves, GitHub Stars, and Pinboard into Karakeep automatically. By <strong>@sidoshi</strong>.</p>
+      <p style="font-size:12px; color:var(--text-muted);">Environment: <span class="field-type" style="font-size:12px;">KS_KARAKEEP_AUTH, KS_KARAKEEP_URL, KS_HN_AUTH, KS_REDDIT_CLIENTID, KS_GITHUB_TOKEN, KS_PINBOARD_TOKEN</span></p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== QUICK REFERENCE ===== -->
+<div class="section">
+  <h2>Quick Reference<a name="quick-ref" class="anchor">#</a></h2>
+  <p class="section-intro">All 40+ endpoints at a glance.</p>
+
+  <div style="overflow-x:auto;">
+  <table class="schema-table" style="font-size:13px;">
+    <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/bookmarks</span></td><td>List all bookmarks</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/bookmarks</span></td><td>Create bookmark</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/bookmarks/search</span></td><td>Full-text search</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/bookmarks/check-url</span></td><td>Check if URL exists</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/bookmarks/{id}</span></td><td>Get single bookmark</td></tr>
+      <tr><td><span class="method-badge badge-PATCH" style="font-size:10px;">PATCH</span></td><td><span class="field-name">/bookmarks/{id}</span></td><td>Update bookmark</td></tr>
+      <tr><td><span class="method-badge badge-DELETE" style="font-size:10px;">DELETE</span></td><td><span class="field-name">/bookmarks/{id}</span></td><td>Delete bookmark</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/bookmarks/{id}/summarize</span></td><td>Trigger AI summarization</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/bookmarks/{id}/tags</span></td><td>Attach tags</td></tr>
+      <tr><td><span class="method-badge badge-DELETE" style="font-size:10px;">DELETE</span></td><td><span class="field-name">/bookmarks/{id}/tags</span></td><td>Detach tags</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/bookmarks/{id}/lists</span></td><td>Get bookmark's lists</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/bookmarks/{id}/highlights</span></td><td>Get bookmark's highlights</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/bookmarks/{id}/assets</span></td><td>Attach asset</td></tr>
+      <tr><td><span class="method-badge badge-PUT" style="font-size:10px;">PUT</span></td><td><span class="field-name">/bookmarks/{id}/assets</span></td><td>Replace asset</td></tr>
+      <tr><td><span class="method-badge badge-DELETE" style="font-size:10px;">DELETE</span></td><td><span class="field-name">/bookmarks/{id}/assets</span></td><td>Detach asset</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/lists</span></td><td>List lists</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/lists</span></td><td>Create list</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/lists/{id}</span></td><td>Get list</td></tr>
+      <tr><td><span class="method-badge badge-PATCH" style="font-size:10px;">PATCH</span></td><td><span class="field-name">/lists/{id}</span></td><td>Update list</td></tr>
+      <tr><td><span class="method-badge badge-DELETE" style="font-size:10px;">DELETE</span></td><td><span class="field-name">/lists/{id}</span></td><td>Delete list</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/lists/{id}/bookmarks</span></td><td>List's bookmarks</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/lists/{id}/bookmarks</span></td><td>Add bookmark to list</td></tr>
+      <tr><td><span class="method-badge badge-DELETE" style="font-size:10px;">DELETE</span></td><td><span class="field-name">/lists/{id}/bookmarks/{bid}</span></td><td>Remove from list</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/tags</span></td><td>List tags</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/tags</span></td><td>Create tag</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/tags/{id}</span></td><td>Get tag</td></tr>
+      <tr><td><span class="method-badge badge-PATCH" style="font-size:10px;">PATCH</span></td><td><span class="field-name">/tags/{id}</span></td><td>Update tag</td></tr>
+      <tr><td><span class="method-badge badge-DELETE" style="font-size:10px;">DELETE</span></td><td><span class="field-name">/tags/{id}</span></td><td>Delete tag</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/tags/{id}/bookmarks</span></td><td>Tag's bookmarks</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/highlights</span></td><td>List highlights</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/highlights</span></td><td>Create highlight</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/highlights/{id}</span></td><td>Get highlight</td></tr>
+      <tr><td><span class="method-badge badge-PATCH" style="font-size:10px;">PATCH</span></td><td><span class="field-name">/highlights/{id}</span></td><td>Update highlight</td></tr>
+      <tr><td><span class="method-badge badge-DELETE" style="font-size:10px;">DELETE</span></td><td><span class="field-name">/highlights/{id}</span></td><td>Delete highlight</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/assets</span></td><td>Upload asset</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/assets/{id}</span></td><td>Get / download asset</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/users/me</span></td><td>Current user profile</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/users/me/stats</span></td><td>User statistics</td></tr>
+      <tr><td><span class="method-badge badge-PATCH" style="font-size:10px;">PATCH</span></td><td><span class="field-name">/admin/users/{id}</span></td><td>Admin update user</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/backups</span></td><td>List backups</td></tr>
+      <tr><td><span class="method-badge badge-POST" style="font-size:10px;">POST</span></td><td><span class="field-name">/backups</span></td><td>Trigger backup</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/backups/{id}</span></td><td>Get backup</td></tr>
+      <tr><td><span class="method-badge badge-GET" style="font-size:10px;">GET</span></td><td><span class="field-name">/backups/{id}/download</span></td><td>Download backup ZIP</td></tr>
+      <tr><td><span class="method-badge badge-DELETE" style="font-size:10px;">DELETE</span></td><td><span class="field-name">/backups/{id}</span></td><td>Delete backup</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+</div>
+
+</div>
+</main>
+</div>
+
+<script>
+// Tab switching
+function switchTab(btn, targetId) {
+  const parent = btn.closest('.endpoint');
+  parent.querySelectorAll('.response-tab-btn').forEach(b => b.classList.remove('active'));
+  parent.querySelectorAll('.response-tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  parent.querySelector('#' + targetId).classList.add('active');
+}
+
+// Copy token
+function copyToken(btn) {
+  const text = btn.previousElementSibling.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+  });
+}
+
+// Smooth scroll for sidebar links
+document.querySelectorAll('.sidebar a[href^="#"]').forEach(link => {
+  link.addEventListener('click', e => {
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Update active
+      document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+      link.classList.add('active');
+    }
+  });
+});
+
+// Active section highlight on scroll
+const sections = document.querySelectorAll('.section, .endpoint[id]');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id || entry.target.closest('.section')?.id;
+      if (!id) return;
+      document.querySelectorAll('.sidebar a').forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.2, rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+
+
+</script>
+
+</body>
+</html>
