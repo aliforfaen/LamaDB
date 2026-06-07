@@ -51,6 +51,12 @@ Generated from visual review of `open-design/index.html` (2026-05-29).
 | Document detail | `GET /api/documents/{id}` | admin | |
 | Document links | `GET /api/documents/{id}/links` | admin | |
 | Public RSS | `GET /feeds/{slug}.xml` | none | Already working |
+| Semantic search | `GET /api/search/semantic?q=term&limit=10` | admin | pgvector cosine similarity |
+| Document graph | `GET /api/documents/{id}/graph?depth=2` | admin | Recursive CTE traversal |
+| Hermes health | `GET /api/hermes/health` | admin | Dashboard Hermes tab |
+| Hermes system | `GET /api/hermes/system` | admin | Dashboard Hermes tab |
+| Hermes sessions | `GET /api/hermes/sessions?limit=10` | admin | Dashboard Hermes tab |
+| Hermes session stats | `GET /api/hermes/sessions/stats` | admin | Dashboard Hermes tab |
 
 ## Auth Pattern
 

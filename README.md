@@ -1,50 +1,73 @@
 # LamaDB
 
-Self-hosted central data layer / Life OS. Stores documents, events, and relationships in PostgreSQL. Exposes a REST API and generates RSS feeds from summarized content.
+Self-hosted central data layer / Life OS. Stores documents, events, and relationships in PostgreSQL. Exposes a REST API with 11 auto-discovered modules and a management dashboard.
 
 ## Quick Start
 
 ```bash
 docker compose up -d
-# API available at http://localhost:8000
+# Dashboard at http://localhost:8000
 # Swagger docs at http://localhost:8000/docs
 ```
 
 ## What It Does
 
 - **Document store** — universal storage for wiki pages, agent output, summaries, notes
-- **Event bus** — replaces flat-file event logging with queryable PostgreSQL
-- **RSS feeds** — generates per-topic XML feeds from summarized documents
-- **Uptime monitoring** — receives Uptime Kuma webhooks, tracks monitor status
-- **Dashboard** — command center with status bar, scrolling ticker, and module cards
-- **Ticker system** — real-time activity marquee with #breaking alerts and dashboard-icons
-- **Data source modules** — ntfy notifications, Dozzle logs, FreshRSS (planned)
+- **Event bus** — queryable PostgreSQL event log with severity filtering
+- **RSS feeds** — per-topic XML feeds from summarized documents
+- **Uptime monitoring** — Uptime Kuma webhooks + registry poller + topology host map
+- **Agent Board** — task queue with claim workflow + inter-agent messaging (LISTEN/NOTIFY)
+- **Dashboard** — command center with status bar, ticker, 12 tabs (Overview, Feeds, Uptime, Events, Wiki, Documents, Ntfy, Dozzle, Agent Board, Notflix, Hermes, Settings)
+- **Hermes analytics** — session stats, token usage, system health from Hermes API (v0.16.0)
+- **Smart notifications** — rule-based routing to Telegram/ntfy/webhook channels
+- **Data collectors** — background pollers for FreshRSS, ntfy, Dozzle, Notflix, Hermes
 
 ## Architecture
 
 ```
 PostgreSQL 16 + pgvector + pg_trgm
        ↑
-FastAPI (async, modular plugin architecture)
+FastAPI (async, module auto-discovery)
        ↑
-┌──────┼──────┬──────────┐
-│ Documents │ Events │ Modules  │
-│ + Links   │ + Bus  │ (feeds,  │
-│           │        │  uptime) │
-└───────────┴────────┴──────────┘
+┌──────┼──────┬──────────┬───────────┐
+│ Documents │ Events │ Modules  │ Dashboard │
+│ + Links   │ + Bus  │ (11)     │ (12 tabs) │
+│ + Search  │        │          │           │
+│ + Graph   │        │          │           │
+└───────────┴────────┴──────────┴───────────┘
 ```
+
+## Core API
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/documents` | List/search documents |
+| `POST /api/documents` | Create document |
+| `GET /api/documents/{id}/graph` | Recursive graph traversal (recursive CTE, cycle detection) |
+| `GET /api/search?q=term` | Full-text search (pg_trgm) |
+| `GET /api/search/semantic?q=term` | Vector similarity search (pgvector `<=>`, placeholder) |
+| `GET /api/events` | Event bus with severity/source filters |
+| `POST /api/events` | Publish event |
 
 ## Modules
 
-| Module | Type | Status | Description |
-|--------|------|--------|-------------|
-| **uptime** | Webhook | ✅ Done | Uptime Kuma webhook receiver + status tracking (4 endpoints, 10 tests) |
-| **feeds** | Generator | ❌ Planned | RSS XML from summarized documents |
-| **dashboard** | Static | ❌ Planned | Vue 3 CDN SPA management UI |
+| Module | Description | Poller |
+|--------|-------------|--------|
+| **feeds** | RSS XML generator from documents | — |
+| **uptime** | Uptime Kuma webhook + registry poller + topology | 1h |
+| **agent_board** | Task queue + agent messaging | — |
+| **freshrss** | FreshRSS feed aggregation | 15m |
+| **ntfy** | ntfy notification history | 5m |
+| **dozzle** | Docker container log viewer | 5m |
+| **wiki** | Karakeep wiki reader + scratchpad | — |
+| **hermes** | Hermes Agent analytics (health, sessions, tokens) | 5m |
+| **notflix** | Sonarr/Radarr/Tautulli media status | 30m |
+| **notifications** | Smart notification routing engine | — |
+| **dashboard** | Serves static SPA | — |
 
 ## Auth
 
-API key authentication via `Authorization: Bearer *** header.
+API key authentication via `Authorization: Bearer <key>` header.
 
 | Role | Access |
 |------|--------|
@@ -52,30 +75,31 @@ API key authentication via `Authorization: Bearer *** header.
 | `agent` | Scoped read/write per module |
 | `read` | Read-only public endpoints |
 
-RSS feed endpoints (`/feeds/*.xml`) are public — no auth required.
+RSS feed endpoints (`/feeds/*.xml`) and uptime webhook are public.
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | — | PostgreSQL connection string |
-| `API_KEY_SALT` | — | Salt for API key hashing |
-| `CORS_ORIGINS` | `*` | Allowed CORS origins |
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `API_KEY_SALT` | Salt for API key bcrypt hashing |
+| `CORS_ORIGINS` | Allowed CORS origins |
+| `UPTIME_KUMA_URL` | Uptime Kuma API base URL (for registry poller) |
+| `UPTIME_KUMA_API_KEY` | Uptime Kuma API key |
 
 ## Development
 
 ```bash
 # Docker (recommended)
-docker compose up --build -d
-# API at http://localhost:8000, Swagger at http://localhost:8000/docs
+docker compose up -d
+# Rebuild after changes
+docker compose build api && docker compose up -d api
 
-# Run tests inside container
-docker compose up --build -d
-docker exec lamadb_api python3 -m pytest tests/ -v
+# Run specific tests
+docker exec lamadb_api python3 -m pytest tests/test_feeds.py -q
 
-# Or local (requires Python 3.12 + PostgreSQL)
-pip install -r requirements.txt
-DATABASE_URL=postgresql://lamadb:***@localhost:5432/lamadb uvicorn app.main:app --reload
+# Check logs
+docker logs lamadb_api --tail 20
 ```
 
 ## License

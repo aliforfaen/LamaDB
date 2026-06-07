@@ -4,9 +4,9 @@
 
 LamaDB is a self-hosted central data layer / Life OS. It stores documents, events, and relationships in PostgreSQL, exposes a FastAPI REST API, and serves RSS feeds generated from its data.
 
-**Current phase: Active development.** 9 modules (feeds, uptime, dashboard, agent_board, freshrss, ntfy, dozzle, wiki, hermes). 25+ commits, 120 tests. Uptime Kuma webhook + registry poller live. Agent Board task queue + LISTEN/NOTIFY operational. Dashboard with wiki reader, topology host map, ticker, auth flow.
+**Current phase: Active development.** 11 modules (feeds, uptime, dashboard, agent_board, freshrss, ntfy, dozzle, wiki, hermes, notflix, notifications). 26+ commits, 120+ tests. Uptime Kuma webhook + registry poller live. Agent Board task queue + LISTEN/NOTIFY operational. Dashboard with wiki reader, topology host map, ticker, auth flow, and Hermes analytics tab.
 
-Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0 desktop release).
+Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table.
 
 ## Architecture
 
@@ -57,19 +57,63 @@ lamadb/
 │       └── search.py      # Search routes (/api/search)
 ├── modules/
 │   ├── __init__.py        # Module registry
-│   ├── feeds/             # Module 1: RSS feed generator
-│   │   ├── __init__.py    # Module metadata, enabled flag
+│   ├── feeds/             # RSS feed generator
+│   │   ├── __init__.py
 │   │   ├── routes.py      # /api/feeds/* + /feeds/{slug}.xml
-│   │   ├── models.py      # Feed pydantic models
-│   │   └── generator.py   # RSS XML generation logic
-│   ├── uptime/            # Module 2: Uptime Kuma webhook
+│   │   ├── models.py
+│   │   └── generator.py   # RSS XML generation
+│   ├── uptime/            # Uptime Kuma webhook + registry poller
 │   │   ├── __init__.py
 │   │   ├── routes.py      # /api/uptime/*
-│   │   ├── models.py      # Monitor status models
-│   │   └── webhook.py     # Webhook payload handler
-│   └── dashboard/         # Module 3: Management dashboard
+│   │   ├── models.py
+│   │   ├── webhook.py     # Webhook payload handler
+│   │   ├── poller.py      # Registry poller (every 1h)
+│   │   └── topology.py    # Host-zone topology grouping
+│   ├── dashboard/         # Management dashboard
+│   │   ├── __init__.py
+│   │   └── routes.py      # Serves static files
+│   ├── agent_board/       # Task queue + agent messaging
+│   │   ├── __init__.py
+│   │   ├── routes.py      # /api/agent_board/*
+│   │   └── models.py
+│   ├── freshrss/          # FreshRSS feed scraper
+│   │   ├── __init__.py
+│   │   ├── routes.py
+│   │   ├── models.py
+│   │   └── collector.py   # Background poller (every 15m)
+│   ├── ntfy/              # ntfy notification scraper
+│   │   ├── __init__.py
+│   │   ├── routes.py
+│   │   ├── models.py
+│   │   └── collector.py   # Background poller (every 5m)
+│   ├── dozzle/            # Docker log scraper
+│   │   ├── __init__.py
+│   │   ├── routes.py
+│   │   ├── models.py
+│   │   ├── webhook.py
+│   │   └── collector.py   # Background poller (every 5m)
+│   ├── wiki/              # Wiki reader (Karakeep API)
+│   │   ├── __init__.py
+│   │   ├── routes.py      # /api/wiki/*
+│   │   ├── models.py
+│   │   ├── wiki_db.py
+│   │   ├── wiki_reader.py
+│   │   └── scratchpad.py
+│   ├── hermes/            # Hermes Agent analytics
+│   │   ├── __init__.py
+│   │   ├── routes.py      # /api/hermes/*
+│   │   ├── models.py
+│   │   └── collector.py   # Background poller (every 5m)
+│   ├── notflix/            # Sonarr/Radarr/Tautulli status
+│   │   ├── __init__.py
+│   │   ├── routes.py
+│   │   ├── models.py
+│   │   └── collector.py   # Background poller (every 30m)
+│   └── notifications/     # Smart notification routing
 │       ├── __init__.py
-│       └── routes.py      # Serves static files + dashboard API
+│       ├── routes.py
+│       ├── models.py
+│       └── engine.py
 ├── static/                # Dashboard frontend
 │   ├── index.html
 │   ├── css/
@@ -325,6 +369,29 @@ docker logs lamadb_api --tail 20
 - [x] API Keys section: table with create/revoke/rotate, one-time key display modal
 - [x] System Health section: DB status, extensions, table sizes, pool stats
 
+### Phase 6: Core Enhancements ✅ (Completed 2026-06-07)
+
+#### 6A: Semantic Search
+- [x] `GET /api/search/semantic?q=term&limit=N` — pgvector cosine similarity endpoint
+- [x] Deterministic hash-based pseudo-embedding generator (SHA-256 → 1536-dim L2-normalized vector)
+- [x] Uses pgvector `<=>` operator for cosine distance ranking
+- [x] Returns empty when no embeddings stored — placeholder until real embedding model is connected
+
+#### 6B: Document Graph Traversal
+- [x] `GET /api/documents/{id}/graph?depth=N&link_type=X` — recursive CTE graph traversal
+- [x] Cycle detection via ARRAY path tracking in recursive CTE
+- [x] Returns `{root_id, nodes: [{id, title, source_type}], edges: [{source_id, target_id, link_type, context, level}]}`
+- [x] Depth limited to 1–5, optional link_type filter
+
+#### 6C: Hermes Dashboard Tab
+- [x] Added Hermes nav item to sidebar (between Notflix and Settings)
+- [x] Page section with health badge, system stats cards, session statistics, and recent sessions table
+- [x] Fetches from `/api/hermes/health`, `/api/hermes/system`, `/api/hermes/sessions/stats`, `/api/hermes/sessions`
+- [x] Shows gateway connectivity, host metrics, token usage summary, and session list with cost estimates
+- [x] Exported `loadHermesPage` to window for onclick handler (IIFE scoping)
+
+
+
 ## Coding Conventions
 
 - **Async everywhere.** asyncpg, async FastAPI routes, no sync blocking.
@@ -338,6 +405,7 @@ docker logs lamadb_api --tail 20
 - **TIMESTAMPTZ always.** Never naive timestamps.
 
 ## Environment Variables
+
 
 ```
 DATABASE_URL=postgresql://lamadb:lamadb@postgres:5432/lamadb
