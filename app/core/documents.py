@@ -303,3 +303,122 @@ async def list_document_links(
             doc_id,
         )
         return [DocumentLinkResponse(**dict(row)) for row in rows]
+
+
+# --- Document Graph Traversal ---
+
+
+@router.get("/{doc_id}/graph")
+async def get_document_graph(
+    doc_id: UUID,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    depth: int = Query(default=2, ge=1, le=5, description="Traversal depth"),
+    link_type: str | None = Query(default=None, description="Filter by link type"),
+):
+    """
+    Traverse the document link graph starting from a document.
+
+    Uses a recursive CTE with cycle detection to follow document_links
+    up to `depth` levels. Returns nodes (documents) and edges (links).
+    """
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            WITH RECURSIVE graph AS (
+                SELECT
+                    0 AS level,
+                    dl.source_id,
+                    dl.target_id,
+                    dl.link_type,
+                    dl.context,
+                    dl.created_at,
+                    ARRAY[dl.source_id, dl.target_id] AS path
+                FROM document_links dl
+                WHERE dl.source_id = $1
+                  AND ($3::text IS NULL OR dl.link_type = $3)
+
+                UNION ALL
+
+                SELECT
+                    g.level + 1,
+                    dl.source_id,
+                    dl.target_id,
+                    dl.link_type,
+                    dl.context,
+                    dl.created_at,
+                    g.path || dl.target_id
+                FROM document_links dl
+                JOIN graph g ON dl.source_id = g.target_id
+                WHERE g.level < $2
+                  AND NOT (dl.target_id = ANY(g.path))
+                  AND ($3::text IS NULL OR dl.link_type = $3)
+            )
+            SELECT DISTINCT ON (g.source_id, g.target_id, g.link_type)
+                g.level,
+                g.source_id,
+                g.target_id,
+                g.link_type,
+                g.context,
+                g.created_at,
+                src.title AS source_title,
+                src.source_type AS source_source_type,
+                tgt.title AS target_title,
+                tgt.source_type AS target_source_type
+            FROM graph g
+            JOIN documents src ON src.id = g.source_id
+            JOIN documents tgt ON tgt.id = g.target_id
+            ORDER BY g.source_id, g.target_id, g.link_type, g.level
+            """,
+            doc_id,
+            depth,
+            link_type,
+        )
+
+        nodes: dict[str, dict] = {}
+        edges: list[dict] = []
+
+        for row in rows:
+            sid = str(row["source_id"])
+            tid = str(row["target_id"])
+
+            if sid not in nodes:
+                nodes[sid] = {
+                    "id": sid,
+                    "title": row["source_title"],
+                    "source_type": row["source_source_type"],
+                }
+            if tid not in nodes:
+                nodes[tid] = {
+                    "id": tid,
+                    "title": row["target_title"],
+                    "source_type": row["target_source_type"],
+                }
+
+            edges.append({
+                "source_id": sid,
+                "target_id": tid,
+                "link_type": row["link_type"],
+                "context": row["context"],
+                "level": row["level"],
+            })
+
+        # Always include the root document
+        start = await conn.fetchrow(
+            "SELECT id, title, source_type FROM documents WHERE id = $1",
+            doc_id,
+        )
+        if start:
+            sid = str(start["id"])
+            if sid not in nodes:
+                nodes[sid] = {
+                    "id": sid,
+                    "title": start["title"],
+                    "source_type": start["source_type"],
+                }
+
+        return {
+            "root_id": str(doc_id),
+            "nodes": list(nodes.values()),
+            "edges": edges,
+        }

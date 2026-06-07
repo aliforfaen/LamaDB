@@ -1,4 +1,6 @@
 """Full-text search routes using pg_trgm similarity."""
+import hashlib
+from uuid import UUID
 import json
 from typing import Annotated
 
@@ -39,6 +41,22 @@ def _doc_from_row(row) -> Document:
     )
 
 
+def _text_to_pseudo_embedding(text: str, dims: int = 1536) -> list[float]:
+    """Generate a deterministic pseudo-embedding from text using hash expansion.
+    This is a placeholder until a real embedding model is connected.
+    Uses SHA-256 hash of the text, expanded to `dims` dimensions, L2-normalized.
+    Same input always produces the same vector.
+    """
+    h = hashlib.sha256(text.encode()).digest()
+    vals = []
+    for i in range(dims):
+        seed = (h[i % 32] * 31 + i) % 256
+        vals.append((seed / 128.0) - 1.0)
+    norm = sum(v * v for v in vals) ** 0.5
+    if norm > 0:
+        vals = [v / norm for v in vals]
+    return vals
+
 @router.get("", response_model=list[Document])
 async def search_documents(
     user: Annotated[AuthUser, Depends(get_current_user)],
@@ -72,6 +90,43 @@ async def search_documents(
             LIMIT $2
             """,
             q,
+            limit,
+        )
+        return [_doc_from_row(row) for row in rows]
+
+
+@router.get("/semantic", response_model=list[Document])
+async def search_semantic(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    q: str = Query(..., min_length=1, description="Search term"),
+    limit: int = Query(default=10, ge=1, le=50, description="Max results"),
+) -> list[Document]:
+    """
+    Semantic search on documents using pgvector cosine similarity.
+
+    Generates a pseudo-embedding from the query text (deterministic hash-based)
+    and ranks documents with stored embeddings by cosine similarity.
+    Falls back to returning empty results when no embeddings exist yet.
+
+    This is a placeholder until a real embedding model is connected.
+    """
+    pool = get_pool()
+    embedding = _text_to_pseudo_embedding(q)
+    # Format as pgvector literal string: '[a,b,c,...]'
+    embedding_str = f"[{','.join(str(v) for v in embedding)}]"
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT
+                id, source_type, title, content, metadata, tags,
+                created_at, updated_at,
+                1 - (embedding <=> $1::vector) AS sim
+            FROM documents
+            WHERE embedding IS NOT NULL
+            ORDER BY embedding <=> $1::vector
+            LIMIT $2
+            """,
+            embedding_str,
             limit,
         )
         return [_doc_from_row(row) for row in rows]

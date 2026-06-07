@@ -1364,6 +1364,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
         <span>Notflix</span><span id="notflix-tab-count" class="tab-badge"></span>
       </button>
+      <button class="nav-item" data-page="hermes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1.05A9 9 0 0 0 3 15h2a7 7 0 0 1 14 0h2a9 9 0 0 0-6-8.95V5a3 3 0 0 0-3-3z"/><circle cx="12" cy="16" r="2"/></svg>
+        <span>Hermes</span>
+      </button>
       <button class="nav-item" data-page="settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
         <span>Settings</span>
@@ -2307,6 +2311,30 @@
         <div id="notflix-activity"><p class="loading">Loading…</p></div>
       </section>
 
+
+      <!-- ════════════════════ HERMES PAGE ════════════════════ -->
+      <section id="page-hermes" class="page" aria-label="Hermes">
+        <div class="filter-bar" style="margin-bottom:12px;">
+          <span style="flex:1;"></span>
+          <span id="hermes-health-badge" style="font-size:12px;color:var(--muted);"></span>
+          <button class="btn btn-sm btn-secondary" onclick="window.loadHermesPage()">↻ Refresh</button>
+        </div>
+
+        <!-- Health + System cards -->
+        <div id="hermes-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
+        </div>
+
+        <!-- Session stats -->
+        <h3 style="margin-bottom:10px;">Session Statistics</h3>
+        <div id="hermes-session-stats" style="margin-bottom:20px;">
+          <p class="loading">Loading…</p>
+        </div>
+
+        <!-- Recent sessions table -->
+        <h3 style="margin-bottom:10px;">Recent Sessions</h3>
+        <div id="hermes-sessions"><p class="loading">Loading…</p></div>
+      </section>
+
       <!-- ════════════════════ SETTINGS PAGE ════════════════════ -->
       <section id="page-settings" class="page" aria-label="Settings">
 
@@ -2580,6 +2608,7 @@
     'dozzle':     document.getElementById('page-dozzle'),
     'agentboard': document.getElementById('page-agentboard'),
     'notflix':    document.getElementById('page-notflix'),
+    'hermes':     document.getElementById('page-hermes'),
     'settings':   document.getElementById('page-settings')
   };
   var titles = {
@@ -2593,6 +2622,7 @@
     'dozzle': 'Dozzle',
     'agentboard': 'Agent Board',
     'notflix':    'Notflix',
+    'hermes': 'Hermes',
     'settings': 'Settings',
     'notifications': 'Notifications'
   };
@@ -2619,6 +2649,7 @@
     else if (pageId === 'feeds') loadFeeds();
     else if (pageId === 'uptime') loadUptime();
     else if (pageId === 'events') loadEvents();
+    else if (pageId === 'hermes') loadHermesPage();
     else if (pageId === 'wiki') loadWiki();
     else if (pageId === 'documents') loadDocuments();
     else if (pageId === 'ntfy') loadNtfyPage();
@@ -4636,6 +4667,104 @@
     };
 
     window.loadAgentBoardPage = loadAgentBoardPage;
+
+
+    // ─── Hermes page ──────────────────────────────────────────────────────────
+    async function loadHermesPage() {
+      var badge = document.getElementById('hermes-health-badge');
+      var cards = document.getElementById('hermes-cards');
+      var statsEl = document.getElementById('hermes-session-stats');
+      var sessionsEl = document.getElementById('hermes-sessions');
+
+      // Health check
+      try {
+        var health = await api('/api/hermes/health');
+        if (badge) {
+          if (health.reachable) {
+            badge.innerHTML = '<span style="color:var(--accent);">● Connected</span>';
+            if (health.version) badge.innerHTML += ' · v' + escHtml(health.version);
+          } else {
+            badge.innerHTML = '<span style="color:var(--red);">● Offline</span>';
+          }
+        }
+      } catch(e) {
+        if (badge) badge.innerHTML = '<span style="color:var(--red);">● Offline</span>';
+      }
+
+      // System stats
+      try {
+        var sys = await api('/api/hermes/system');
+        if (cards) {
+          var uptimeH = Math.floor((sys.uptime_seconds || 0) / 3600);
+          var uptimeD = Math.floor(uptimeH / 24);
+          cards.innerHTML =
+            '<div class="col-card"><div class="stat-label">Host</div><div class="stat-value">' + escHtml(sys.hostname || '-') + '</div></div>' +
+            '<div class="col-card"><div class="stat-label">CPU</div><div class="stat-value">' + (sys.cpu_percent != null ? sys.cpu_percent.toFixed(1) + '%' : '-') + ' <span style="font-size:11px;color:var(--muted);">' + (sys.cpu_count || '-') + ' cores</span></div></div>' +
+            '<div class="col-card"><div class="stat-label">Memory</div><div class="stat-value">' + (sys.memory_percent != null ? sys.memory_percent.toFixed(1) + '%' : '-') + ' <span style="font-size:11px;color:var(--muted);">' + (sys.process_rss ? (sys.process_rss / 1024 / 1024).toFixed(0) + ' MB' : '') + '</span></div></div>' +
+            '<div class="col-card"><div class="stat-label">Uptime</div><div class="stat-value">' + uptimeD + 'd ' + (uptimeH % 24) + 'h</div></div>' +
+            '<div class="col-card"><div class="stat-label">Disk</div><div class="stat-value">' + (sys.disk_percent != null ? sys.disk_percent.toFixed(1) + '%' : '-') + '</div></div>';
+        }
+      } catch(e) {
+        if (cards) cards.innerHTML = '<p class="error">Failed to load system stats</p>';
+      }
+
+      // Session stats
+      try {
+        var stats = await api('/api/hermes/sessions/stats');
+        if (statsEl) {
+          var bySource = '';
+          if (stats.by_source) {
+            Object.keys(stats.by_source).forEach(function(k) {
+              bySource += '<span style="margin-right:12px;font-size:12px;">' + escHtml(k) + ': <span style="font-weight:500;">' + stats.by_source[k] + '</span></span>';
+            });
+          }
+          statsEl.innerHTML =
+            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">' +
+            '<div class="col-card"><div class="stat-label">Total Sessions</div><div class="stat-value">' + (stats.total || 0) + '</div></div>' +
+            '<div class="col-card"><div class="stat-label">Active</div><div class="stat-value">' + (stats.active_store || 0) + '</div></div>' +
+            '<div class="col-card"><div class="stat-label">Archived</div><div class="stat-value">' + (stats.archived || 0) + '</div></div>' +
+            '<div class="col-card"><div class="stat-label">Messages</div><div class="stat-value">' + (stats.messages || 0) + '</div></div>' +
+            '</div>' +
+            (bySource ? '<div style="margin-top:8px;color:var(--muted);">' + bySource + '</div>' : '');
+        }
+      } catch(e) {
+        if (statsEl) statsEl.innerHTML = '<p class="error">Failed to load session stats</p>';
+      }
+
+      // Recent sessions
+      // Recent sessions
+      try {
+        var sessions = await api('/api/hermes/sessions?limit=10');
+        sessions = (sessions && sessions.sessions) ? sessions.sessions : sessions;
+        if (sessionsEl) {
+          if (!sessions || sessions.length === 0) {
+            sessionsEl.innerHTML = '<p class="empty">No sessions found</p>';
+          } else {
+            var html = '<div class="table-wrap"><table><thead><tr><th>Session</th><th>Source</th><th>Model</th><th>Messages</th><th>Tools</th><th>Input Tokens</th><th>Output Tokens</th><th>Cost</th></tr></thead><tbody>';
+            sessions.forEach(function(s) {
+              var cost = s.estimated_cost_usd != null ? '$' + s.estimated_cost_usd.toFixed(4) : '-';
+              var title = s.title || s.preview || s.id;
+              html += '<tr>' +
+                '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(title) + '">' + escHtml(title) + '</td>' +
+                '<td class="mono" style="font-size:11px;">' + escHtml(s.source || '-') + '</td>' +
+                '<td class="mono" style="font-size:11px;">' + escHtml(s.model || '-') + '</td>' +
+                '<td class="mono">' + (s.message_count || 0) + '</td>' +
+                '<td class="mono">' + (s.tool_call_count || 0) + '</td>' +
+                '<td class="mono">' + (s.input_tokens || 0).toLocaleString() + '</td>' +
+                '<td class="mono">' + (s.output_tokens || 0).toLocaleString() + '</td>' +
+                '<td class="mono" style="font-size:11px;">' + cost + '</td>' +
+                '</tr>';
+            });
+            html += '</tbody></table></div>';
+            sessionsEl.innerHTML = html;
+          }
+        }
+      } catch(e) {
+        if (sessionsEl) sessionsEl.innerHTML = '<p class="error">Failed to load sessions</p>';
+      }
+    }
+
+    window.loadHermesPage = loadHermesPage;
 
     // ─── Notifications Page ──────────────────────────────────────────────────
     function toggleNewRuleForm() {
