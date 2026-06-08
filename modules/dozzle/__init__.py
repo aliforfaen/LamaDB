@@ -4,6 +4,10 @@ MODULE_DESCRIPTION = "Dozzle container log viewer and error aggregation"
 MODULE_VERSION = "0.1.0"
 ENABLED = True
 
+MODULE_CONFIG_SCHEMA = {
+    "dozzle_url": {"type": "str", "default": "", "env": "DOZZLE_URL", "label": "Dozzle URL", "description": "Dozzle log viewer API URL", "required": False, "placeholder": "http://probook:7080"},
+}
+
 
 def get_router():
     from .routes import router

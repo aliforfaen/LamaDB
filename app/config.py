@@ -59,3 +59,98 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
 
 settings = Settings()
+
+
+# ---------------------------------------------------------------------------
+# Per-module settings engine
+# ---------------------------------------------------------------------------
+
+import json
+from pathlib import Path as _Path
+from typing import Any
+
+SETTINGS_FILE = _Path(__file__).parent.parent / "settings.json"
+
+
+def _load_settings_file() -> dict:
+    """Load settings.json overlay file. Returns empty dict if missing."""
+    if SETTINGS_FILE.exists():
+        try:
+            return json.loads(SETTINGS_FILE.read_text())
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def discover_module_configs() -> dict[str, dict]:
+    """Walk all modules and collect MODULE_CONFIG_SCHEMA declarations."""
+    modules_dir = _Path(__file__).parent.parent / "modules"
+    result = {}
+    if not modules_dir.exists():
+        return result
+
+    settings_overlay = _load_settings_file()
+
+    for item in sorted(modules_dir.iterdir()):
+        if not item.is_dir() or not (item / "__init__.py").exists():
+            continue
+        try:
+            mod = __import__(f"modules.{item.name}", fromlist=["MODULE_CONFIG_SCHEMA", "ENABLED"])
+            schema = getattr(mod, "MODULE_CONFIG_SCHEMA", None)
+            if not schema:
+                continue
+
+            values = {}
+            for key, field in schema.items():
+                env_name = field.get("env", key.upper())
+                env_val = getattr(settings, env_name.lower(), None) if hasattr(settings, env_name.lower()) else None
+                file_val = settings_overlay.get(item.name, {}).get(key)
+                resolved = env_val if env_val else file_val if file_val else field.get("default", "")
+                display_val = "***" if field.get("type") == "secret" and resolved else resolved
+                values[key] = {
+                    "value": resolved,
+                    "display": display_val,
+                    "source": "env" if env_val else "file" if file_val else "default",
+                    "restart_required": field.get("restart_required", True),
+                }
+
+            result[item.name] = {
+                "enabled": getattr(mod, "ENABLED", False),
+                "schema": schema,
+                "values": values,
+            }
+        except Exception:
+            pass
+
+    return result
+
+
+def save_settings(module_name: str, key_values: dict) -> bool:
+    """Save settings for a module to settings.json. Returns True if restart needed."""
+    settings_overlay = _load_settings_file()
+    if module_name not in settings_overlay:
+        settings_overlay[module_name] = {}
+
+    restart_needed = False
+    schemas = discover_module_configs()
+    module_schema = schemas.get(module_name, {}).get("schema", {})
+
+    for key, value in key_values.items():
+        field = module_schema.get(key, {})
+        expected_type = field.get("type", "str")
+        try:
+            if expected_type == "int":
+                value = int(value)
+            elif expected_type == "bool":
+                value = bool(value)
+            elif expected_type == "str":
+                value = str(value)
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid {expected_type} value for '{key}': {value}")
+
+        settings_overlay[module_name][key] = value
+        if field.get("restart_required", True):
+            restart_needed = True
+
+    SETTINGS_FILE.write_text(json.dumps(settings_overlay, indent=2))
+    return restart_needed
