@@ -1,5 +1,6 @@
 """Dashboard management API routes."""
 import asyncio
+import importlib
 import json
 import secrets
 from datetime import datetime, timezone
@@ -348,6 +349,81 @@ async def health_detail(user: AuthUser = Depends(require_admin)):
         },
         "pool": pool_stats,
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/dashboard/module-health
+# ---------------------------------------------------------------------------
+
+@router.get("/module-health")
+async def module_health(user: AuthUser = Depends(require_admin)):
+    """Return health status for each module: freshness, doc/event counts, recent errors."""
+    modules_dir = Path(__file__).parent.parent.parent / "modules"
+    pool = get_pool()
+    result = []
+
+    async with pool.acquire() as conn:
+        for item in sorted(modules_dir.iterdir()):
+            if not item.is_dir() or not (item / "__init__.py").exists():
+                continue
+            try:
+                mod = importlib.import_module(f"modules.{item.name}")
+                enabled = getattr(mod, "ENABLED", False)
+            except Exception:
+                enabled = False
+
+            name = item.name
+            doc_count = await conn.fetchval(
+                "SELECT count(*) FROM documents WHERE source_type = $1", name
+            ) or 0
+            event_count = await conn.fetchval(
+                "SELECT count(*) FROM events WHERE source = $1", name
+            ) or 0
+
+            error_rows = await conn.fetch(
+                "SELECT id, ts, title, body FROM events "
+                "WHERE source = $1 AND severity = 'error' "
+                "ORDER BY ts DESC LIMIT 5",
+                name,
+            )
+            errors = [
+                {
+                    "id": r["id"],
+                    "ts": r["ts"].isoformat(),
+                    "title": r["title"],
+                    "body": (r["body"] or "")[:200],
+                }
+                for r in error_rows
+            ]
+
+            latest_event = await conn.fetchrow(
+                "SELECT ts FROM events WHERE source = $1 ORDER BY ts DESC LIMIT 1",
+                name,
+            )
+            status_color = "grey"  # disabled
+            if enabled:
+                if latest_event:
+                    age = (datetime.now(timezone.utc) - latest_event["ts"]).total_seconds()
+                    if age < 3600:
+                        status_color = "green"
+                    elif age < 7200:
+                        status_color = "yellow"
+                    else:
+                        status_color = "red"
+                else:
+                    status_color = "yellow"
+
+            result.append({
+                "name": name,
+                "enabled": enabled,
+                "status": status_color,
+                "documents": doc_count,
+                "events": event_count,
+                "last_event": latest_event["ts"].isoformat() if latest_event else None,
+                "recent_errors": errors,
+            })
+
+    return {"modules": result}
 
 
 # ---------------------------------------------------------------------------

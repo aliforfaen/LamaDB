@@ -162,13 +162,13 @@ async def lifespan(app: FastAPI):
         listener_task = asyncio.create_task(
             pg_listener(
                 settings.database_url,
-                ["event_created", "task_update"],
+                ["event_created", "task_update", "document_created", "monitor_status"],
                 _make_notify_callback(),
             )
         )
         background_tasks.add(listener_task)
         listener_task.add_done_callback(background_tasks.discard)
-        logger.info("Started SSE pg_listener on channels: event_created, task_update")
+        logger.info("Started SSE pg_listener on channels: event_created, task_update, document_created, monitor_status")
 
     yield
     for task in background_tasks:
@@ -213,6 +213,104 @@ def make_app() -> FastAPI:
     app.include_router(events_router)
     app.include_router(search_router)
     app.include_router(dashboard_router)
+
+    # Register WebSocket router
+    from app.websocket import router as ws_router
+    app.include_router(ws_router)
+
+    # Register MCP server (JSON-RPC 2.0 endpoint)
+    from app.mcp_server import router as mcp_router
+    app.include_router(mcp_router)
+
+    # Register core MCP tools
+    from app.mcp_registry import register_tool
+    from app.core.mcp import (
+        search_documents, get_document, create_document,
+        update_document, create_event, get_events,
+    )
+
+    register_tool(
+        "search_documents",
+        "Full-text + semantic search across documents",
+        {"type": "object", "properties": {"q": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["q"]},
+        search_documents,
+    )
+    register_tool(
+        "get_document",
+        "Get a single document by ID with its links",
+        {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]},
+        get_document,
+    )
+    register_tool(
+        "create_document",
+        "Create a new document",
+        {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "source_type": {"type": "string"},
+                "content": {"type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "metadata": {"type": "object"},
+            },
+            "required": ["title", "source_type"],
+        },
+        create_document,
+    )
+    register_tool(
+        "update_document",
+        "Update an existing document (only provided fields change)",
+        {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "title": {"type": "string"},
+                "content": {"type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+                "metadata": {"type": "object"},
+                "source_type": {"type": "string"},
+            },
+            "required": ["id"],
+        },
+        update_document,
+    )
+    register_tool(
+        "create_event",
+        "Create a new event",
+        {
+            "type": "object",
+            "properties": {
+                "source": {"type": "string"},
+                "type_": {"type": "string"},
+                "title": {"type": "string"},
+                "severity": {"type": "string", "enum": ["info", "warning", "critical"]},
+                "body": {"type": "string"},
+                "metadata": {"type": "object"},
+                "tags": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["source", "type_", "title"],
+        },
+        create_event,
+    )
+    register_tool(
+        "get_events",
+        "Get events with optional source/type/severity filters",
+        {
+            "type": "object",
+            "properties": {
+                "source": {"type": "string"},
+                "type_": {"type": "string"},
+                "severity": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+        },
+        get_events,
+    )
+
+    # Discover module MCP tools (uptime, agent_board, wiki)
+    from app.mcp_registry import discover_module_tools
+    discover_module_tools()
+    logger.info("MCP server ready")
 
     # Discover and include module routers
     modules_dir = Path(__file__).parent.parent / "modules"
