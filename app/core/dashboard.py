@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cache_manager, cached
 from app.config import settings
 from app.db import get_pool
 from app.sse import sse_manager
@@ -162,6 +163,7 @@ async def require_admin(user: AuthUser = Depends(get_current_user)) -> AuthUser:
 # ---------------------------------------------------------------------------
 
 @router.get("/overview")
+@cached(ttl_seconds=60, invalidate_tags=["events", "documents", "monitors"], key_prefix="dashboard_overview")
 async def overview(user: AuthUser = Depends(require_admin)):
     """Return aggregated stats for the overview page."""
     pool = get_pool()
@@ -225,6 +227,7 @@ async def overview(user: AuthUser = Depends(require_admin)):
 # ---------------------------------------------------------------------------
 
 @router.get("/modules")
+@cached(ttl_seconds=300, invalidate_tags=["modules"], key_prefix="dashboard_modules")
 async def list_modules(user: AuthUser = Depends(require_admin)):
     """List all modules with metadata and runtime state."""
     modules_dir = Path(__file__).parent.parent.parent / "modules"
@@ -292,6 +295,7 @@ async def toggle_module(
 # ---------------------------------------------------------------------------
 
 @router.get("/health")
+@cached(ttl_seconds=120, invalidate_tags=["system"], key_prefix="dashboard_health")
 async def health_detail(user: AuthUser = Depends(require_admin)):
     """Return detailed system health information."""
     pool = get_pool()
