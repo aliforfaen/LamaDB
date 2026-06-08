@@ -11,6 +11,7 @@ COPY app/ ./app/
 COPY modules/ ./modules/
 COPY migrations/ ./migrations/
 COPY static/ ./static/
+COPY benchmarks/ ./benchmarks/
 COPY tests/ ./tests/
 COPY pytest.ini .
 
