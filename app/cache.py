@@ -105,6 +105,11 @@ def cached(
     def decorator(func: Callable):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
+            # Only cache GET responses — mutations must never be served from cache
+            request = kwargs.get("request")
+            if request is not None and request.method != "GET":
+                return await func(*args, **kwargs)
+
             cache_key = _build_cache_key(key_prefix or func.__name__, kwargs)
             cached_value = cache_manager.get(cache_key)
             if cached_value is not None:
