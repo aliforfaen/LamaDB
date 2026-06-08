@@ -7,3 +7,5 @@ postgres_data/
 modules/feeds/.state
 .pytest_cache/
 dogfood-screenshots/
+entities.json
+mempalace.yaml
