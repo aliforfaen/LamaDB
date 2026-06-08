@@ -2229,6 +2229,7 @@
         <div class="wiki-tabs" style="margin-bottom:12px;">
           <button class="sub-tab-btn active" id="ab-tab-tasks" onclick="window.switchAgentBoardTab('tasks')">Tasks</button>
           <button class="sub-tab-btn" id="ab-tab-messages" onclick="window.switchAgentBoardTab('messages')">Messages</button>
+          <button class="sub-tab-btn" id="ab-tab-inbox" onclick="window.switchAgentBoardTab('inbox')">Inbox <span id="ab-inbox-count" style="display:none;background:var(--accent);color:#000;font-size:10px;padding:1px 5px;border-radius:8px;margin-left:4px;font-family:var(--font-mono);font-weight:600;"></span></button>
         </div>
 
         <!-- Tasks sub-tab -->
@@ -2315,6 +2316,35 @@
             </div>
           </div>
           <div id="ab-messages-content"><p class="loading">Loading…</p></div>
+        </div>
+
+        <!-- Inbox sub-tab -->
+        <div id="ab-inbox-container" style="display:none;">
+          <div class="filter-bar" style="margin-bottom:12px;">
+            <span class="filter-label">Inbox for</span>
+            <select id="ab-inbox-agent" onchange="window.inboxAgentChanged(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;color:var(--fg);font-family:var(--font-mono);font-size:12px;">
+              <option value="huginn">huginn</option>
+              <option value="muninn" selected>muninn</option>
+              <option value="rommie">rommie</option>
+              <option value="all">all agents</option>
+            </select>
+            <span style="flex:1;"></span>
+            <span id="ab-inbox-status" style="font-size:12px;color:var(--muted);"></span>
+            <button class="btn btn-sm btn-secondary" onclick="window.markAllInboxRead()">✓ Mark All Read</button>
+            <button class="btn btn-sm btn-secondary" onclick="window.loadAgentBoardInbox()">↻ Refresh</button>
+          </div>
+          <div id="ab-inbox-split" style="display:grid;grid-template-columns:360px 1fr;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;height:calc(100vh - 300px);min-height:400px;">
+            <!-- Left panel: message list -->
+            <div id="ab-inbox-list" style="border-right:1px solid var(--border);overflow-y:auto;background:var(--surface);">
+              <div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">Select an agent</div>
+            </div>
+            <!-- Right panel: message detail -->
+            <div id="ab-inbox-detail" style="overflow-y:auto;background:var(--bg);">
+              <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:14px;">
+                <span>Select a message to read</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -4914,10 +4944,13 @@
       _abTab = tab;
       document.getElementById('ab-tab-tasks').classList.toggle('active', tab === 'tasks');
       document.getElementById('ab-tab-messages').classList.toggle('active', tab === 'messages');
+      document.getElementById('ab-tab-inbox').classList.toggle('active', tab === 'inbox');
       document.getElementById('ab-tasks-container').style.display = tab === 'tasks' ? '' : 'none';
       document.getElementById('ab-messages-container').style.display = tab === 'messages' ? '' : 'none';
+      document.getElementById('ab-inbox-container').style.display = tab === 'inbox' ? '' : 'none';
       if (tab === 'tasks') loadAgentBoardTasks();
-      else loadAgentBoardMessages();
+      else if (tab === 'messages') loadAgentBoardMessages();
+      else if (tab === 'inbox') loadAgentBoardInbox();
     };
 
     window.setAbTaskFilter = function(filter) {
@@ -4992,7 +5025,230 @@
 
     async function loadAgentBoardPage() {
       loadAgentBoardTasks();
+      loadInboxUnreadCount();
     }
+
+    // ─── Inbox state ──────────────────────────────────────────────────────────
+    var _abInboxMessages = [];
+    var _abInboxAgent = 'muninn';
+    var _abInboxSelected = null;
+
+    async function loadInboxUnreadCount() {
+      try {
+        var resp = await api('/api/agent_board/inbox/count?agent=' + encodeURIComponent(_abInboxAgent));
+        var count = (resp && resp.unread) || 0;
+        var badge = document.getElementById('ab-inbox-count');
+        if (badge) {
+          badge.textContent = count > 0 ? count : '';
+          badge.style.display = count > 0 ? '' : 'none';
+        }
+      } catch(e) {}
+    }
+
+    window.inboxAgentChanged = function(agent) {
+      _abInboxAgent = agent;
+      _abInboxSelected = null;
+      document.getElementById('ab-inbox-detail').innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:14px;">' +
+        '<span>Select a message to read</span></div>';
+      loadAgentBoardInbox();
+    };
+
+    async function loadAgentBoardInbox() {
+      var agent = _abInboxAgent;
+      var agentParam = agent === 'all' ? '' : '?agent=' + encodeURIComponent(agent);
+      var listEl = document.getElementById('ab-inbox-list');
+      var statusEl = document.getElementById('ab-inbox-status');
+      listEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">Loading…</div>';
+      try {
+        var messages = await api('/api/agent_board/inbox' + agentParam);
+        _abInboxMessages = Array.isArray(messages) ? messages : [];
+        renderInboxList(_abInboxMessages);
+        loadInboxUnreadCount();
+        if (statusEl) statusEl.textContent = _abInboxMessages.length + ' messages';
+      } catch(e) {
+        listEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--red);font-size:13px;">Failed to load inbox.</div>';
+        if (statusEl) statusEl.textContent = 'Error';
+      }
+    }
+
+    function renderInboxList(messages) {
+      var el = document.getElementById('ab-inbox-list');
+      if (!messages || messages.length === 0) {
+        el.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">📭 No messages in inbox</div>';
+        return;
+      }
+      var html = '';
+      messages.forEach(function(m) {
+        var isUnread = !m.read;
+        var time = m.created_at ? relativeTime(m.created_at) : '';
+        var preview = (m.body || '').substring(0, 100);
+        if (preview.length === 100) preview += '\u2026';
+        var mid = m.id;
+        var selected = _abInboxSelected && _abInboxSelected.id === m.id ? ' selected' : '';
+        html += '<div class="inbox-item' + (isUnread ? ' unread' : '') + selected + '" onclick="window.selectInboxMessage(' + mid + ')" data-id="' + mid + '" style="padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;' + (isUnread ? 'font-weight:600;' : '') + (selected ? 'background:var(--accent-dim);' : '') + '">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">' +
+          '<div style="font-size:12px;color:var(--accent);font-weight:500;">' + escHtml(m.from_agent || '') + (isUnread ? ' <span class="sev-badge warn" style="font-size:9px;padding:0 4px;vertical-align:middle;">NEW</span>' : '') + '</div>' +
+          '<div style="font-size:11px;color:var(--muted);white-space:nowrap;flex-shrink:0;">' + escHtml(time) + '</div>' +
+          '</div>' +
+          '<div style="font-size:13px;color:var(--fg);margin-top:2px;">' + escHtml(m.subject || '(no subject)') + '</div>' +
+          (preview ? '<div style="font-size:12px;color:var(--fg-2);margin-top:4px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(preview) + '</div>' : '') +
+          '</div>';
+      });
+      el.innerHTML = html;
+    }
+
+    function relativeTime(dateStr) {
+      if (!dateStr) return '';
+      var diff = Date.now() - new Date(dateStr).getTime();
+      var mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + 'm ago';
+      var hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      var days = Math.floor(hrs / 24);
+      if (days < 7) return days + 'd ago';
+      return new Date(dateStr).toLocaleDateString();
+    }
+
+    window.selectInboxMessage = async function(msgId) {
+      var msg = _abInboxMessages.find(function(m) { return m.id === msgId; });
+      if (!msg) return;
+      _abInboxSelected = msg;
+      // Re-render list to update selected state
+      renderInboxList(_abInboxMessages);
+      // Mark as read if unread
+      if (!msg.read) {
+        try {
+          await api('/api/agent_board/messages/' + msgId + '/read', { method: 'PATCH' });
+          msg.read = true;
+          renderInboxList(_abInboxMessages);
+          loadInboxUnreadCount();
+        } catch(e) {}
+      }
+      // Show detail
+      renderInboxDetail(msg);
+    };
+
+    function renderInboxDetail(msg) {
+      var el = document.getElementById('ab-inbox-detail');
+      if (!msg) {
+        el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:14px;"><span>Select a message to read</span></div>';
+        return;
+      }
+      var time = msg.created_at ? new Date(msg.created_at).toLocaleString() : '—';
+      var hasThread = _abInboxMessages.some(function(m) { return m.reply_to === msg.id || m.id === msg.reply_to; });
+
+      el.innerHTML =
+        '<div style="padding:20px;display:flex;flex-direction:column;gap:12px;height:100%;overflow-y:auto;">' +
+        // Header
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">' +
+        '<div style="flex:1;min-width:0;">' +
+        '<h3 style="margin:0 0 4px;font-size:16px;color:var(--fg);">' + escHtml(msg.subject || '(no subject)') + '</h3>' +
+        '<div style="display:flex;gap:16px;font-size:12px;color:var(--fg-2);flex-wrap:wrap;">' +
+        '<span>From: <strong style="color:var(--accent);">' + escHtml(msg.from_agent) + '</strong></span>' +
+        '<span>To: <strong>' + escHtml(msg.to_agent || '—') + '</strong></span>' +
+        '<span class="mono">' + escHtml(time) + '</span>' +
+        (msg.message_type ? '<span class="sev-badge ' + (msg.message_type === 'alert' ? 'critical' : msg.message_type === 'warn' ? 'warn' : 'info') + '">' + escHtml(msg.message_type) + '</span>' : '') +
+        '</div></div>' +
+        (hasThread ? '<button class="btn btn-sm btn-secondary" onclick="window.loadInboxThread(' + msg.id + ')">💬 View Thread</button>' : '') +
+        '</div>' +
+        // Body
+        '<div style="padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;line-height:1.6;color:var(--fg);white-space:pre-wrap;word-break:break-word;min-height:60px;">' +
+        escHtml(msg.body || '(no body)') + '</div>' +
+        // Reply form
+        '<div style="margin-top:8px;">' +
+        '<div style="display:flex;gap:8px;align-items:flex-start;">' +
+        '<textarea id="ab-inbox-reply-body" rows="2" placeholder="Write a reply…" style="flex:1;padding:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);font-family:var(--font-display);font-size:13px;resize:vertical;min-height:50px;"></textarea>' +
+        '<button class="btn btn-primary btn-sm" onclick="window.sendInboxReply(' + msg.id + ')">Reply</button>' +
+        '</div></div>' +
+        // Thread container
+        '<div id="ab-inbox-thread"></div>' +
+        '</div>';
+    }
+
+    window.loadInboxThread = async function(msgId) {
+      var threadEl = document.getElementById('ab-inbox-thread');
+      if (!threadEl) return;
+      threadEl.innerHTML = '<p class="loading" style="padding:10px;">Loading thread…</p>';
+      try {
+        var data = await api('/api/agent_board/thread/' + msgId);
+        var thread = (data && data.thread) || [];
+        renderInboxThread(threadEl, thread);
+      } catch(e) {
+        threadEl.innerHTML = '<p class="error" style="padding:10px;">Failed to load thread.</p>';
+      }
+    };
+
+    function renderInboxThread(container, thread) {
+      if (!thread || thread.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      var html = '<h4 style="margin:16px 0 8px;font-size:14px;color:var(--fg);">Thread</h4>';
+      thread.forEach(function(m) {
+        var depth = m.depth || 0;
+        var time = m.created_at ? relativeTime(m.created_at) : '';
+        var indent = depth * 24;
+        html += '<div style="margin-left:' + indent + 'px;padding:10px 12px;margin-bottom:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);border-left:3px solid ' + (m.from_agent === 'huginn' ? 'var(--accent)' : 'var(--fg-2)') + ';">' +
+          '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg-2);margin-bottom:4px;">' +
+          '<span style="font-weight:600;color:var(--accent);">' + escHtml(m.from_agent) + '</span>' +
+          '<span class="mono">' + escHtml(time) + '</span></div>' +
+          '<div style="font-size:12px;font-weight:500;color:var(--fg);margin-bottom:4px;">' + escHtml(m.subject || '') + '</div>' +
+          '<div style="font-size:12px;color:var(--fg-2);line-height:1.5;white-space:pre-wrap;word-break:break-word;">' + escHtml((m.body || '').substring(0, 300)) + '</div>' +
+          '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    window.sendInboxReply = async function(parentId) {
+      var bodyEl = document.getElementById('ab-inbox-reply-body');
+      var body = bodyEl ? bodyEl.value.trim() : '';
+      if (!body) return;
+      try {
+        await api('/api/agent_board/messages', {
+          method: 'POST',
+          body: JSON.stringify({
+            to_agent: _abInboxSelected ? _abInboxSelected.from_agent : '',
+            subject: 'Re: ' + (_abInboxSelected ? _abInboxSelected.subject : ''),
+            body: body,
+            reply_to: parentId
+          })
+        });
+        bodyEl.value = '';
+        // Reload inbox to show the sent message
+        loadAgentBoardInbox();
+        // Reload thread if visible
+        if (document.getElementById('ab-inbox-thread')) {
+          window.loadInboxThread(parentId);
+        }
+      } catch(e) {
+        alert('Failed to send reply: ' + (e.message || 'unknown error'));
+      }
+    };
+
+    window.markAllInboxRead = async function() {
+      var agent = _abInboxAgent;
+      if (agent === 'all') {
+        // Mark read for each agent individually
+        var agents = ['huginn', 'muninn', 'rommie'];
+        for (var i = 0; i < agents.length; i++) {
+          try {
+            await api('/api/agent_board/messages/read-all?agent=' + encodeURIComponent(agents[i]), { method: 'PATCH' });
+          } catch(e) {}
+        }
+      } else {
+        try {
+          await api('/api/agent_board/messages/read-all?agent=' + encodeURIComponent(agent), { method: 'PATCH' });
+        } catch(e) {
+          alert('Failed to mark all read: ' + (e.message || 'unknown error'));
+          return;
+        }
+      }
+      _abInboxMessages.forEach(function(m) { m.read = true; });
+      renderInboxList(_abInboxMessages);
+      loadInboxUnreadCount();
+    };
 
     async function loadAgentBoardTasks() {
       var el = document.getElementById('ab-tasks-content');
@@ -5001,10 +5257,13 @@
         var tasks = await api('/api/agent_board/tasks?status=' + _abTaskFilter);
         _abAllTasks = Array.isArray(tasks) ? tasks : (tasks.tasks || []);
         renderAbTasks(_abAllTasks);
-        // Update pending badge
+        // Update sidebar badge: pending tasks + inbox unread
         var pending = _abAllTasks.filter(function(t) { return t.status === 'pending'; }).length;
+        var inboxBadge = document.getElementById('ab-inbox-count');
+        var inboxCount = inboxBadge ? parseInt(inboxBadge.textContent) || 0 : 0;
+        var total = pending + inboxCount;
         var badge = document.getElementById('ab-tab-count');
-        if (badge) badge.textContent = pending > 0 ? pending : '';
+        if (badge) badge.textContent = total > 0 ? total : '';
       } catch(e) {
         // Fallback: fetch all statuses
         try {
@@ -5017,6 +5276,13 @@
           }
           _abAllTasks = allTasks;
           renderAbTasks(_abAllTasks);
+          // Update sidebar badge in fallback
+          var pending = _abAllTasks.filter(function(t) { return t.status === 'pending'; }).length;
+          var inboxBadge = document.getElementById('ab-inbox-count');
+          var inboxCount = inboxBadge ? parseInt(inboxBadge.textContent) || 0 : 0;
+          var total = pending + inboxCount;
+          var badge = document.getElementById('ab-tab-count');
+          if (badge) badge.textContent = total > 0 ? total : '';
         } catch(e2) {
           el.innerHTML = '<p class="error">Failed to load tasks.</p>';
         }
@@ -5242,6 +5508,7 @@
     };
 
     window.loadAgentBoardPage = loadAgentBoardPage;
+    window.loadAgentBoardInbox = loadAgentBoardInbox;
 
 
     // ─── Hermes page ──────────────────────────────────────────────────────────
