@@ -2374,6 +2374,18 @@
           </div>
         </div>
 
+        <div class="settings-section" id="settings-cache-stats">
+          <h3>Cache Stats</h3>
+          <div class="health-card">
+            <div id="cache-stats-content">
+              <div class="health-item"><span class="label">Hits</span><span class="value" id="cache-hits">—</span></div>
+              <div class="health-item"><span class="label">Misses</span><span class="value" id="cache-misses">—</span></div>
+              <div class="health-item"><span class="label">Expired</span><span class="value" id="cache-expired">—</span></div>
+              <div class="health-item"><span class="label">Entries</span><span class="value" id="cache-entries">—</span></div>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-section" id="settings-uptime-poll">
           <h3>Uptime Kuma Sync</h3>
           <div class="health-card">
@@ -3840,6 +3852,7 @@
     loadModules();
     loadApiKeys();
     loadHealth();
+    loadCacheStats();
   }
 
   async function loadModules() {
@@ -3960,6 +3973,27 @@
         tableHtml +
       '</div>';
   }
+
+  async function loadCacheStats() {
+    try {
+      var key = localStorage.getItem('lamadb_api_key');
+      if (!key) return;
+      var resp = await fetch('/api/dashboard/cache-stats?key=' + encodeURIComponent(key));
+      if (!resp.ok) return;
+      var data = await resp.json();
+      var hits = document.getElementById('cache-hits');
+      var misses = document.getElementById('cache-misses');
+      var expired = document.getElementById('cache-expired');
+      var entries = document.getElementById('cache-entries');
+      if (hits) hits.textContent = data.hits;
+      if (misses) misses.textContent = data.misses;
+      if (expired) expired.textContent = data.expired;
+      if (entries) entries.textContent = data.entries;
+    } catch (e) {
+      console.warn('Cache stats unavailable:', e.message);
+    }
+  }
+  window.loadCacheStats = loadCacheStats;
 
   // Uptime Kuma manual poll
   async function pollUptimeKuma() {

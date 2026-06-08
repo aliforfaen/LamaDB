@@ -10,7 +10,7 @@ import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 
-from app.auth import AuthUser, get_current_user
+from app.auth import AuthUser, get_current_user, verify_api_key
 from app.cache import cache_manager, cached
 from app.config import settings
 from app.db import get_pool
@@ -571,3 +571,20 @@ async def dashboard_stream(key: str = Query(..., description="API key for auth")
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/dashboard/cache-stats — cache performance stats
+# ---------------------------------------------------------------------------
+
+@router.get("/cache-stats")
+async def cache_stats(key: str = Query(..., description="API key for query-param auth")):
+    """
+    Return cache hit/miss/expired counts and current entries.
+    Auth via query param (matches SSE pattern — used from dashboard JavaScript).
+    """
+    user = await verify_api_key(key)
+    if user is None or user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or insufficient API key")
+
+    return cache_manager.stats()
