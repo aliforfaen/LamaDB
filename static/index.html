@@ -1462,6 +1462,180 @@
       100% { transform: translateX(-50%); }
     }
 
+    /* ─── Sidebar category headers ─── */
+    .sidebar-category { margin-bottom: 2px; }
+    .sidebar-category-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      transition: color var(--transition), background var(--transition);
+      user-select: none;
+    }
+    .sidebar-category-header:hover { background: var(--surface-2); color: var(--fg-2); }
+    .sidebar-category-header .chevron {
+      display: inline-block;
+      width: 14px;
+      flex-shrink: 0;
+      transition: transform var(--transition);
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .sidebar-category-header .chevron.open { transform: rotate(90deg); }
+    .sidebar-category-header .cat-badge {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: var(--surface-3);
+      color: var(--muted);
+      min-width: 16px;
+      text-align: center;
+      display: none;
+    }
+    .sidebar-category-header .cat-badge.has-items { display: inline; }
+    .sidebar-category-header .cat-badge.alert { background: var(--danger-dim); color: var(--danger); }
+    .sidebar-category-items {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      padding-left: 4px;
+    }
+    .sidebar-category-items.collapsed { display: none; }
+
+    /* ─── Sidebar quick search ─── */
+    .sidebar-search-wrap {
+      padding: 8px 10px 4px;
+      position: relative;
+    }
+    .sidebar-search-wrap input {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px 6px 28px;
+      color: var(--fg);
+      font-family: var(--font-display);
+      font-size: 12px;
+      outline: none;
+      transition: border-color var(--transition);
+      box-sizing: border-box;
+    }
+    .sidebar-search-wrap input:focus { border-color: var(--accent); }
+    .sidebar-search-wrap input::placeholder { color: var(--muted); font-size: 11px; }
+    .sidebar-search-wrap .search-icon {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 12px;
+      pointer-events: none;
+    }
+    .sidebar-search-wrap .search-shortcut-hint {
+      position: absolute;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--muted);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    /* ─── Shortcut help overlay ─── */
+    .shortcut-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+    .shortcut-overlay.open { display: flex; }
+    .shortcut-modal {
+      background: var(--surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius);
+      width: 90%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+    .shortcut-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .shortcut-modal-header h3 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .shortcut-modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 20px;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+    }
+    .shortcut-modal-close:hover { background: var(--surface-2); color: var(--fg); }
+    .shortcut-modal-body {
+      padding: 14px 18px;
+    }
+    .shortcut-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border-light);
+      font-size: 13px;
+    }
+    .shortcut-row:last-child { border-bottom: none; }
+    .shortcut-row .shortcut-keys {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .shortcut-row .shortcut-keys kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--fg);
+      line-height: 1.3;
+    }
+    .shortcut-row .shortcut-desc {
+      color: var(--fg-2);
+      font-size: 12px;
+    }
+    .shortcut-footer-hint {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 8px 18px 14px;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -1523,68 +1697,120 @@
       </div>
     </div>
 
+    <!-- Quick search bar -->
+    <div class="sidebar-search-wrap">
+      <span class="search-icon">&#8981;</span>
+      <input type="text" id="sidebar-quick-search" placeholder="Quick search..." onkeydown="window.handleSidebarSearch(event)" autocomplete="off" />
+      <span class="search-shortcut-hint">/</span>
+    </div>
+
     <nav class="sidebar-nav" role="navigation" aria-label="Dashboard navigation">
+      <!-- Overview — always visible -->
       <button class="nav-item active" data-page="overview" aria-current="page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         <span>Overview</span>
         <span class="badge-nav">5</span>
       </button>
-      <button class="nav-item" data-page="feeds">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
-        <span>Feeds</span>
-        <span class="badge-nav">3</span>
-      </button>
-      <button class="nav-item" data-page="uptime">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-        <span>Uptime</span>
-        <span class="badge-nav">35</span>
-      </button>
-      <button class="nav-item" data-page="events">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        <span>Events</span>
-        <span class="badge-nav">89</span>
-      </button>
-      <button class="nav-item" data-page="notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span>Notifications</span>
-      </button>
-      <button class="nav-item" data-page="wiki">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-        <span>Wiki</span>
-      </button>
-      <button class="nav-item" data-page="documents">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-        <span>Documents</span>
-        <span class="badge-nav">1,247</span>
-      </button>
-      <button class="nav-item" data-page="ntfy">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span>Ntfy</span><span id="ntfy-tab-count" class="tab-badge"></span>
-      </button>
-      <button class="nav-item" data-page="dozzle">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-        <span>Dozzle</span><span id="dozzle-tab-count" class="tab-badge"></span>
-      </button>
-      <button class="nav-item" data-page="freshrss">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
-        <span>FreshRSS</span><span id="freshrss-tab-count" class="tab-badge"></span>
-      </button>
-      <button class="nav-item" data-page="agentboard">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        <span>Agent Board</span><span id="ab-tab-count" class="tab-badge"></span>
-      </button>
-      <button class="nav-item" data-page="notflix">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
-        <span>Notflix</span><span id="notflix-tab-count" class="tab-badge"></span>
-      </button>
-      <button class="nav-item" data-page="hermes">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1.05A9 9 0 0 0 3 15h2a7 7 0 0 1 14 0h2a9 9 0 0 0-6-8.95V5a3 3 0 0 0-3-3z"/><circle cx="12" cy="16" r="2"/></svg>
-        <span>Hermes</span>
-      </button>
-      <button class="nav-item" data-page="settings">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-        <span>Settings</span>
-      </button>
+
+      <!-- ─── Core ─── -->
+      <div class="sidebar-category" data-category="core">
+        <button class="sidebar-category-header" onclick="window.toggleSidebarCategory('core')">
+          <span class="chevron" id="chevron-core">&#9654;</span>
+          Core
+          <span class="cat-badge" id="badge-core"></span>
+        </button>
+        <div class="sidebar-category-items" id="items-core">
+          <button class="nav-item" data-page="documents">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span>Documents</span>
+            <span class="badge-nav">1,247</span>
+          </button>
+          <button class="nav-item" data-page="events">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span>Events</span>
+            <span class="badge-nav">89</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── Monitoring ─── -->
+      <div class="sidebar-category" data-category="monitoring">
+        <button class="sidebar-category-header" onclick="window.toggleSidebarCategory('monitoring')">
+          <span class="chevron" id="chevron-monitoring">&#9654;</span>
+          Monitoring
+          <span class="cat-badge" id="badge-monitoring"></span>
+        </button>
+        <div class="sidebar-category-items" id="items-monitoring">
+          <button class="nav-item" data-page="uptime">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <span>Uptime</span>
+            <span class="badge-nav">35</span>
+          </button>
+          <button class="nav-item" data-page="dozzle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            <span>Dozzle</span><span id="dozzle-tab-count" class="tab-badge"></span>
+          </button>
+          <button class="nav-item" data-page="hermes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1.05A9 9 0 0 0 3 15h2a7 7 0 0 1 14 0h2a9 9 0 0 0-6-8.95V5a3 3 0 0 0-3-3z"/><circle cx="12" cy="16" r="2"/></svg>
+            <span>Hermes</span>
+          </button>
+          <button class="nav-item" data-page="agentboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <span>Agent Board</span><span id="ab-tab-count" class="tab-badge"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── Data Sources ─── -->
+      <div class="sidebar-category" data-category="datasources">
+        <button class="sidebar-category-header" onclick="window.toggleSidebarCategory('datasources')">
+          <span class="chevron" id="chevron-datasources">&#9654;</span>
+          Data Sources
+          <span class="cat-badge" id="badge-datasources"></span>
+        </button>
+        <div class="sidebar-category-items" id="items-datasources">
+          <button class="nav-item" data-page="feeds">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+            <span>Feeds</span>
+            <span class="badge-nav">3</span>
+          </button>
+          <button class="nav-item" data-page="freshrss">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+            <span>FreshRSS</span><span id="freshrss-tab-count" class="tab-badge"></span>
+          </button>
+          <button class="nav-item" data-page="ntfy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span>Ntfy</span><span id="ntfy-tab-count" class="tab-badge"></span>
+          </button>
+          <button class="nav-item" data-page="notflix">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+            <span>Notflix</span><span id="notflix-tab-count" class="tab-badge"></span>
+          </button>
+          <button class="nav-item" data-page="wiki">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span>Wiki</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── Admin ─── -->
+      <div class="sidebar-category" data-category="admin">
+        <button class="sidebar-category-header" onclick="window.toggleSidebarCategory('admin')">
+          <span class="chevron" id="chevron-admin">&#9654;</span>
+          Admin
+          <span class="cat-badge" id="badge-admin"></span>
+        </button>
+        <div class="sidebar-category-items" id="items-admin">
+          <button class="nav-item" data-page="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            <span>Settings</span>
+          </button>
+          <button class="nav-item" data-page="notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span>Notifications</span>
+          </button>
+        </div>
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -2895,7 +3121,7 @@
     'notflix':    'Notflix',
     'hermes': 'Hermes',
     'settings': 'Settings',
-    'notifications': 'Notifications'
+    'notifications': document.getElementById('page-notifications')
   };
   var currentPage = 'overview';
 
@@ -6320,8 +6546,226 @@
 
   })();
 
+  // ═══════════════════════════════════════════════════════════
+  // SIDEBAR CATEGORIES — collapsible with localStorage
+  // ═══════════════════════════════════════════════════════════
+  function initSidebarCategories() {
+    var cats = ['core', 'monitoring', 'datasources', 'admin'];
+    cats.forEach(function(cat) {
+      var stored = localStorage.getItem('sidebar_cat_' + cat);
+      var items = document.getElementById('items-' + cat);
+      var chevron = document.getElementById('chevron-' + cat);
+      if (!items || !chevron) return;
+      // Default: all categories open
+      var isCollapsed = stored === 'collapsed';
+      if (isCollapsed) {
+        items.classList.add('collapsed');
+      } else {
+        chevron.classList.add('open');
+      }
+    });
+  }
+
+  window.toggleSidebarCategory = function(cat) {
+    var items = document.getElementById('items-' + cat);
+    var chevron = document.getElementById('chevron-' + cat);
+    if (!items || !chevron) return;
+    var isNowCollapsed = !items.classList.contains('collapsed');
+    items.classList.toggle('collapsed', isNowCollapsed);
+    chevron.classList.toggle('open', !isNowCollapsed);
+    localStorage.setItem('sidebar_cat_' + cat, isNowCollapsed ? 'collapsed' : 'open');
+  };
+
+  // ─── Sidebar badge updates ───
+  function updateSidebarBadges() {
+    // Monitoring badge: count down services + agent pending
+    api('/api/uptime/status').then(function(status) {
+        var down = (status || []).filter(function(m) { return m.status === 0; }).length;
+        var badge = document.getElementById('badge-monitoring');
+        if (badge) {
+          if (down > 0) {
+            badge.textContent = down + ' down';
+            badge.className = 'cat-badge has-items alert';
+          } else {
+            badge.textContent = '';
+            badge.className = 'cat-badge';
+          }
+        }
+      })
+      .catch(function() {});
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // KEYBOARD SHORTCUTS
+  // ═══════════════════════════════════════════════════════════
+  var _keyBuffer = '';
+  var _keyBufferTimer = null;
+
+  document.addEventListener('keydown', function(e) {
+    // Ignore when typing in inputs
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+      _keyBuffer = '';
+      return;
+    }
+
+    // ? → show shortcut help (only outside inputs)
+    if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      showShortcutHelp();
+      _keyBuffer = '';
+      return;
+    }
+
+    // / → focus sidebar search (when not in input)
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      var searchInput = document.getElementById('sidebar-quick-search');
+      if (searchInput) { searchInput.focus(); searchInput.select(); }
+      _keyBuffer = '';
+      return;
+    }
+
+    // Sequence shortcuts: g <key>
+    if (e.key === 'g' && !e.ctrlKey && !e.metaKey) {
+      _keyBuffer = 'g';
+      if (_keyBufferTimer) clearTimeout(_keyBufferTimer);
+      _keyBufferTimer = setTimeout(function() { _keyBuffer = ''; }, 1000);
+      return;
+    }
+
+    if (_keyBuffer === 'g') {
+      if (_keyBufferTimer) clearTimeout(_keyBufferTimer);
+      _keyBuffer = '';
+      var pageMap = {
+        'd': 'documents',
+        'e': 'events',
+        's': 'settings',
+        'u': 'uptime',
+        'f': 'feeds',
+        'o': 'overview',
+        'w': 'wiki',
+        'n': 'notifications',
+        'h': 'hermes',
+        'a': 'agentboard'
+      };
+      var target = pageMap[e.key];
+      if (target) {
+        e.preventDefault();
+        navigateTo(target);
+      }
+    }
+  });
+
+  function showShortcutHelp() {
+    var overlay = document.getElementById('shortcut-overlay');
+    if (overlay) overlay.classList.add('open');
+  }
+
+  window.closeShortcutHelp = function() {
+    var overlay = document.getElementById('shortcut-overlay');
+    if (overlay) overlay.classList.remove('open');
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // SIDEBAR QUICK SEARCH
+  // ═══════════════════════════════════════════════════════════
+  window.handleSidebarSearch = function(e) {
+    if (e.key === 'Enter') {
+      var q = e.target.value.trim();
+      if (!q) return;
+      // Navigate to Documents page with search
+      navigateTo('documents');
+      var searchInput = document.getElementById('doc-search');
+      if (searchInput) {
+        searchInput.value = q;
+        window.filterDocs();
+      }
+      e.target.value = '';
+      e.target.blur();
+    }
+    if (e.key === 'Escape') {
+      e.target.value = '';
+      e.target.blur();
+    }
+  };
+
+  // ─── Initialize sidebar on load ───
+  initSidebarCategories();
+  setTimeout(updateSidebarBadges, 2000);
+
+  // Close shortcut overlay on background click
+  document.addEventListener('click', function(e) {
+    var overlay = document.getElementById('shortcut-overlay');
+    if (overlay && overlay.classList.contains('open') && e.target === overlay) {
+      overlay.classList.remove('open');
+    }
+  });
+
 })();
 </script>
+
+<!-- ════════════════════ SHORTCUT HELP OVERLAY ════════════════════ -->
+<div class="shortcut-overlay" id="shortcut-overlay">
+  <div class="shortcut-modal">
+    <div class="shortcut-modal-header">
+      <h3>Keyboard Shortcuts</h3>
+      <button class="shortcut-modal-close" onclick="closeShortcutHelp()">×</button>
+    </div>
+    <div class="shortcut-modal-body">
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Documents</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>d</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Events</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>e</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Settings</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>s</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Overview</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>o</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Uptime</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>u</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Feeds</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>f</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Wiki</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>w</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Hermes</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>h</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Agent Board</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>a</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Go to Notifications</span>
+        <span class="shortcut-keys"><kbd>g</kbd> <kbd>n</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Focus quick search</span>
+        <span class="shortcut-keys"><kbd>/</kbd></span>
+      </div>
+      <div class="shortcut-row">
+        <span class="shortcut-desc">Show this help</span>
+        <span class="shortcut-keys"><kbd>?</kbd></span>
+      </div>
+    </div>
+    <div class="shortcut-footer-hint">
+      Press <kbd>g</kbd> then another key to navigate. Press <kbd>?</kbd> anytime to see this help.
+    </div>
+  </div>
+</div>
 
 <!-- ════════════════════ AUTH MODAL ════════════════════ -->
 <div class="modal-overlay" id="auth-modal">
