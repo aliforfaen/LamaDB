@@ -64,6 +64,6 @@ class TestCacheManager:
         c.get("exp")  # expired
         stats = c.stats()
         assert stats["hits"] == 2
-        assert stats["misses"] == 2
+        assert stats["misses"] == 3  # miss1 + miss2 + expired get
         assert stats["expired"] == 1
         assert stats["entries"] >= 0
