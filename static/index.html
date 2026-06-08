@@ -1122,6 +1122,54 @@
     .scope-pill { background: var(--surface-3); color: var(--fg-2); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: var(--font-mono); }
     .active-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 6px; }
     .inactive-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); margin-right: 6px; }
+    .stale-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-right: 6px; }
+
+    /* Filter tabs for API keys */
+    .filter-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+    .filter-tab { padding: 6px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg-2); font-size: 12px; cursor: pointer; transition: var(--transition); font-family: var(--font-display); }
+    .filter-tab:hover { background: var(--surface-3); color: var(--fg); }
+    .filter-tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    /* Role badges */
+    .role-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; font-family: var(--font-mono); }
+    .role-badge.admin { background: rgba(255, 51, 51, 0.15); color: var(--danger); }
+    .role-badge.agent { background: rgba(0, 212, 255, 0.15); color: var(--accent-cyan); }
+    .role-badge.read { background: var(--surface-3); color: var(--muted); }
+
+    /* Inline edit */
+    .inline-edit { cursor: pointer; border-bottom: 1px dashed var(--border-light); transition: var(--transition); }
+    .inline-edit:hover { border-color: var(--muted); }
+    .inline-edit-input { background: var(--surface-3); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: var(--fg); font-family: var(--font-mono); font-size: 13px; padding: 4px 8px; width: auto; min-width: 100px; outline: none; }
+    .inline-edit-select { background: var(--surface-3); border: 1px solid var(--accent); border-radius: var(--radius-sm); color: var(--fg); font-family: var(--font-mono); font-size: 12px; padding: 4px 6px; outline: none; }
+
+    /* Key stats row */
+    .key-stats { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+    .key-stat { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-2); font-family: var(--font-mono); }
+
+    /* Toast notification */
+    .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: var(--surface-3); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); animation: toastIn 0.3s ease; max-width: 400px; }
+    .toast .toast-msg { flex: 1; font-size: 13px; color: var(--fg); }
+    .toast .toast-btn { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); border-radius: var(--radius-sm); padding: 4px 12px; font-size: 12px; cursor: pointer; font-family: var(--font-display); white-space: nowrap; }
+    .toast .toast-btn:hover { background: var(--accent); color: var(--bg); }
+    .toast.toast-out { animation: toastOut 0.3s ease forwards; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
+
+    /* Confirm dialog */
+    .confirm-body { text-align: center; padding: 8px 0; }
+    .confirm-body p { font-size: 14px; color: var(--fg-2); margin-bottom: 4px; line-height: 1.5; }
+    .confirm-body .confirm-icon { font-size: 32px; margin-bottom: 12px; display: block; }
+    .confirm-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+
+    /* Scope checkboxes in create modal */
+    .scope-group { margin-bottom: 8px; }
+    .scope-group-label { font-size: 12px; color: var(--muted); font-family: var(--font-mono); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .scope-checkboxes { display: flex; flex-wrap: wrap; gap: 6px; }
+    .scope-checkbox { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 12px; color: var(--fg-2); padding: 2px 8px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border); transition: var(--transition); }
+    .scope-checkbox:hover { border-color: var(--border-light); }
+    .scope-checkbox input { accent-color: var(--accent); }
+    .scope-checkbox.checked { border-color: var(--accent-dim); background: var(--accent-dim); color: var(--accent); }
 
     /* ─── HEADER BAR ─── */
     .header-bar {
@@ -2342,20 +2390,27 @@
 
         <div class="settings-section" id="settings-apikeys">
           <h3>API Keys</h3>
-          <div style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div class="key-stats" id="apikey-stats"></div>
             <button class="btn btn-primary btn-sm" id="btn-create-apikey">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Create API Key
+              Create Key
             </button>
+          </div>
+          <div class="filter-tabs" id="apikey-filter-tabs">
+            <button class="filter-tab active" data-filter="all" onclick="filterApiKeys('all', this)">All</button>
+            <button class="filter-tab" data-filter="active" onclick="filterApiKeys('active', this)">Active</button>
+            <button class="filter-tab" data-filter="inactive" onclick="filterApiKeys('inactive', this)">Inactive</button>
+            <button class="filter-tab" data-filter="stale" onclick="filterApiKeys('stale', this)">Stale</button>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>Name</th><th>Role</th><th>Scopes</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+                <tr><th>Name</th><th>Role</th><th>Scopes</th><th>Created</th><th>Last Used</th><th>Active</th><th>Actions</th></tr>
               </thead>
               <tbody id="apikeys-tbody">
                 <tr>
-                  <td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">
+                  <td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">
                     <div class="skeleton skeleton-block" style="width:100%;height:16px;margin:0 auto;max-width:400px;"></div>
                   </td>
                 </tr>
@@ -3004,14 +3059,121 @@
   };
 
   // ─── API Key helpers ────────────────────────────────────────────────────────
+
+  // ─── Relative time helper ──────────────────────────────────────────────────
+  function relativeTime(isoStr) {
+    if (!isoStr) return '<span style="color:var(--muted);">Never</span>';
+    var date = new Date(isoStr);
+    var now = new Date();
+    var diffMs = now - date;
+    var diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return 'just now';
+    var diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return diffMin + 'm ago';
+    var diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return diffHr + 'h ago';
+    var diffDay = Math.floor(diffHr / 24);
+    if (diffDay < 30) return diffDay + 'd ago';
+    var diffMonth = Math.floor(diffDay / 30);
+    if (diffMonth < 12) return diffMonth + 'mo ago';
+    return Math.floor(diffMonth / 12) + 'y ago';
+  }
+
+  // ─── Toast system ──────────────────────────────────────────────────────────
+  var _toastTimers = {};
+
+  function showToast(msg, actionLabel, actionCallback, duration) {
+    var container = document.getElementById('toast-container');
+    if (!container) return;
+    duration = duration || 5000;
+    var toast = document.createElement('div');
+    toast.className = 'toast';
+    var msgSpan = document.createElement('span');
+    msgSpan.className = 'toast-msg';
+    msgSpan.textContent = msg;
+    toast.appendChild(msgSpan);
+    if (actionLabel && actionCallback) {
+      var btn = document.createElement('button');
+      btn.className = 'toast-btn';
+      btn.textContent = actionLabel;
+      btn.onclick = function() {
+        actionCallback();
+        toast.classList.add('toast-out');
+        setTimeout(function() { toast.remove(); }, 300);
+        clearTimeout(_toastTimers[toast]);
+        delete _toastTimers[toast];
+      };
+      toast.appendChild(btn);
+    }
+    container.appendChild(toast);
+    _toastTimers[toast] = setTimeout(function() {
+      toast.classList.add('toast-out');
+      setTimeout(function() { toast.remove(); }, 300);
+      delete _toastTimers[toast];
+    }, duration);
+  }
+
+  // ─── Confirm dialog ────────────────────────────────────────────────────────
+  var _confirmCallback = null;
+
+  function showConfirm(title, message, icon, callback) {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-message').textContent = message;
+    document.getElementById('confirm-icon').textContent = icon || '⚠';
+    _confirmCallback = callback;
+    document.getElementById('modal-confirm').classList.add('open');
+  }
+
+  window.confirmAction = function() {
+    closeModal('modal-confirm');
+    if (_confirmCallback) {
+      _confirmCallback();
+      _confirmCallback = null;
+    }
+  };
+
+  // ─── Populate scope checkboxes dynamically ─────────────────────────────────
+  function populateScopeCheckboxes() {
+    var container = document.getElementById('apikey-scope-checkboxes');
+    if (!container) return;
+    api('/api/dashboard/modules').then(function(data) {
+      var modules = data.modules || [];
+      // Core scopes always available
+      var coreScopes = ['documents', 'events', 'search', 'dashboard'];
+      var all = {};
+      coreScopes.forEach(function(s) { all[s] = true; });
+      modules.forEach(function(m) { all[m.name] = true; });
+      var names = Object.keys(all).sort();
+      container.innerHTML = names.map(function(s) {
+        return '<label class="scope-checkbox" data-scope="' + s + '">' +
+          '<input type="checkbox" value="' + s + '" onchange="this.parentElement.classList.toggle(\'checked\', this.checked)" /> ' + s +
+        '</label>';
+      }).join('');
+    }).catch(function() {
+      container.innerHTML = '<span style="color:var(--danger);font-size:12px;">Failed to load scopes</span>';
+    });
+  }
+
+  window.updateScopeVisibility = function() {
+    var role = document.getElementById('apikey-role').value;
+    var group = document.getElementById('apikey-scopes-group');
+    if (group) {
+      group.style.display = role === 'admin' ? 'none' : 'block';
+    }
+  };
+
+  // ─── Create API Key ────────────────────────────────────────────────────────
   window.submitCreateApiKey = function() {
     var name = document.getElementById('apikey-name').value.trim();
     if (!name) { alert('Please enter a key name.'); return; }
     var role = document.getElementById('apikey-role').value;
-    var scopes = Array.prototype.map.call(
-      document.querySelectorAll('[id^="scope-"]:checked'),
-      function(c) { return c.value; }
-    );
+    var scopes = [];
+    if (role !== 'admin') {
+      scopes = Array.prototype.map.call(
+        document.querySelectorAll('#apikey-scope-checkboxes input:checked'),
+        function(c) { return c.value; }
+      );
+    }
 
     api('/api/dashboard/api-keys', {
       method: 'POST',
@@ -3031,33 +3193,133 @@
     if (window._pendingKey) {
       navigator.clipboard.writeText(window._pendingKey).then(function() {
         var btn = document.querySelector('#modal-key-created .btn-secondary');
-        if (btn) btn.textContent = '✓ Copied!';
-        setTimeout(function() {
-          if (btn) btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy to Clipboard';
-        }, 2000);
+        if (btn) {
+          btn.innerHTML = '✓ Copied!';
+          setTimeout(function() {
+            if (btn) btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy to Clipboard';
+          }, 2000);
+        }
+      }).catch(function() {
+        // Fallback for older browsers
+        var ta = document.createElement('textarea');
+        ta.value = window._pendingKey;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        var btn = document.querySelector('#modal-key-created .btn-secondary');
+        if (btn) btn.innerHTML = '✓ Copied!';
       });
     }
   };
 
-  window.revokeApiKey = function(id) {
-    if (!confirm('Revoke this API key? This action cannot be undone.')) return;
-    api('/api/dashboard/api-keys/' + id, { method: 'DELETE' }).then(function() {
+  // ─── Revoke API Key ────────────────────────────────────────────────────────
+  window.revokeApiKey = function(id, name) {
+    showConfirm(
+      'Revoke API Key',
+      'Revoke "' + name + '"? It will stop working immediately for all services.',
+      '✗',
+      function() {
+        api('/api/dashboard/api-keys/' + id, { method: 'DELETE' }).then(function() {
+          loadApiKeys();
+          showToast('Key "' + name + '" revoked.', 'Undo', function() {
+            api('/api/dashboard/api-keys/' + id, {
+              method: 'PATCH',
+              body: JSON.stringify({ active: true })
+            }).then(function() {
+              loadApiKeys();
+              showToast('Key "' + name + '" restored.', null, null, 3000);
+            }).catch(function(e) {
+              showToast('Failed to undo: ' + e.message, null, null, 3000);
+            });
+          }, 5000);
+        }).catch(function(e) {
+          showToast('Failed to revoke key: ' + e.message, null, null, 3000);
+        });
+      }
+    );
+  };
+
+  // ─── Rotate API Key ────────────────────────────────────────────────────────
+  window.rotateApiKey = function(id, name) {
+    showConfirm(
+      'Rotate API Key',
+      'This will generate a new key and deactivate the old one for "' + name + '". Continue?',
+      '🔄',
+      function() {
+        api('/api/dashboard/api-keys/' + id + '/rotate', { method: 'POST' }).then(function(data) {
+          window._pendingKey = data.key;
+          document.getElementById('new-key-display').textContent = data.key;
+          document.getElementById('modal-key-created').classList.add('open');
+          loadApiKeys();
+          showToast('Key "' + name + '" rotated. Old key deactivated.', null, null, 3000);
+        }).catch(function(e) {
+          showToast('Failed to rotate key: ' + e.message, null, null, 3000);
+        });
+      }
+    );
+  };
+
+  // ─── Toggle active state ───────────────────────────────────────────────────
+  window.toggleKeyActive = function(id, currentActive) {
+    api('/api/dashboard/api-keys/' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ active: !currentActive })
+    }).then(function() {
       loadApiKeys();
     }).catch(function(e) {
-      alert('Failed to revoke key: ' + e.message);
+      showToast('Failed to update key: ' + e.message, null, null, 3000);
+      loadApiKeys(); // revert UI
     });
   };
 
-  window.rotateApiKey = function(id) {
-    if (!confirm('Rotate this API key? The old key will stop working immediately.')) return;
-    api('/api/dashboard/api-keys/' + id + '/rotate', { method: 'POST' }).then(function(data) {
-      window._pendingKey = data.key;
-      document.getElementById('new-key-display').textContent = data.key;
-      document.getElementById('modal-key-created').classList.add('open');
+  // ─── Inline edit helpers ───────────────────────────────────────────────────
+  window.startInlineEdit = function(id, field, currentValue, type) {
+    var cell = document.getElementById('key-' + id + '-' + field);
+    if (!cell) return;
+    if (type === 'role') {
+      cell.innerHTML = '<select class="inline-edit-select" id="inline-' + id + '-' + field + '" onblur="saveInlineEdit(\'' + id + '\', \'' + field + '\', this)" onkeydown="if(event.key===\'Enter\')this.blur()">' +
+        '<option value="read"' + (currentValue === 'read' ? ' selected' : '') + '>read</option>' +
+        '<option value="agent"' + (currentValue === 'agent' ? ' selected' : '') + '>agent</option>' +
+        '<option value="admin"' + (currentValue === 'admin' ? ' selected' : '') + '>admin</option>' +
+      '</select>';
+      document.getElementById('inline-' + id + '-' + field).focus();
+    } else {
+      cell.innerHTML = '<input class="inline-edit-input" type="text" id="inline-' + id + '-' + field + '" value="' + escHtml(String(currentValue)) + '" onblur="saveInlineEdit(\'' + id + '\', \'' + field + '\', this)" onkeydown="if(event.key===\'Enter\')this.blur()" />';
+      var input = document.getElementById('inline-' + id + '-' + field);
+      input.focus();
+      input.select();
+    }
+  };
+
+  window.saveInlineEdit = function(id, field, el) {
+    var newValue = el.value.trim();
+    if (!newValue) { loadApiKeys(); return; }
+    var body = {};
+    if (field === 'scopes') {
+      body.scopes = newValue.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+    } else {
+      body[field] = newValue;
+    }
+    api('/api/dashboard/api-keys/' + id, {
+      method: 'PATCH',
+      body: JSON.stringify(body)
+    }).then(function() {
       loadApiKeys();
     }).catch(function(e) {
-      alert('Failed to rotate key: ' + e.message);
+      showToast('Failed to update: ' + e.message, null, null, 3000);
+      loadApiKeys();
     });
+  };
+
+  // ─── Filter API keys ───────────────────────────────────────────────────────
+  window.filterApiKeys = function(filter, btn) {
+    document.querySelectorAll('#apikey-filter-tabs .filter-tab').forEach(function(t) {
+      t.classList.remove('active');
+    });
+    if (btn) btn.classList.add('active');
+    window._apikeyFilter = filter;
+    renderApiKeysTable(window._allApiKeys || []);
   };
 
   // ─── Module toggle ───────────────────────────────────────────────────────────
@@ -3894,38 +4156,86 @@
 
   async function loadApiKeys() {
     var tbody = document.getElementById('apikeys-tbody');
+    var statsEl = document.getElementById('apikey-stats');
     if (!tbody) return;
     try {
-      var data = await api('/api/dashboard/api-keys');
-      renderApiKeysTable(data.keys || []);
+      var [data, statsData] = await Promise.all([
+        api('/api/dashboard/api-keys'),
+        api('/api/dashboard/api-keys/stats')
+      ]);
+      window._allApiKeys = data.keys || [];
+      renderApiKeyStats(statsData);
+      renderApiKeysTable(window._allApiKeys);
     } catch (e) {
-      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--danger);text-align:center;padding:20px;">Failed to load API keys: ' + e.message + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--danger);text-align:center;padding:20px;">Failed to load API keys: ' + e.message + '</td></tr>';
+      if (statsEl) statsEl.innerHTML = '<span style="color:var(--danger);">Error</span>';
     }
+  }
+
+  function renderApiKeyStats(stats) {
+    var statsEl = document.getElementById('apikey-stats');
+    if (!statsEl || !stats) return;
+    statsEl.innerHTML =
+      '<span class="key-stat"><span class="active-dot"></span>' + (stats.active || 0) + ' active</span>' +
+      '<span class="key-stat"><span class="inactive-dot"></span>' + (stats.inactive || 0) + ' inactive</span>' +
+      '<span class="key-stat"><span class="stale-dot"></span>' + (stats.stale || 0) + ' stale</span>';
   }
 
   function renderApiKeysTable(keys) {
     var tbody = document.getElementById('apikeys-tbody');
     if (!tbody) return;
-    if (!keys || keys.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px;">No API keys yet. Create one above.</td></tr>';
+
+    // Apply filter
+    var filter = window._apikeyFilter || 'all';
+    var filtered = keys.filter(function(k) {
+      if (filter === 'active') return k.active;
+      if (filter === 'inactive') return !k.active;
+      if (filter === 'stale') {
+        if (!k.active) return false;
+        if (!k.last_used_at) return true;
+        var lastUsed = new Date(k.last_used_at);
+        var cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 30);
+        return lastUsed < cutoff;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      var msg = filter === 'all' ? 'No API keys yet. Create one above.' :
+                filter === 'active' ? 'No active API keys.' :
+                filter === 'inactive' ? 'No inactive API keys.' : 'No stale API keys.';
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px;">' + msg + '</td></tr>';
       return;
     }
-    tbody.innerHTML = keys.map(function(k) {
-      var scopes = (k.scopes || []).map(function(s) {
+
+    tbody.innerHTML = filtered.map(function(k) {
+      var scopes = (k.scopes || []).length > 0 ? (k.scopes || []).map(function(s) {
         return '<span class="scope-pill">' + s + '</span>';
-      }).join(' ');
-      if (!scopes) scopes = '<span style="color:var(--muted);font-size:12px;">—</span>';
-      var dot = k.active ? '<span class="active-dot"></span>Active' : '<span class="inactive-dot"></span>Inactive';
-      var created = k.created_at ? new Date(k.created_at).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '';
-      return '<tr>' +
-        '<td style="font-weight:500;">' + k.name + '</td>' +
-        '<td><span class="tag-pill" style="font-size:11px;">' + k.role + '</span></td>' +
-        '<td>' + scopes + '</td>' +
-        '<td style="font-size:12px;">' + dot + '</td>' +
-        '<td class="mono nowrap">' + created + '</td>' +
+      }).join(' ') : '<span style="color:var(--muted);font-size:12px;">—</span>';
+
+      var roleBadge = 'role-badge ' + k.role;
+      var roleLabel = k.role;
+
+      var toggleChecked = k.active ? 'checked' : '';
+      var lastUsed = relativeTime(k.last_used_at);
+      var created = relativeTime(k.created_at);
+
+      return '<tr data-key-id="' + k.id + '">' +
+        '<td><span class="inline-edit" id="key-' + k.id + '-name" onclick="startInlineEdit(\'' + k.id + '\', \'name\', \'' + escAttr(k.name) + '\', \'text\')">' + escHtml(k.name) + '</span></td>' +
+        '<td><span class="inline-edit ' + roleBadge + '" id="key-' + k.id + '-role" onclick="startInlineEdit(\'' + k.id + '\', \'role\', \'' + escAttr(k.role) + '\', \'role\')">' + roleLabel + '</span></td>' +
+        '<td><span class="inline-edit" id="key-' + k.id + '-scopes" onclick="startInlineEdit(\'' + k.id + '\', \'scopes\', \'' + escAttr((k.scopes || []).join(', ')) + '\', \'scopes\')" style="display:flex;flex-wrap:wrap;gap:3px;">' + scopes + '</span></td>' +
+        '<td class="mono" style="font-size:12px;color:var(--fg-2);">' + created + '</td>' +
+        '<td class="mono" style="font-size:12px;">' + lastUsed + '</td>' +
+        '<td>' +
+          '<label class="toggle" style="margin:0;" onclick="event.stopPropagation()">' +
+            '<input type="checkbox" ' + toggleChecked + ' onchange="toggleKeyActive(\'' + k.id + '\', ' + k.active + ')" />' +
+            '<span class="toggle-slider"></span>' +
+          '</label>' +
+        '</td>' +
         '<td class="key-table-actions">' +
-          '<button class="btn btn-ghost btn-sm" onclick="rotateApiKey(\'' + k.id + '\')">Rotate</button>' +
-          '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="revokeApiKey(\'' + k.id + '\')">Revoke</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="rotateApiKey(\'' + k.id + '\', \'' + escAttr(k.name) + '\')" title="Rotate key">🔄</button>' +
+          '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="revokeApiKey(\'' + k.id + '\', \'' + escAttr(k.name) + '\')" title="Revoke key">✗</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -4104,7 +4414,9 @@
       btnCreateApikey.addEventListener('click', function() {
         document.getElementById('apikey-name').value = '';
         document.getElementById('apikey-role').value = 'read';
-        document.querySelectorAll('[id^="scope-"]').forEach(function(c) { c.checked = false; });
+        populateScopeCheckboxes();
+        updateScopeVisibility();
+        document.querySelectorAll('#apikey-scope-checkboxes input').forEach(function(c) { c.checked = false; c.parentElement.classList.remove('checked'); });
         document.getElementById('modal-apikey').classList.add('open');
       });
     }
@@ -5401,32 +5713,22 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label for="apikey-name">Key name</label>
+        <label for="apikey-name">Key Name</label>
         <input type="text" id="apikey-name" placeholder="e.g. Worker Agent" />
       </div>
       <div class="form-group">
         <label for="apikey-role">Role</label>
-        <select id="apikey-role">
+        <select id="apikey-role" onchange="updateScopeVisibility()">
           <option value="read">read — read-only access</option>
           <option value="agent">agent — scoped read/write</option>
           <option value="admin">admin — full access</option>
         </select>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="apikey-scopes-group">
         <label>Scopes <span style="color:var(--muted);font-weight:400;">(for agent role)</span></label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:var(--fg-2);">
-            <input type="checkbox" id="scope-documents" value="documents" /> documents
-          </label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:var(--fg-2);">
-            <input type="checkbox" id="scope-events" value="events" /> events
-          </label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:var(--fg-2);">
-            <input type="checkbox" id="scope-feeds" value="feeds" /> feeds
-          </label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px;color:var(--fg-2);">
-            <input type="checkbox" id="scope-uptime" value="uptime" /> uptime
-          </label>
+        <div id="apikey-scope-checkboxes" class="scope-checkboxes" style="margin-top:6px;">
+          <!-- Populated dynamically from modules list -->
+          <span style="color:var(--muted);font-size:12px;">Loading modules…</span>
         </div>
       </div>
     </div>
@@ -5436,6 +5738,27 @@
     </div>
   </div>
 </div>
+
+<!-- ════════════════════ CONFIRM MODAL ════════════════════ -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h3 id="confirm-title">Confirm</h3>
+      <button class="modal-close" onclick="closeModal('modal-confirm')">×</button>
+    </div>
+    <div class="modal-body confirm-body">
+      <span class="confirm-icon" id="confirm-icon">⚠</span>
+      <p id="confirm-message">Are you sure?</p>
+      <div class="confirm-actions">
+        <button class="btn btn-secondary" onclick="closeModal('modal-confirm')">Cancel</button>
+        <button class="btn btn-primary" id="confirm-yes" onclick="confirmAction()">Continue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ TOAST CONTAINER ════════════════════ -->
+<div class="toast-container" id="toast-container"></div>
 
 <!-- ════════════════════ KEY CREATED MODAL ════════════════════ -->
 <div class="modal-overlay" id="modal-key-created">
