@@ -458,3 +458,284 @@ async def test_rotate_api_key_not_found(client, admin_key):
         headers={"Authorization": f"Bearer {admin_key}"}
     )
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Test: PATCH /api/dashboard/api-keys/{key_id}
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_patch_api_key_update_name(client, admin_key, db_pool):
+    """PATCH /api/dashboard/api-keys/{id} updates name."""
+    # Create a key first
+    key_hash = bcrypt.hashpw(
+        f"{settings.api_key_salt}test-patch-key".encode(),
+        bcrypt.gensalt()
+    ).decode()
+
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO api_keys (name, key_hash, role, scopes)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+            """,
+            "test-patch-original",
+            key_hash,
+            "read",
+            []
+        )
+        key_id = str(row["id"])
+
+    # Patch the name
+    response = await client.patch(
+        f"/api/dashboard/api-keys/{key_id}",
+        json={"name": "test-patch-updated"},
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "test-patch-updated"
+    assert data["id"] == key_id
+    assert "last_used_at" in data
+
+    # Cleanup
+    async with db_pool.acquire() as conn:
+        await conn.execute("DELETE FROM api_keys WHERE id = $1", key_id)
+
+
+@pytest.mark.asyncio
+async def test_patch_api_key_update_role(client, admin_key, db_pool):
+    """PATCH /api/dashboard/api-keys/{id} updates role."""
+    key_hash = bcrypt.hashpw(
+        f"{settings.api_key_salt}test-patch-role".encode(),
+        bcrypt.gensalt()
+    ).decode()
+
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO api_keys (name, key_hash, role, scopes)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+            """,
+            "test-patch-role",
+            key_hash,
+            "read",
+            []
+        )
+        key_id = str(row["id"])
+
+    # Patch the role
+    response = await client.patch(
+        f"/api/dashboard/api-keys/{key_id}",
+        json={"role": "admin"},
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role"] == "admin"
+
+    # Cleanup
+    async with db_pool.acquire() as conn:
+        await conn.execute("DELETE FROM api_keys WHERE id = $1", key_id)
+
+
+@pytest.mark.asyncio
+async def test_patch_api_key_update_scopes(client, admin_key, db_pool):
+    """PATCH /api/dashboard/api-keys/{id} updates scopes."""
+    key_hash = bcrypt.hashpw(
+        f"{settings.api_key_salt}test-patch-scopes".encode(),
+        bcrypt.gensalt()
+    ).decode()
+
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO api_keys (name, key_hash, role, scopes)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+            """,
+            "test-patch-scopes",
+            key_hash,
+            "agent",
+            ["feeds"]
+        )
+        key_id = str(row["id"])
+
+    # Patch scopes
+    response = await client.patch(
+        f"/api/dashboard/api-keys/{key_id}",
+        json={"scopes": ["feeds", "uptime"]},
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["scopes"] == ["feeds", "uptime"]
+
+    # Cleanup
+    async with db_pool.acquire() as conn:
+        await conn.execute("DELETE FROM api_keys WHERE id = $1", key_id)
+
+
+@pytest.mark.asyncio
+async def test_patch_api_key_invalid_scopes(client, admin_key, db_pool):
+    """PATCH /api/dashboard/api-keys/{id} returns 400 for invalid scopes."""
+    key_hash = bcrypt.hashpw(
+        f"{settings.api_key_salt}test-patch-invalid".encode(),
+        bcrypt.gensalt()
+    ).decode()
+
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO api_keys (name, key_hash, role, scopes)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+            """,
+            "test-patch-invalid",
+            key_hash,
+            "agent",
+            []
+        )
+        key_id = str(row["id"])
+
+    # Patch with invalid scope
+    response = await client.patch(
+        f"/api/dashboard/api-keys/{key_id}",
+        json={"scopes": ["totally_fake_scope_xyz"]},
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert "Invalid scopes" in data["detail"]
+    assert "totally_fake_scope_xyz" in data["detail"]
+
+    # Cleanup
+    async with db_pool.acquire() as conn:
+        await conn.execute("DELETE FROM api_keys WHERE id = $1", key_id)
+
+
+@pytest.mark.asyncio
+async def test_patch_api_key_not_found(client, admin_key):
+    """PATCH /api/dashboard/api-keys/{id} returns 404 for nonexistent key."""
+    fake_id = str(uuid4())
+    response = await client.patch(
+        f"/api/dashboard/api-keys/{fake_id}",
+        json={"name": "nope"},
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_patch_api_key_empty_body(client, admin_key, db_pool):
+    """PATCH /api/dashboard/api-keys/{id} returns 400 when no fields provided."""
+    key_hash = bcrypt.hashpw(
+        f"{settings.api_key_salt}test-patch-empty".encode(),
+        bcrypt.gensalt()
+    ).decode()
+
+    async with db_pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO api_keys (name, key_hash, role, scopes)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+            """,
+            "test-patch-empty",
+            key_hash,
+            "read",
+            []
+        )
+        key_id = str(row["id"])
+
+    # Patch with empty body
+    response = await client.patch(
+        f"/api/dashboard/api-keys/{key_id}",
+        json={},
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 400
+    assert "No fields to update" in response.json()["detail"]
+
+    # Cleanup
+    async with db_pool.acquire() as conn:
+        await conn.execute("DELETE FROM api_keys WHERE id = $1", key_id)
+
+
+# ---------------------------------------------------------------------------
+# Test: GET /api/dashboard/api-keys/stats
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_api_key_stats(client, admin_key, db_pool):
+    """GET /api/dashboard/api-keys/stats returns active/inactive/stale counts."""
+    # Create some keys for testing
+    keys_created = []
+    for i in range(3):
+        key_hash = bcrypt.hashpw(
+            f"{settings.api_key_salt}test-stats-{i}".encode(),
+            bcrypt.gensalt()
+        ).decode()
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO api_keys (name, key_hash, role, scopes, active)
+                VALUES ($1, $2, $3, $4, $5)
+                """,
+                f"test-stats-{i}",
+                key_hash,
+                "read",
+                [],
+                i < 2,  # first 2 active, third inactive
+            )
+            keys_created.append(f"test-stats-{i}")
+
+    response = await client.get(
+        "/api/dashboard/api-keys/stats",
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "active" in data
+    assert "inactive" in data
+    assert "stale" in data
+    assert isinstance(data["active"], int)
+    assert isinstance(data["inactive"], int)
+    assert isinstance(data["stale"], int)
+    assert data["active"] >= 2
+    assert data["inactive"] >= 1
+
+    # Cleanup
+    async with db_pool.acquire() as conn:
+        for name in keys_created:
+            await conn.execute("DELETE FROM api_keys WHERE name = $1", name)
+
+
+@pytest.mark.asyncio
+async def test_api_key_stats_requires_admin(client, non_admin_key):
+    """GET /api/dashboard/api-keys/stats returns 403 for non-admin."""
+    response = await client.get(
+        "/api/dashboard/api-keys/stats",
+        headers={"Authorization": f"Bearer {non_admin_key}"}
+    )
+    assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Test: last_used_at in list response
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_list_api_keys_includes_last_used_at(client, admin_key):
+    """GET /api/dashboard/api-keys returns last_used_at field."""
+    response = await client.get(
+        "/api/dashboard/api-keys",
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "keys" in data
+    for key in data["keys"]:
+        assert "last_used_at" in key

@@ -361,7 +361,7 @@ async def list_api_keys(user: AuthUser = Depends(require_admin)):
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT id, name, role, scopes, active, created_at
+            SELECT id, name, role, scopes, active, created_at, last_used_at
             FROM api_keys
             ORDER BY created_at DESC
             """
@@ -376,6 +376,7 @@ async def list_api_keys(user: AuthUser = Depends(require_admin)):
             "scopes": list(row["scopes"]) if row["scopes"] else [],
             "active": row["active"],
             "created_at": row["created_at"].isoformat(),
+            "last_used_at": row["last_used_at"].isoformat() if row["last_used_at"] else None,
         })
 
     return {"keys": keys}
@@ -495,6 +496,107 @@ async def rotate_api_key(
         "key": raw_key,
         "message": "Save this key — it will not be shown again",
     }
+
+
+def _get_valid_scopes() -> set[str]:
+    """Return the set of valid scope names from the module registry."""
+    valid = {"documents", "events", "search", "dashboard"}
+    modules_dir = Path(__file__).parent.parent.parent / "modules"
+    if modules_dir.exists():
+        for item in sorted(modules_dir.iterdir()):
+            if item.is_dir() and (item / "__init__.py").exists():
+                valid.add(item.name)
+    return valid
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/dashboard/api-keys/{key_id}
+# ---------------------------------------------------------------------------
+
+@router.patch("/api-keys/{key_id}")
+async def update_api_key(
+    key_id: str,
+    body: dict,
+    user: AuthUser = Depends(require_admin),
+):
+    """Update an API key's name, role, scopes, or active status."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        existing = await conn.fetchrow(
+            "SELECT id, name, role, scopes FROM api_keys WHERE id = $1",
+            key_id,
+        )
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="API key not found",
+            )
+
+        if "scopes" in body:
+            scopes = body["scopes"]
+            valid_scopes = _get_valid_scopes()
+            invalid = [s for s in scopes if s not in valid_scopes]
+            if invalid:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid scopes: {', '.join(invalid)}. Valid: {', '.join(sorted(valid_scopes))}",
+                )
+
+        updates = []
+        params = []
+        idx = 1
+        for field in ("name", "role", "scopes", "active"):
+            if field in body:
+                updates.append(f"{field} = ${idx}")
+                params.append(body[field])
+                idx += 1
+        if not updates:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No fields to update",
+            )
+        params.append(key_id)
+        set_clause = ", ".join(updates)
+
+        row = await conn.fetchrow(
+            f"""
+            UPDATE api_keys SET {set_clause}
+            WHERE id = ${idx}
+            RETURNING id, name, role, scopes, active, created_at, last_used_at
+            """,
+            *params,
+        )
+        return {
+            "id": str(row["id"]),
+            "name": row["name"],
+            "role": row["role"],
+            "scopes": list(row["scopes"]) if row["scopes"] else [],
+            "active": row["active"],
+            "created_at": row["created_at"].isoformat(),
+            "last_used_at": row["last_used_at"].isoformat() if row["last_used_at"] else None,
+        }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/dashboard/api-keys/stats
+# ---------------------------------------------------------------------------
+
+@router.get("/api-keys/stats")
+async def api_key_stats(user: AuthUser = Depends(require_admin)):
+    """Return API key statistics: active, inactive, stale counts."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        active = await conn.fetchval(
+            "SELECT count(*) FROM api_keys WHERE active = true"
+        )
+        inactive = await conn.fetchval(
+            "SELECT count(*) FROM api_keys WHERE active = false"
+        )
+        stale = await conn.fetchval(
+            "SELECT count(*) FROM api_keys WHERE active = true "
+            "AND (last_used_at IS NULL OR last_used_at < now() - interval '30 days')"
+        )
+    return {"active": active or 0, "inactive": inactive or 0, "stale": stale or 0}
 
 
 # ---------------------------------------------------------------------------

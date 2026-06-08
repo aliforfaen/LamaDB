@@ -1,4 +1,5 @@
 """API key authentication with roles and scopes."""
+import asyncio
 import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -20,6 +21,20 @@ class AuthUser(BaseModel):
 def _verify_key(key: str, salt: str, stored_hash: str) -> bool:
     """Verify an API key against a stored bcrypt hash."""
     return bcrypt.checkpw(f"{salt}{key}".encode(), stored_hash.encode())
+
+
+async def _touch_last_used(key_id: str):
+    """Fire-and-forget: update last_used_at on key usage."""
+    try:
+        from app.db import get_pool
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE api_keys SET last_used_at = now() WHERE id = $1",
+                key_id,
+            )
+    except Exception:
+        pass  # Never fail a request because of tracking
 
 
 async def get_current_user(
@@ -49,12 +64,14 @@ async def get_current_user(
     # Verify token against each key hash
     for row in rows:
         if _verify_key(token, settings.api_key_salt, row["key_hash"]):
-            return AuthUser(
+            user = AuthUser(
                 key_id=str(row["id"]),
                 name=row["name"],
                 role=row["role"],
                 scopes=list(row["scopes"]) if row["scopes"] else [],
             )
+            asyncio.create_task(_touch_last_used(user.key_id))
+            return user
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -83,12 +100,14 @@ async def verify_api_key(key: str) -> AuthUser | None:
 
     for row in rows:
         if _verify_key(key, settings.api_key_salt, row["key_hash"]):
-            return AuthUser(
+            user = AuthUser(
                 key_id=str(row["id"]),
                 name=row["name"],
                 role=row["role"],
                 scopes=list(row["scopes"]) if row["scopes"] else [],
             )
+            asyncio.create_task(_touch_last_used(user.key_id))
+            return user
 
     return None
 
