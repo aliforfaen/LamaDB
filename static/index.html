@@ -373,6 +373,15 @@
       border-radius: var(--radius);
       padding: 16px;
     }
+    .hermes-cost-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px; }
+    .hermes-cost-card .cost-value { font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:600; color:var(--accent); }
+    .hermes-cost-card .cost-label { font-size:12px; color:var(--muted); margin-top:4px; }
+    .hermes-cost-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .hermes-cost-table th { text-align:left; padding:6px 10px; color:var(--muted); font-weight:500; border-bottom:1px solid var(--border); }
+    .hermes-cost-table td { padding:6px 10px; border-bottom:1px solid var(--border-hairline, rgba(255,255,255,0.04)); }
+    .hermes-cost-table .model-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-family:'JetBrains Mono',monospace; background:var(--bg-hover, rgba(255,255,255,0.04)); }
+    .health-gauge { width:100%; height:8px; background:var(--bg-hover, rgba(255,255,255,0.06)); border-radius:4px; overflow:hidden; }
+    .health-gauge-fill { height:100%; border-radius:4px; transition:width 0.5s; }
 
     /* ─── Tables ─── */
     .table-wrap {
@@ -1356,6 +1365,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         <span>Dozzle</span><span id="dozzle-tab-count" class="tab-badge"></span>
       </button>
+      <button class="nav-item" data-page="freshrss">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+        <span>FreshRSS</span><span id="freshrss-tab-count" class="tab-badge"></span>
+      </button>
       <button class="nav-item" data-page="agentboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         <span>Agent Board</span><span id="ab-tab-count" class="tab-badge"></span>
@@ -1931,66 +1944,6 @@
         </div>
 
         <div class="doc-grid" id="doc-grid">
-          <div class="doc-card" onclick="openDocDetail(this)">
-            <div class="doc-title">LamaDB Architecture Overview</div>
-            <div class="doc-meta">
-              <span class="source-badge manual">manual</span>
-              <span class="tag-pill">architecture</span>
-              <span class="tag-pill">postgres</span>
-            </div>
-            <div class="doc-preview">LamaDB is a central data layer that sits on top of PostgreSQL, providing document storage, RSS feed management, event processing, and uptime monitoring in a single self-hosted system. The architecture follows a modular design with separate services for each domain.</div>
-            <div class="doc-date">2026-05-28</div>
-          </div>
-          <div class="doc-card" onclick="openDocDetail(this)">
-            <div class="doc-title">Deployment Guide — Docker Compose</div>
-            <div class="doc-meta">
-              <span class="source-badge manual">manual</span>
-              <span class="tag-pill">deploy</span>
-              <span class="tag-pill">docker</span>
-            </div>
-            <div class="doc-preview">This document describes how to deploy LamaDB using Docker Compose. The stack includes PostgreSQL 16, Redis 7, the LamaDB API server, feed processor, uptime checker, and document indexer.</div>
-            <div class="doc-date">2026-05-25</div>
-          </div>
-          <div class="doc-card" onclick="openDocDetail(this)">
-            <div class="doc-title">TechCrunch Article — AI Funding Round</div>
-            <div class="doc-meta">
-              <span class="source-badge rss">rss</span>
-              <span class="tag-pill">ai</span>
-              <span class="tag-pill">funding</span>
-            </div>
-            <div class="doc-preview">A leading AI startup has raised $500 million in Series D funding, bringing its valuation to $12 billion. The round was led by Sequoia Capital with participation from existing investors. The company plans to expand its engineering team and accelerate product development.</div>
-            <div class="doc-date">2026-05-29</div>
-          </div>
-          <div class="doc-card" onclick="openDocDetail(this)">
-            <div class="doc-title">Event Schema Specification</div>
-            <div class="doc-meta">
-              <span class="source-badge manual">manual</span>
-              <span class="tag-pill">schema</span>
-              <span class="tag-pill">events</span>
-            </div>
-            <div class="doc-preview">All events in LamaDB follow a unified schema with timestamp, source, type, severity, title, body, and metadata fields. Events are stored in PostgreSQL with JSONB metadata for flexible querying.</div>
-            <div class="doc-date">2026-05-20</div>
-          </div>
-          <div class="doc-card" onclick="openDocDetail(this)">
-            <div class="doc-title">PostgreSQL Extension for Vector Search</div>
-            <div class="doc-meta">
-              <span class="source-badge rss">rss</span>
-              <span class="tag-pill">postgres</span>
-              <span class="tag-pill">vector</span>
-            </div>
-            <div class="doc-preview">A new open-source PostgreSQL extension enables efficient vector similarity search using IVFFlat and HNSW indexes. The extension supports cosine, Euclidean, and inner product distances.</div>
-            <div class="doc-date">2026-05-29</div>
-          </div>
-          <div class="doc-card" onclick="openDocDetail(this)">
-            <div class="doc-title">API Endpoint Reference</div>
-            <div class="doc-meta">
-              <span class="source-badge manual">manual</span>
-              <span class="tag-pill">api</span>
-              <span class="tag-pill">reference</span>
-            </div>
-            <div class="doc-preview">Complete API reference for LamaDB including documents, feeds, uptime, and events endpoints. All endpoints require authentication via admin key or agent key.</div>
-            <div class="doc-date">2026-05-22</div>
-          </div>
         </div>
 
       </section>
@@ -2200,6 +2153,29 @@
         <div id="dozzle-content"><p class="loading">Loading…</p></div>
       </section>
 
+      <!-- ════════════════════ FRESHRSS PAGE ════════════════════ -->
+      <section id="page-freshrss" class="page" aria-label="FreshRSS">
+        <div class="filter-bar" style="margin-bottom:12px;">
+          <span style="flex:1;"></span>
+          <span id="freshrss-status-text" style="font-size:12px;color:var(--muted);"></span>
+          <button class="btn btn-sm btn-secondary" onclick="window.loadFreshrssPage()">↻ Refresh</button>
+          <button class="btn btn-sm btn-primary" id="freshrss-sync-btn" onclick="window.syncFreshrss()">Sync Now</button>
+        </div>
+
+        <!-- Sync status cards -->
+        <div id="freshrss-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
+          <p class="loading">Loading…</p>
+        </div>
+
+        <!-- Feed list -->
+        <h3 style="margin-bottom:10px;">Subscribed Feeds</h3>
+        <div id="freshrss-feeds"><p class="loading">Loading…</p></div>
+
+        <!-- Recent articles -->
+        <h3 style="margin-top:20px;margin-bottom:10px;">Recent Articles</h3>
+        <div id="freshrss-articles"><p class="loading">Loading…</p></div>
+      </section>
+
       <!-- ════════════════════ AGENT BOARD PAGE ════════════════════ -->
       <section id="page-agentboard" class="page" aria-label="Agent Board">
         <div class="wiki-tabs" style="margin-bottom:12px;">
@@ -2315,24 +2291,40 @@
       <!-- ════════════════════ HERMES PAGE ════════════════════ -->
       <section id="page-hermes" class="page" aria-label="Hermes">
         <div class="filter-bar" style="margin-bottom:12px;">
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-sm" id="hermes-tab-overview" onclick="switchHermesTab('overview')" style="border-radius:6px 0 0 6px;">Overview</button>
+            <button class="btn btn-sm btn-secondary" id="hermes-tab-costs" onclick="switchHermesTab('costs')" style="border-radius:0;">Costs</button>
+            <button class="btn btn-sm btn-secondary" id="hermes-tab-health" onclick="switchHermesTab('health')" style="border-radius:0 6px 6px 0;">Health</button>
+          </div>
           <span style="flex:1;"></span>
           <span id="hermes-health-badge" style="font-size:12px;color:var(--muted);"></span>
-          <button class="btn btn-sm btn-secondary" onclick="window.loadHermesPage()">↻ Refresh</button>
+          <button class="btn btn-sm btn-secondary" onclick="loadHermesPage()">↻ Refresh</button>
         </div>
 
-        <!-- Health + System cards -->
-        <div id="hermes-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
+        <div id="hermes-panel-overview">
+          <!-- Health + System cards -->
+          <div id="hermes-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
+          </div>
+
+          <!-- Session stats -->
+          <h3 style="margin-bottom:10px;">Session Statistics</h3>
+          <div id="hermes-session-stats" style="margin-bottom:20px;">
+            <p class="loading">Loading…</p>
+          </div>
+
+          <!-- Recent sessions table -->
+          <h3 style="margin-bottom:10px;">Recent Sessions</h3>
+          <div id="hermes-sessions"><p class="loading">Loading…</p></div>
         </div>
 
-        <!-- Session stats -->
-        <h3 style="margin-bottom:10px;">Session Statistics</h3>
-        <div id="hermes-session-stats" style="margin-bottom:20px;">
-          <p class="loading">Loading…</p>
+        <div id="hermes-panel-costs" style="display:none;">
+          <div id="hermes-cost-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;"></div>
+          <div id="hermes-cost-rollups"></div>
         </div>
 
-        <!-- Recent sessions table -->
-        <h3 style="margin-bottom:10px;">Recent Sessions</h3>
-        <div id="hermes-sessions"><p class="loading">Loading…</p></div>
+        <div id="hermes-panel-health" style="display:none;">
+          <div id="hermes-health-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;"></div>
+        </div>
       </section>
 
       <!-- ════════════════════ SETTINGS PAGE ════════════════════ -->
@@ -2510,20 +2502,8 @@
       </div>
       <div style="margin-top:14px;">
         <div class="section-header"><h3>Linked Documents</h3></div>
-        <div class="graph-viz" id="doc-graph">
-          <svg width="100%" height="200" viewBox="0 0 400 200">
-            <!-- edges -->
-            <line x1="200" y1="60" x2="100" y2="140" stroke="var(--border-light)" stroke-width="2" />
-            <line x1="200" y1="60" x2="300" y2="140" stroke="var(--border-light)" stroke-width="2" />
-            <line x1="100" y1="140" x2="300" y2="140" stroke="var(--border-light)" stroke-width="1.5" stroke-dasharray="4 3" />
-            <!-- nodes -->
-            <circle cx="200" cy="60" r="8" fill="var(--accent)" stroke="var(--bg)" stroke-width="2" />
-            <text x="200" y="44" text-anchor="middle" fill="var(--fg-2)" font-size="10" font-family="var(--font-mono)">Current Doc</text>
-            <circle cx="100" cy="140" r="6" fill="var(--accent-cyan)" stroke="var(--bg)" stroke-width="2" />
-            <text x="100" y="166" text-anchor="middle" fill="var(--muted)" font-size="10" font-family="var(--font-mono)">Architecture</text>
-            <circle cx="300" cy="140" r="6" fill="var(--accent-cyan)" stroke="var(--bg)" stroke-width="2" />
-            <text x="300" y="166" text-anchor="middle" fill="var(--muted)" font-size="10" font-family="var(--font-mono)">API Ref</text>
-          </svg>
+        <div id="doc-graph" style="min-height:40px;color:var(--muted);font-size:13px;">
+          <span class="loading-text">Loading...</span>
         </div>
       </div>
     </div>
@@ -2585,6 +2565,37 @@
     document.getElementById('auth-modal').style.display = 'none';
   }
 
+  // ─── SSE real-time event stream ──────────────────────────────────────────────
+  var _sseSource = null;
+  function connectSSE() {
+    if (_sseSource) { _sseSource.close(); _sseSource = null; }
+    var key = getApiKey();
+    if (!key) return;
+    _sseSource = new EventSource('/api/dashboard/stream?key=' + encodeURIComponent(key));
+    _sseSource.addEventListener('event_created', function(e) {
+      try {
+        var data = JSON.parse(e.data);
+        // Update ticker by re-fetching header
+        updateHeader();
+      } catch(ex) {}
+    });
+    _sseSource.addEventListener('task_update', function(e) {
+      try {
+        var data = JSON.parse(e.data);
+        var pendingEl = document.getElementById('led-agents');
+        if (pendingEl && data.status === 'completed') {
+          // Re-fetch header for agent counts
+          updateHeader();
+        }
+      } catch(ex) {}
+    });
+    _sseSource.onerror = function() {
+      // EventSource auto-reconnects; just clean up when permanently closed
+      if (_sseSource && _sseSource.readyState === EventSource.CLOSED) {
+        _sseSource = null;
+      }
+    };
+  }
   // ─── Error banner ───────────────────────────────────────────────────────────
   function showError(message) {
     var existing = document.querySelector('.error-banner');
@@ -2606,6 +2617,7 @@
     'documents':  document.getElementById('page-documents'),
     'ntfy':       document.getElementById('page-ntfy'),
     'dozzle':     document.getElementById('page-dozzle'),
+    'freshrss':   document.getElementById('page-freshrss'),
     'agentboard': document.getElementById('page-agentboard'),
     'notflix':    document.getElementById('page-notflix'),
     'hermes':     document.getElementById('page-hermes'),
@@ -2620,6 +2632,7 @@
     'documents': 'Documents',
     'ntfy': 'Ntfy',
     'dozzle': 'Dozzle',
+    'freshrss': 'FreshRSS',
     'agentboard': 'Agent Board',
     'notflix':    'Notflix',
     'hermes': 'Hermes',
@@ -2654,6 +2667,7 @@
     else if (pageId === 'documents') loadDocuments();
     else if (pageId === 'ntfy') loadNtfyPage();
     else if (pageId === 'dozzle') loadDozzlePage();
+    else if (pageId === 'freshrss') loadFreshrssPage();
     else if (pageId === 'agentboard') loadAgentBoardPage();
     else if (pageId === 'notflix') loadNotflixPage();
     else if (pageId === 'settings') loadSettings();
@@ -2685,6 +2699,7 @@
     try {
       await api('/api/dashboard/overview');
       hideAuthModal();
+      connectSSE();
       navigateTo(currentPage || 'overview');
     } catch (e) {
       document.getElementById('api-key-error').textContent = 'Invalid API key — access denied.';
@@ -2793,37 +2808,104 @@
   };
 
   // ─── Document detail modal ───────────────────────────────────────────────────
-  window.openDocDetail = function(card) {
-    var title = card.querySelector('.doc-title').textContent;
-    var preview = card.querySelector('.doc-preview') ? card.querySelector('.doc-preview').textContent : '';
-    var tags = card.querySelectorAll('.tag-pill');
-    var source = card.querySelector('.source-badge');
-    var date = card.querySelector('.doc-date') ? card.querySelector('.doc-date').textContent : '';
-
-    document.getElementById('doc-detail-title').textContent = title;
-    document.getElementById('doc-detail-content').textContent = preview;
-
-    var meta = document.getElementById('doc-detail-meta');
-    meta.innerHTML = '';
-    if (source) {
-      var s = source.cloneNode(true);
-      meta.appendChild(s);
+  window.openDocDetail = async function(card) {
+    var docId = card.dataset.docId;
+    if (!docId) {
+      document.getElementById('doc-detail-title').textContent = 'Error';
+      document.getElementById('doc-detail-content').textContent = 'No document ID found on card.';
+      document.getElementById('doc-detail-date').textContent = '';
+      document.getElementById('doc-detail-meta').innerHTML = '';
+      document.getElementById('doc-detail-json').textContent = '';
+      document.getElementById('doc-graph').innerHTML = '<span>No document ID</span>';
+      document.getElementById('modal-doc-detail').classList.add('open');
+      return;
     }
-    tags.forEach(function(t) {
-      var clone = t.cloneNode(true);
-      meta.appendChild(clone);
-    });
 
-    document.getElementById('doc-detail-date').textContent = 'Created: ' + date + ' · Updated: ' + date;
-    document.getElementById('doc-detail-json').textContent = JSON.stringify({
-      id: card.dataset.docId || 'unknown',
-      title: title,
-      source_type: source ? source.textContent.trim() : 'manual',
-      tags: Array.prototype.map.call(tags, function(t) { return t.textContent.replace('×', '').trim(); }),
-      created_at: date + 'T00:00:00Z'
-    }, null, 2);
-
+    // Show modal with loading state immediately
+    document.getElementById('doc-detail-title').textContent = 'Loading...';
+    document.getElementById('doc-detail-content').textContent = '';
+    document.getElementById('doc-detail-date').textContent = '';
+    document.getElementById('doc-detail-meta').innerHTML = '';
+    document.getElementById('doc-detail-json').textContent = '';
+    document.getElementById('doc-graph').innerHTML = '<span class="loading-text">Loading...</span>';
     document.getElementById('modal-doc-detail').classList.add('open');
+
+    try {
+      var results = await Promise.allSettled([
+        api('/api/documents/' + docId),
+        api('/api/documents/' + docId + '/links')
+      ]);
+
+      var docResult = results[0];
+      var linksResult = results[1];
+
+      if (docResult.status === 'rejected') {
+        throw docResult.reason;
+      }
+
+      var doc = docResult.value;
+
+      // Title
+      document.getElementById('doc-detail-title').textContent = doc.title || 'Untitled';
+
+      // Content
+      document.getElementById('doc-detail-content').textContent = doc.content || '(no content)';
+
+      // Meta — source badge + tags
+      var meta = document.getElementById('doc-detail-meta');
+      meta.innerHTML = '';
+      var sourceClass = doc.source_type === 'rss' ? 'rss' : doc.source_type === 'api' ? 'api' : 'manual';
+      meta.innerHTML += '<span class="source-badge ' + sourceClass + '">' + doc.source_type + '</span>';
+      if (doc.tags && doc.tags.length) {
+        doc.tags.forEach(function(t) {
+          meta.innerHTML += '<span class="tag-pill">' + t + '</span>';
+        });
+      }
+
+      // Dates
+      var created = doc.created_at ? new Date(doc.created_at).toLocaleString() : 'unknown';
+      var updated = doc.updated_at ? new Date(doc.updated_at).toLocaleString() : 'unknown';
+      document.getElementById('doc-detail-date').textContent = 'Created: ' + created + ' · Updated: ' + updated;
+
+      // JSON metadata
+      document.getElementById('doc-detail-json').textContent = JSON.stringify({
+        id: doc.id,
+        title: doc.title,
+        source_type: doc.source_type,
+        tags: doc.tags || [],
+        created_at: doc.created_at,
+        updated_at: doc.updated_at,
+        metadata: doc.metadata || {}
+      }, null, 2);
+
+      // Linked documents
+      var graphEl = document.getElementById('doc-graph');
+      if (linksResult.status === 'fulfilled' && linksResult.value && linksResult.value.length) {
+        var links = linksResult.value;
+        graphEl.innerHTML = links.map(function(link) {
+          return '<div style="display:inline-block;margin:2px 4px;padding:3px 8px;' +
+            'background:var(--bg-2);border-radius:var(--radius-sm);border:1px solid var(--border-light);' +
+            'font-size:12px;">' +
+            '<span style="color:var(--accent-cyan);">' + (link.target_title || link.target_id) + '</span>' +
+            ' <span style="color:var(--muted);">(' + link.link_type + ')</span>' +
+            '</div>';
+        }).join('');
+      } else if (linksResult.status === 'fulfilled') {
+        graphEl.innerHTML = '<span>No linked documents.</span>';
+      } else {
+        graphEl.innerHTML = '<span style="color:var(--warn);">Failed to load links.</span>';
+      }
+
+    } catch (e) {
+      document.getElementById('doc-detail-title').textContent = 'Error';
+      document.getElementById('doc-detail-content').textContent = e.status === 404
+        ? 'Document not found.'
+        : 'Failed to load document: ' + e.message;
+      document.getElementById('doc-detail-date').textContent = '';
+      document.getElementById('doc-detail-meta').innerHTML = '';
+      document.getElementById('doc-detail-json').textContent = '';
+      document.getElementById('doc-graph').innerHTML = '<span style="color:var(--warn);">Failed to load</span>';
+    }
   };
 
   // ─── Document search ─────────────────────────────────────────────────────────
@@ -3159,7 +3241,6 @@
     }
   }
 
-  // Uptime page
   async function loadUptime() {
     try {
       var status = await api('/api/uptime/status');
@@ -3172,6 +3253,14 @@
     try {
       var history = await api('/api/uptime/history?limit=50');
       renderStatusHistory(history);
+    } catch (e) {
+      /* ignore */
+    }
+
+    // Fetch batch history for sparklines
+    try {
+      var recentData = await api('/api/uptime/history/recent?limit=30');
+      renderSparklines(recentData.monitors);
     } catch (e) {
       /* ignore */
     }
@@ -3207,7 +3296,7 @@
       var statusCls = m.status === 1 ? 'up' : m.status === 0 ? 'down' : '';
       var ts = m.received_at ? new Date(m.received_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '—';
       var dur = m.duration_ms !== null ? m.duration_ms + 'ms' : '—';
-      return '<div class="monitor-card ' + cls + '">' +
+      return '<div class="monitor-card ' + cls + '" data-monitor-id="' + m.monitor_id + '">' +
         '<div class="mon-name">' + (m.monitor_name || m.monitor_id || '?') + '</div>' +
         '<div class="mon-url monitor-url">' + (m.monitor_url || '—') + '</div>' +
         '<div class="mon-status ' + statusCls + '">' + statusLabel + '</div>' +
@@ -3236,6 +3325,47 @@
         '<td class="mono">' + dur + '</td>' +
       '</tr>';
     }).join('');
+  }
+
+  function renderSparklines(monitors) {
+    var cards = document.querySelectorAll('#page-uptime .monitor-card');
+    cards.forEach(function(card) {
+      var mid = card.dataset.monitorId;
+      if (!mid || !monitors || !monitors[mid]) return;
+      // Remove any existing sparkline
+      var prev = card.querySelector('.sparkline');
+      if (prev) prev.remove();
+      var svg = buildSparkline(monitors[mid]);
+      card.insertAdjacentHTML('beforeend', svg);
+    });
+  }
+
+  function buildSparkline(points) {
+    var w = 120, h = 24, pad = 2;
+    var n = points.length;
+    if (n < 2) return '<div class="sparkline" style="height:' + h + 'px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px;">—</div>';
+
+    var stepX = (w - pad * 2) / (n - 1);
+    var ptsStr = '';
+    for (var i = 0; i < n; i++) {
+      var s = points[i].status;
+      var y = pad;
+      if (s === 0) y = h - pad;      // DOWN = bottom
+      else if (s === 1) y = pad;      // UP = top
+      else y = h / 2;                 // pending/maintained = middle
+      var x = pad + i * stepX;
+      ptsStr += x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    }
+
+    var latest = points[n - 1].status;
+    var color;
+    if (latest === 1) color = 'var(--status-up, #4ade80)';
+    else if (latest === 0) color = 'var(--status-down, #f87171)';
+    else color = 'var(--muted, #94a3b8)';
+
+    return '<svg class="sparkline" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" style="display:block;margin-top:4px;">' +
+      '<polyline points="' + ptsStr.trim() + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" />' +
+      '</svg>';
   }
 
   // ─── Topology sub-tab ─────────────────────────────────────────────────────────
@@ -3962,8 +4092,10 @@
       showAuthModal();
     } else {
       // Test the stored key
+      // Test the stored key
       api('/api/dashboard/overview').then(function() {
         loadOverview();
+        connectSSE();
       }).catch(function() {
         showAuthModal();
       });
@@ -3977,9 +4109,106 @@
     bootstrap();
   }
 
+
+  // ─── FreshRSS page ────────────────────────────────────────────────────────
+  async function loadFreshrssPage() {
+    var statusText = document.getElementById('freshrss-status-text');
+    var cards = document.getElementById('freshrss-cards');
+    var feeds = document.getElementById('freshrss-feeds');
+    var articles = document.getElementById('freshrss-articles');
+
+    // Status
+    try {
+      var status = await api('/api/freshrss/status');
+      if (statusText) {
+        if (status.configured) {
+          var lastSync = status.last_sync ? new Date(status.last_sync).toLocaleString() : 'never';
+          statusText.innerHTML = 'Last sync: ' + lastSync + ' · ' + (status.article_count || 0) + ' articles';
+        } else {
+          statusText.innerHTML = '<span style="color:var(--warn);">Not configured</span>';
+        }
+      }
+      if (cards) {
+        cards.innerHTML =
+          '<div class="col-card"><div class="stat-label">Articles</div><div class="stat-value">' + (status.article_count || 0) + '</div></div>' +
+          '<div class="col-card"><div class="stat-label">Feeds</div><div class="stat-value">' + (status.feeds_count || 0) + '</div></div>' +
+          '<div class="col-card"><div class="stat-label">Configured</div><div class="stat-value" style="font-size:14px;">' + (status.configured ? '✅' : '❌') + '</div></div>';
+      }
+    } catch(e) {
+      if (statusText) statusText.innerHTML = '<span style="color:var(--red);">Error loading status</span>';
+      if (cards) cards.innerHTML = '<p class="error">Failed to load status</p>';
+    }
+
+    // Feed list
+    try {
+      var feedData = await api('/api/freshrss/feeds');
+      var feedList = feedData.subscriptions || feedData || [];
+      if (feeds) {
+        if (feedList.length === 0) {
+          feeds.innerHTML = '<p class="empty">No subscriptions. Sync to populate.</p>';
+        } else {
+          var html = '<div class="table-wrap"><table><thead><tr><th>Title</th><th>URL</th><th>Categories</th></tr></thead><tbody>';
+          feedList.forEach(function(f) {
+            html += '<tr>' +
+              '<td>' + escHtml(f.title || f.id || '-') + '</td>' +
+              '<td class="mono" style="font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(f.url || '') + '">' + escHtml(f.url || '-') + '</td>' +
+              '<td>' + (f.categories ? escHtml(f.categories.map(function(c){return c.label||c;}).join(', ')) : '-') + '</td>' +
+              '</tr>';
+          });
+          html += '</tbody></table></div>';
+          feeds.innerHTML = html;
+        }
+      }
+    } catch(e) {
+      if (feeds) feeds.innerHTML = '<p class="error">Failed to load feeds. FreshRSS may not be configured.</p>';
+    }
+
+    // Recent articles
+    try {
+      var articleData = await api('/api/freshrss/articles?limit=20');
+      var articleList = articleData.articles || [];
+      if (articles) {
+        if (articleList.length === 0) {
+          articles.innerHTML = '<p class="empty">No articles synced yet.</p>';
+        } else {
+          var html2 = '<div class="table-wrap"><table><thead><tr><th>Title</th><th>Feed</th><th>Date</th></tr></thead><tbody>';
+          articleList.forEach(function(a) {
+            var feedTitle = a.metadata && a.metadata.feed_title ? a.metadata.feed_title : '-';
+            var created = a.created_at ? new Date(a.created_at).toLocaleString() : '';
+            html2 += '<tr>' +
+              '<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(a.title || '') + '">' + escHtml(a.title || '') + '</td>' +
+              '<td class="mono" style="font-size:11px;">' + escHtml(feedTitle) + '</td>' +
+              '<td class="mono" style="font-size:11px;">' + created + '</td>' +
+              '</tr>';
+          });
+          html2 += '</tbody></table></div>';
+          articles.innerHTML = html2;
+        }
+      }
+    } catch(e) {
+      if (articles) articles.innerHTML = '<p class="error">Failed to load articles</p>';
+    }
+  }
+
+  async function syncFreshrss() {
+    var btn = document.getElementById('freshrss-sync-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
+    try {
+      var result = await api('/api/freshrss/sync', { method: 'POST' });
+      alert('Sync complete: ' + (result.new_count || 0) + ' new articles from ' + (result.feeds_synced || 0) + ' feeds');
+      loadFreshrssPage();
+    } catch(e) {
+      alert('Sync failed: ' + (e.message || 'unknown error'));
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Sync Now'; }
+    }
+  }
+
+  window.loadFreshrssPage = loadFreshrssPage;
+  window.syncFreshrss = syncFreshrss;
   // ─── HEADER + TICKER ───
   (function() {
-    const REFRESH_INTERVAL = 30000; // 30s
+    const REFRESH_INTERVAL = 120000; // 120s — SSE covers real-time, polling is safety net
 
     function sevClass(sev) {
       if (sev === 'critical') return 'ti-err';
@@ -4765,6 +4994,148 @@
     }
 
     window.loadHermesPage = loadHermesPage;
+    // ─── Hermes sub-navigation ──────────────────────────────────────────────
+    var hermesTab = 'overview';
+
+    function switchHermesTab(tab) {
+      hermesTab = tab;
+      ['overview','costs','health'].forEach(function(t) {
+        var btn = document.getElementById('hermes-tab-' + t);
+        if (!btn) return;
+        if (t === tab) { btn.className = 'btn btn-sm'; }
+        else { btn.className = 'btn btn-sm btn-secondary'; }
+      });
+      document.getElementById('hermes-panel-overview').style.display = (tab === 'overview') ? '' : 'none';
+      document.getElementById('hermes-panel-costs').style.display = (tab === 'costs') ? '' : 'none';
+      document.getElementById('hermes-panel-health').style.display = (tab === 'health') ? '' : 'none';
+      if (tab === 'costs') loadHermesCosts();
+      else if (tab === 'health') loadHermesHealth();
+    }
+    window.switchHermesTab = switchHermesTab;
+
+    // ─── Token usage panel ──────────────────────────────────────────────────
+    async function loadHermesCosts() {
+      var summary = document.getElementById('hermes-cost-summary');
+      var rollups = document.getElementById('hermes-cost-rollups');
+      if (!summary || !rollups) return;
+      summary.innerHTML = '<p class="loading">Loading…</p>';
+      rollups.innerHTML = '';
+
+      try {
+        var data = await api('/api/hermes/costs?days=7');
+        var items = data.rollups || [];
+
+        var totalInput = 0, totalOutput = 0, totalCache = 0, totalReasoning = 0;
+        var totalCost = 0, totalSessions = 0;
+        items.forEach(function(d) {
+          totalInput += d.input_tokens || 0;
+          totalOutput += d.output_tokens || 0;
+          totalCache += d.cache_read_tokens || 0;
+          totalReasoning += d.reasoning_tokens || 0;
+          totalCost += d.total_cost_usd || 0;
+          totalSessions += d.session_count || 0;
+        });
+        var totalTokens = totalInput + totalOutput;
+        var cachePct = totalTokens ? ((totalCache / totalTokens) * 100).toFixed(1) : '0.0';
+        var reasoningPct = totalTokens ? ((totalReasoning / totalTokens) * 100).toFixed(1) : '0.0';
+
+        summary.innerHTML =
+          '<div class="hermes-cost-card">' +
+            '<div class="cost-value">' + totalTokens.toLocaleString() + '</div>' +
+            '<div class="cost-label">Total tokens (7d)</div>' +
+            '<div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--muted);">' +
+              '<span>In ' + totalInput.toLocaleString() + '</span>' +
+              '<span>Out ' + totalOutput.toLocaleString() + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="hermes-cost-card">' +
+            '<div class="cost-value">' + totalCache.toLocaleString() + '</div>' +
+            '<div class="cost-label">Cache read tokens</div>' +
+            '<div style="margin-top:4px;font-size:12px;color:var(--accent);">' + cachePct + '% hit rate</div>' +
+          '</div>' +
+          '<div class="hermes-cost-card">' +
+            '<div class="cost-value">' + totalReasoning.toLocaleString() + '</div>' +
+            '<div class="cost-label">Reasoning tokens</div>' +
+            '<div style="margin-top:4px;font-size:12px;color:var(--muted);">' + reasoningPct + '% of total</div>' +
+          '</div>' +
+          '<div class="hermes-cost-card">' +
+            '<div class="cost-value">' + totalSessions + '</div>' +
+            '<div class="cost-label">Sessions (7d)</div>' +
+            '<div style="margin-top:8px;font-size:11px;color:var(--muted);">$' + totalCost.toFixed(4) + ' est. cost</div>' +
+          '</div>';
+
+        var html = '<table class="hermes-cost-table"><thead><tr><th>Date</th><th>Sess</th><th>Input</th><th>Output</th><th>Cache hit</th><th>Reason</th><th>Cost</th></tr></thead><tbody>';
+        items.forEach(function(d) {
+          html += '<tr>' +
+            '<td>' + d.date + '</td>' +
+            '<td>' + d.session_count + '</td>' +
+            '<td>' + (d.input_tokens||0).toLocaleString() + '</td>' +
+            '<td>' + (d.output_tokens||0).toLocaleString() + '</td>' +
+            '<td>' + (d.cache_read_tokens||0).toLocaleString() + '</td>' +
+            '<td>' + (d.reasoning_tokens||0).toLocaleString() + '</td>' +
+            '<td style="color:var(--muted);">$' + (d.total_cost_usd||0).toFixed(4) + '</td>' +
+          '</tr>';
+        });
+        html += '</tbody></table>';
+        rollups.innerHTML = html;
+      } catch(e) {
+        summary.innerHTML = '<p class="error">Failed to load token data: ' + e.message + '</p>';
+      }
+    }
+    window.loadHermesCosts = loadHermesCosts;
+
+    // ─── Health panel ───────────────────────────────────────────────────────
+    async function loadHermesHealth() {
+      var metrics = document.getElementById('hermes-health-metrics');
+      if (!metrics) return;
+      metrics.innerHTML = '<p class="loading">Loading…</p>';
+
+      try {
+        var h = await api('/api/hermes/health/snapshot');
+        var uptimeColor = h.gateway_uptime_pct > 95 ? 'var(--accent)' : h.gateway_uptime_pct > 80 ? '#f59e0b' : '#ef4444';
+        var errorColor = h.recent_errors === 0 ? 'var(--accent)' : h.recent_errors < 5 ? '#f59e0b' : '#ef4444';
+        var credColor = h.credential_failures === 0 ? 'var(--accent)' : '#ef4444';
+
+        var sourcesHtml = Object.entries(h.by_source||{}).map(function(e) {
+          return '<span class="model-badge">' + e[0] + ': ' + e[1] + '</span>';
+        }).join(' ');
+
+        metrics.innerHTML =
+          '<div class="hermes-cost-card">' +
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="cost-label">Gateway uptime (24h)</span><span style="font-family:JetBrains Mono,monospace;font-size:18px;font-weight:600;color:' + uptimeColor + ';">' + h.gateway_uptime_pct + '%</span></div>' +
+            '<div class="health-gauge" style="margin-top:8px;"><div class="health-gauge-fill" style="width:' + h.gateway_uptime_pct + '%;background:' + uptimeColor + ';"></div></div>' +
+          '</div>' +
+          '<div class="hermes-cost-card">' +
+            '<div class="cost-value" style="color:' + errorColor + ';">' + h.recent_errors + '</div>' +
+            '<div class="cost-label">Errors (24h)</div>' +
+          '</div>' +
+          '<div class="hermes-cost-card">' +
+            '<div class="cost-value" style="color:' + credColor + ';">' + h.credential_failures + '</div>' +
+            '<div class="cost-label">Credential failures (24h)</div>' +
+          '</div>' +
+          '<div class="hermes-cost-card">' +
+            '<div class="cost-value">' + h.total_sessions_24h + '</div>' +
+            '<div class="cost-label">Sessions (24h)</div>' +
+          '</div>' +
+          '<div class="hermes-cost-card">' +
+            '<div class="cost-value">' + h.messages_24h.toLocaleString() + '</div>' +
+            '<div class="cost-label">Messages (24h)</div>' +
+          '</div>' +
+          '<div class="hermes-cost-card">' +
+            '<div class="cost-value">' + (h.active_sessions || 0) + '</div>' +
+            '<div class="cost-label">Active sessions</div>' +
+          '</div>' +
+          '<div class="hermes-cost-card" style="grid-column:1/-1;">' +
+            '<div class="cost-label">Sessions by source</div>' +
+            '<div style="margin-top:6px;">' + (sourcesHtml || 'No data') + '</div>' +
+          '</div>';
+      } catch(e) {
+        metrics.innerHTML = '<p class="error">Failed to load health: ' + e.message + '</p>';
+      }
+    }
+    window.loadHermesHealth = loadHermesHealth;
+
+
 
     // ─── Notifications Page ──────────────────────────────────────────────────
     function toggleNewRuleForm() {

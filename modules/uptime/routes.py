@@ -256,6 +256,57 @@ async def get_monitor_history(
         return [_monitor_status_from_row(row) for row in rows]
 
 
+
+# ---------------------------------------------------------------------------
+# GET /api/uptime/history/recent — batch recent history for all monitors
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/history/recent",
+    tags=["uptime"],
+)
+async def get_recent_history(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    limit: int = Query(default=30, ge=1, le=100, description="Max entries per monitor"),
+):
+    """
+    Get recent status history grouped by monitor.
+
+    Returns the last N entries for each monitor in a single query.
+    This avoids N+1 fetch calls for sparkline rendering on the dashboard.
+
+    Returns:
+        {"monitors": {monitor_id: [{"received_at": "...", "status": 0}, ...], ...}}
+    """
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT monitor_id, received_at, status
+            FROM monitor_status
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id,
+                        ROW_NUMBER() OVER (PARTITION BY monitor_id ORDER BY received_at DESC) AS rn
+                    FROM monitor_status
+                ) sub
+                WHERE rn <= $1
+            )
+            ORDER BY monitor_id, received_at
+            """,
+            limit,
+        )
+        monitors = {}
+        for row in rows:
+            mid = row["monitor_id"]
+            if mid not in monitors:
+                monitors[mid] = []
+            monitors[mid].append({
+                "received_at": row["received_at"].isoformat(),
+                "status": row["status"],
+            })
+        return {"monitors": monitors}
+
 # ---------------------------------------------------------------------------
 # GET /api/uptime/topology — auth required
 # ---------------------------------------------------------------------------

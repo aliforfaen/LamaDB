@@ -4,7 +4,7 @@
 
 LamaDB is a self-hosted central data layer / Life OS. It stores documents, events, and relationships in PostgreSQL, exposes a FastAPI REST API, and serves RSS feeds generated from its data.
 
-**Current phase: Active development.** 11 modules (feeds, uptime, dashboard, agent_board, freshrss, ntfy, dozzle, wiki, hermes, notflix, notifications). 26+ commits, 120+ tests. Uptime Kuma webhook + registry poller live. Agent Board task queue + LISTEN/NOTIFY operational. Dashboard with wiki reader, topology host map, ticker, auth flow, and Hermes analytics tab.
+**Current phase: Active development.** 11 modules (feeds, uptime, dashboard, agent_board, freshrss, ntfy, dozzle, wiki, hermes, notflix, notifications). 30+ commits, 134 tests. Dashboard with real-time SSE, uptime sparklines, document detail modals, Hermes analytics, and topology host map.
 
 Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table.
 
@@ -45,7 +45,9 @@ lamadb/
 │   ├── main.py            # FastAPI app, module discovery, lifespan
 │   ├── config.py          # Settings from env vars
 │   ├── db.py              # asyncpg connection pool
-│   ├── auth.py            # API key auth with roles
+│   ├── auth.py            # API key auth with roles (includes verify_api_key for SSE)
+│   ├── embeddings.py      # OpenAI embedding service (text-embedding-3-small, 1536d)
+│   ├── sse.py             # SSE infrastructure (SSEManager + pg_listener)
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── documents.py   # Document + Link models
@@ -54,7 +56,7 @@ lamadb/
 │       ├── __init__.py
 │       ├── documents.py   # Document CRUD routes (/api/documents)
 │       ├── events.py      # Event CRUD routes (/api/events)
-│       └── search.py      # Search routes (/api/search)
+│       └── search.py      # Search routes (/api/search + /embeddings/backfill)
 ├── modules/
 │   ├── __init__.py        # Module registry
 │   ├── feeds/             # RSS feed generator
@@ -119,7 +121,16 @@ lamadb/
 │   ├── css/
 │   └── js/
 ├── migrations/
-│   └── 001_initial.sql    # Core tables + extensions
+│   ├── 001_initial.sql    # Core tables + extensions
+│   ├── 002_ticker.sql     # Ticker event support
+│   ├── 002_wiki_scratchpad_seed.sql
+│   ├── 003_uptime_tags.sql
+│   ├── 003_freshrss.sql
+│   ├── 004_agent_board.sql # Task queue + LISTEN/NOTIFY
+│   ├── 005_monitor_registry.sql
+│   ├── 006_notification_rules.sql
+│   ├── 007_embedding_hnsw.sql # HNSW index for vector search
+│   └── 008_event_notify.sql  # NOTIFY triggers for SSE
 └── deploy/
     └── coolify.md         # Coolify deployment notes
 ```
@@ -390,9 +401,67 @@ docker logs lamadb_api --tail 20
 - [x] Shows gateway connectivity, host metrics, token usage summary, and session list with cost estimates
 - [x] Exported `loadHermesPage` to window for onclick handler (IIFE scoping)
 
+### Phase 7: Embeddings, FreshRSS, SSE, Dashboard Polish ✅ (Completed 2026-06-07)
+
+#### 7A: FreshRSS Polling Activation
+- [x] Added `FRESHRSS_URL`, `FRESHRSS_USERNAME`, `FRESHRSS_API_PASSWORD` env vars to `docker-compose.yml`
+- [x] Deduplicated auth helper: `routes.py` now imports `AuthToken` from `collector.py`
+- [x] Added FreshRSS dashboard tab (nav item + page section with status cards, feed list, articles, Sync Now button)
+
+#### 7B: Vector Embeddings Pipeline
+- [x] Added `openai>=1.0.0` dependency + `OPENAI_API_KEY` / `embedding_model` config
+- [x] Created `app/embeddings.py` — `generate_embedding()`, `generate_embeddings_batch()`, `embed_document_async()` fire-and-forget
+- [x] `POST /api/embeddings/backfill` — admin-only batch backfill for existing documents
+- [x] `GET /api/search/semantic` upgraded: real OpenAI embeddings with pseudo-embedding fallback (no API key → no embeddings stored)
+- [x] `migrations/007_embedding_hnsw.sql` — HNSW index on `documents.embedding vector_cosine_ops`
+- [x] Fire-and-forget embedding hooked into `POST /api/documents` (create) and `PUT /api/documents/{id}` (update)
+
+#### 7C: Real-Time Dashboard (SSE)
+- [x] `migrations/008_event_notify.sql` — NOTIFY triggers on `events` INSERT and `agent_tasks` UPDATE
+- [x] Created `app/sse.py` — `SSEManager` (per-client `asyncio.Queue`) + `pg_listener` (dedicated asyncpg connection outside pool)
+- [x] `GET /api/dashboard/stream?key=<api_key>` — SSE endpoint with query-param auth + 15s heartbeat
+- [x] `app/auth.py` — added `verify_api_key()` for non-Bearer auth mechanisms
+- [x] Frontend `connectSSE()` EventSource client, connected after auth success
+- [x] Dashboard polling interval reduced from 30s → 120s (SSE covers real-time)
+
+#### 7C.5: Migration Runner Fix
+- [x] Rewrote `_split_sql()` from naive `split(";")` to character-by-character state machine that preserves `$$` dollar-quoted blocks
+- [x] Rewrote `migrations/008_event_notify.sql` to avoid nested `$$` blocks (bare `CREATE OR REPLACE FUNCTION` instead of `DO $$` wrappers)
+
+#### 7D/7E: Verification & Dogfood
+- [x] All 14 dashboard sidebar items present and navigable
+- [x] Triggers `trg_event_created_notify`, `trg_task_updated_notify` verified active
+- [x] HNSW index `idx_documents_embedding_hnsw` created
+- [x] SSE pg_listener connected on `event_created`, `task_update` channels
+- [x] NOTIFY end-to-end: inserting into `events` table fires notification received by listener
+- [x] 1,247 documents, 33/35 monitors up, 89 events today (verified via dashboard overview)
+- [x] Hermes tab: health green, version 0.16.0, gateway running, 189 sessions
 
 
-## Coding Conventions
+### Phase 8: Dashboard Polish & Test Suite Rebuild ✅ (Completed 2026-06-08)
+
+#### 8A: Document Detail Modal
+- [x] Rewrote `openDocDetail()` from DOM-scraping to async API fetch (parallel document + links calls)
+- [x] Loading state, 404 handling, real timestamps from API
+- [x] Linked documents rendered as clickable chips instead of static SVG placeholder
+- [x] Removed 6 hard-coded stub cards — `loadDocuments()` populates dynamically
+
+#### 8B: Uptime Sparklines
+- [x] `GET /api/uptime/history/recent?limit=30` — batch endpoint grouped by monitor_id using `ROW_NUMBER() OVER (PARTITION BY)`
+- [x] Inline SVG sparklines (stepped polylines, 120×24px) injected into each monitor card
+- [x] Color-coded by latest status: green=UP, red=DOWN, grey=pending
+
+#### 8C: SSE Bugfixes
+- [x] `app/sse.py`: Fixed `NameError` when `asyncpg.connect()` fails — `conn` initialized to `None` before try, guarded `finally`
+- [x] Frontend `connectSSE()`: Removed manual `setTimeout(connectSSE, 5000)` retry that raced with EventSource auto-reconnect
+
+#### 8D: Test Suite Rebuild
+- [x] `tests/test_hermes_ingest.py` — 6 tests: session_finalize, upsert, llm_call, credential_error, gateway_status, unknown_type
+- [x] `tests/test_dozzle_collector.py` — 4 tests: sanitize null bytes, invalid UTF-8, SSE parsing, JSONL parsing
+- [x] `tests/test_sse.py` — 4 tests: auth rejection, SSEManager broadcast/subscribe/unsubscribe lifecycle
+- [x] `Dockerfile`: Added `COPY tests/` and `COPY pytest.ini` so tests run in container
+- [x] Bugfix: `modules/hermes/routes.py` — `str(existing)` conversion for UUID→str in upsert `IngestResponse.doc_id`
+- [x] All 14 new tests pass (152s, in-process via httpx ASGITransport, no docker exec)
 
 - **Async everywhere.** asyncpg, async FastAPI routes, no sync blocking.
 - **Pydantic for all models.** Request/response validation.
@@ -411,9 +480,15 @@ docker logs lamadb_api --tail 20
 DATABASE_URL=postgresql://lamadb:lamadb@postgres:5432/lamadb
 API_KEY_SALT=<random-string-for-hashing>
 CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+OPENAI_API_KEY=sk-...            # Optional — embeddings silently skipped if empty
+FRESHRSS_URL=http://valhalla:8780 # FreshRSS GReader API base URL
+FRESHRSS_USERNAME=lamadb          # FreshRSS login username
+FRESHRSS_API_PASSWORD=...         # FreshRSS API password
+HERMES_URL=http://dev-vm:9119     # Hermes Agent API
+HERMES_DASHBOARD_SESSION_TOKEN=.. # Fallback auth for Hermes API
+UPTIME_KUMA_URL=...               # Uptime Kuma API URL
+UPTIME_KUMA_API_KEY=...           # Uptime Kuma API key
 ```
-
-## Docker Compose
 
 ## Known Pitfalls
 
@@ -429,11 +504,16 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 | `openWikiPage` not found (onclick fails silently) | IIFE scoping: functions used in `onclick` must be exported as `window.fnName = fnName;`. Same bug hit `openWikiPage` and `switchUptimeTab`. |
 | Static file changes don't appear | Static files are COPY'd into the image, not volume-mounted. Rebuild: `docker compose build api && docker compose up -d api` |
 | Docker healthcheck fails | curl not installed in python:3.12-slim. Added `apt-get install curl` to Dockerfile. |
+| Migration runner splits inside `$$` dollar-quoted blocks | Use `_split_sql()` state machine in `app/main.py` — only splits on `;` outside `$$` blocks. Also avoid nested `$$` in DO blocks — use bare `CREATE OR REPLACE FUNCTION` instead. |
+| Page loader functions inside inner IIFE can't access `api()` | Define page loaders in the outer IIFE scope (before `(function() {` at `// ─── HEADER + TICKER`), alongside `loadOverview`, `loadFeeds`, etc. Export to `window` for `onclick` handlers. |
 | API_KEY_SALT must be set BEFORE creating keys | Keys hashed with wrong salt return 401 forever. Salt is in `.env` — do not change after keys exist. |
+| Tests not found in container (`file or directory not found`) | Dockerfile must `COPY tests/` and `COPY pytest.ini .` — tests aren't volume-mounted. |
+| `IngestResponse.doc_id` rejects UUID from `fetchval` | `doc_id` expects `str`, but asyncpg returns `UUID`. Use `str(existing)`. |
+| Hermes ingest tests slow (30s each) | Notification dispatch to ntfy blocks each POST. Set `LAMADB_SKIP_NOTIFICATIONS=1` or add ntfy guard in `fire_event()`. |
+| JSONB metadata in tests is a string, not dict | asyncpg returns JSONB as string. Use `json.loads(row["metadata"])` before accessing keys. |
 
 ## Important Notes
 
 - The `/feeds/{slug}.xml` endpoint is PUBLIC (no auth). It's RSS — readers can't send API keys.
 - The `/api/uptime/webhook` endpoint is semi-public. We'll validate by source IP later, but for PoC it's open.
 - Module tables are created by module-specific migrations. The feeds and uptime tables are in 001_initial.sql for PoC simplicity.
-- Don't over-engineer. This is a PoC. We'll refactor when it works.

@@ -54,4 +54,8 @@ class Settings(BaseSettings):
     hermes_dashboard_session_token: str = ""
 
 
+    # OpenAI embeddings
+    openai_api_key: str = ""
+    embedding_model: str = "text-embedding-3-small"
+
 settings = Settings()

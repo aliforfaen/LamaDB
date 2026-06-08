@@ -10,6 +10,8 @@ from app.auth import AuthUser, get_current_user
 from app.db import get_pool
 from app.config import settings
 
+
+from .collector import AuthToken
 from .models import ArticleSyncResult
 
 router = APIRouter(tags=["freshrss"])
@@ -22,39 +24,35 @@ def _require_auth(user: AuthUser = Depends(get_current_user)) -> AuthUser:
 
 
 async def _get_auth_token() -> str:
-    """Authenticate with FreshRSS and return the GoogleLogin auth token."""
+    """Authenticate with FreshRSS and return the GoogleLogin auth token.
+
+    Delegates to the AuthToken class from collector.py to avoid duplication.
+    """
     if not settings.freshrss_url or not settings.freshrss_api_password:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="FreshRSS not configured",
         )
 
+    auth = AuthToken(settings.freshrss_url, settings.freshrss_username, settings.freshrss_api_password)
     async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{settings.freshrss_url}{_API_PATH}/accounts/ClientLogin",
-            data={
-                "Email": settings.freshrss_username,
-                "Passwd": settings.freshrss_api_password,
-                "source": "lamadb-freshrss",
-                "service": "reader",
-            },
-            timeout=15.0,
-        )
-        if resp.status_code == 403:
+        try:
+            return await auth.get(client)
+        except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="FreshRSS authentication failed — check credentials",
+                detail=f"FreshRSS auth error: {e}",
             )
-        resp.raise_for_status()
-        body = resp.text
-        import re
-        match = re.search(r"Auth=(\S+)", body)
-        if not match:
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 403:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="FreshRSS authentication failed — check credentials",
+                )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"No Auth token in ClientLogin response: {body[:200]}",
+                detail=f"FreshRSS auth error: {e}",
             )
-        return match.group(1)
 
 
 # ---------------------------------------------------------------------------

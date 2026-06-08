@@ -1,7 +1,7 @@
 # LamaDB Dashboard — Wiring Checklist
 
 Generated from visual review of `open-design/index.html` (2026-05-29).
-
+**Updated 2026-06-08 after Phase 8 (Dashboard Polish, SSE fixes, Test rebuild).**
 ## P0 — Must Fix
 
 - [ ] **Dynamic footer status** — "All systems operational" is static. Must reflect actual uptime data (green when all up, red/warn when monitors down).
@@ -12,8 +12,8 @@ Generated from visual review of `open-design/index.html` (2026-05-29).
 - [ ] **Uptime URL contrast** — URL text in monitor cards is too dark on black. Change to `--fg-2` (#b0b2b8).
 - [ ] **Events: more rows** — Default 5 rows is too low for a log viewer. Default to 20-50 rows, add "rows per page" selector.
 - [ ] **Truncated descriptions** — Feeds table and Document cards cut off descriptions with no way to see full text. Add `title` attribute on hover, or expandable rows.
-- [ ] **Loading states** — Add skeleton/spinner while API calls are in flight.
-- [ ] **Error states** — Show friendly message when API is unreachable or auth fails.
+- [x] **Loading states** — Document detail modal shows "Loading..." while fetching from API. 
+- [x] **Error states** — Document detail modal shows friendly message on 404 or network failure.
 
 ## P2 — Polish Pass
 
@@ -29,7 +29,7 @@ Generated from visual review of `open-design/index.html` (2026-05-29).
 - [ ] **Low-contrast text** — "v0.1.0", "admin", sidebar footer info are very dim. Bump to `--muted` (#6b6e76) minimum.
 - [ ] **Filter bar layout** — "Apply" button is left-aligned with dead space. Move to far-right or auto-apply on change.
 - [ ] **Date range picker** — Two separate date inputs. Consider a single date-range component.
-- [ ] **Sparklines** — Add mini trend graphs to stat cards (24h document count, event rate).
+- [x] **Sparklines** — Inline SVG sparklines on uptime monitor cards showing recent status history (Phase 8).
 - [ ] **Uptime latency context** — Show whether 45ms is "good" or "bad" per service type.
 
 ## API Wiring Map
@@ -57,14 +57,19 @@ Generated from visual review of `open-design/index.html` (2026-05-29).
 | Hermes system | `GET /api/hermes/system` | admin | Dashboard Hermes tab |
 | Hermes sessions | `GET /api/hermes/sessions?limit=10` | admin | Dashboard Hermes tab |
 | Hermes session stats | `GET /api/hermes/sessions/stats` | admin | Dashboard Hermes tab |
+| FreshRSS status | `GET /api/freshrss/status` | admin | Dashboard FreshRSS tab — configured flag, article count, last sync |
+| FreshRSS feeds | `GET /api/freshrss/feeds` | admin | Subscription list from GReader API |
+| FreshRSS articles | `GET /api/freshrss/articles?limit=20` | admin | Stored articles (source_type=rss_article) |
+| FreshRSS sync | `POST /api/freshrss/sync` | admin | Manual trigger for GReader polling |
+| Embeddings backfill | `POST /api/embeddings/backfill` | admin | Batch-embed documents without embeddings (OpenAI) |
+| Dashboard SSE stream | `GET /api/dashboard/stream?key=...` | any | Server-Sent Events — auth via query param, heartbeat 15s |
 
 ## Auth Pattern
 
 Dashboard uses an admin API key stored in localStorage (set on first visit via a settings modal).
 All fetch calls include `Authorization: Bearer <key>` header.
 Public endpoints (`/feeds/{slug}.xml`, `/api/uptime/webhook`) skip auth.
-
-## Design Token Additions
+SSE endpoint uses query-param auth (`?key=...`) since EventSource can't set headers.
 
 ```css
 /* Semantic aliases for readability during wiring */

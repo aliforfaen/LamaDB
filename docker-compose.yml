@@ -42,6 +42,11 @@ services:
       HERMES_URL: ${HERMES_URL:-}
       HERMES_API_KEY: ${HERMES_API_KEY:-}
       HERMES_DASHBOARD_SESSION_TOKEN: ${HERMES_DASHBOARD_SESSION_TOKEN:-}
+      FRESHRSS_URL: ${FRESHRSS_URL:-}
+      FRESHRSS_USERNAME: ${FRESHRSS_USERNAME:-}
+      FRESHRSS_API_PASSWORD: ${FRESHRSS_API_PASSWORD:-}
+      DOZZLE_URL: ${DOZZLE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       - ${WIKI_PATH:-/home/messhias/Basecamp/wiki}:/wiki:ro
     ports:

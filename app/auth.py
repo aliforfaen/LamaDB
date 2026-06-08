@@ -62,6 +62,37 @@ async def get_current_user(
     )
 
 
+async def verify_api_key(key: str) -> AuthUser | None:
+    """
+    Verify a raw API key against the database. Returns the AuthUser or None.
+
+    Used for auth mechanisms that can't use Bearer headers (e.g. SSE via query param).
+    """
+    from app.config import settings
+    from app.db import get_pool
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, name, key_hash, role, scopes
+            FROM api_keys
+            WHERE active = true
+            """,
+        )
+
+    for row in rows:
+        if _verify_key(key, settings.api_key_salt, row["key_hash"]):
+            return AuthUser(
+                key_id=str(row["id"]),
+                name=row["name"],
+                role=row["role"],
+                scopes=list(row["scopes"]) if row["scopes"] else [],
+            )
+
+    return None
+
+
 def require_scope(scope: str):
     """
     Dependency factory: require a specific scope.

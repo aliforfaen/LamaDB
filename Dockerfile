@@ -11,6 +11,8 @@ COPY app/ ./app/
 COPY modules/ ./modules/
 COPY migrations/ ./migrations/
 COPY static/ ./static/
+COPY tests/ ./tests/
+COPY pytest.ini .
 
 EXPOSE 8000
 

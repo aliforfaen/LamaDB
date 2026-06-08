@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import create_pool, close_pool, get_pool
+from app.sse import pg_listener, _make_notify_callback, sse_manager
 
 # Import core routers
 from app.core.documents import router as documents_router
@@ -29,10 +30,12 @@ async def run_migrations(pool) -> None:
         logger.info(f"Running migration: {migration_file.name}")
         sql = migration_file.read_text(encoding="utf-8")
 
-        # Remove comment lines, then split on semicolons
+        # Remove comment lines
         lines = [line for line in sql.split("\n") if not line.strip().startswith("--")]
-        clean_sql = "\n".join(lines)
-        statements = [s.strip() for s in clean_sql.split(";") if s.strip()]
+        clean = "\n".join(lines)
+
+        # Split on semicolons but preserve $$ dollar-quoted blocks
+        statements = _split_sql(clean)
 
         async with pool.acquire() as conn:
             for stmt in statements:
@@ -46,6 +49,41 @@ async def run_migrations(pool) -> None:
                         logger.warning(f"Migration statement error (may be non-fatal): {e}")
 
     logger.info("Migrations completed")
+
+
+def _split_sql(sql: str) -> list[str]:
+    """Split SQL on semicolons, preserving $$ dollar-quoted blocks."""
+    statements = []
+    current = []
+    in_dollar = False
+
+    i = 0
+    while i < len(sql):
+        # Detect start/end of $$ dollar-quoted blocks
+        if sql[i:i+2] == '$$':
+            in_dollar = not in_dollar
+            current.append('$$')
+            i += 2
+            continue
+
+        # Semicolons only split outside dollar quotes
+        if sql[i] == ';' and not in_dollar:
+            stmt = ''.join(current).strip()
+            if stmt:
+                statements.append(stmt)
+            current = []
+            i += 1
+            continue
+
+        current.append(sql[i])
+        i += 1
+
+    # Final statement (no trailing semicolon)
+    stmt = ''.join(current).strip()
+    if stmt:
+        statements.append(stmt)
+
+    return statements
 
 
 async def poller_loop(module_name: str, interval_seconds: int) -> None:
@@ -118,9 +156,19 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Notification seed failed (non-fatal): {e}")
 
-    yield
+        # Start SSE pg_listener for real-time dashboard updates
+        listener_task = asyncio.create_task(
+            pg_listener(
+                settings.database_url,
+                ["event_created", "task_update"],
+                _make_notify_callback(),
+            )
+        )
+        background_tasks.add(listener_task)
+        listener_task.add_done_callback(background_tasks.discard)
+        logger.info("Started SSE pg_listener on channels: event_created, task_update")
 
-    # Cancel all background tasks
+    yield
     for task in background_tasks:
         task.cancel()
     if background_tasks:

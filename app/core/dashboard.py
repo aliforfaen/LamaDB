@@ -1,4 +1,5 @@
 """Dashboard management API routes."""
+import asyncio
 import json
 import secrets
 from datetime import datetime, timezone
@@ -6,11 +7,13 @@ from pathlib import Path
 from typing import Annotated
 
 import bcrypt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 
 from app.auth import AuthUser, get_current_user
 from app.config import settings
 from app.db import get_pool
+from app.sse import sse_manager
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -508,3 +511,51 @@ async def poll_uptime_kuma(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Poll failed: {str(e)}",
         )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/dashboard/stream — SSE real-time event stream
+# ---------------------------------------------------------------------------
+
+@router.get("/stream")
+async def dashboard_stream(key: str = Query(..., description="API key for auth")):
+    """
+    Server-Sent Events stream for real-time dashboard updates.
+
+    Auth via query parameter (EventSource cannot set custom headers).
+    Pushes events when new database events are created or tasks are updated.
+    Heartbeat every 15s to keep the connection alive.
+    """
+    # Authenticate via query param
+    from app.auth import verify_api_key
+    user = await verify_api_key(key)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+    queue = sse_manager.subscribe()
+
+    async def event_generator():
+        try:
+            yield "event: connected\ndata: {}\n\n"
+            while True:
+                try:
+                    data = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    channel = data.get("channel", "unknown")
+                    payload = json.dumps(data.get("data", {}))
+                    yield f"event: {channel}\ndata: {payload}\n\n"
+                except asyncio.TimeoutError:
+                    # Heartbeat
+                    yield ": heartbeat\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            sse_manager.unsubscribe(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
