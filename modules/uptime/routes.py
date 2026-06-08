@@ -18,6 +18,7 @@ from pydantic import BaseModel
 logger = logging.getLogger("uptime.webhook")
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cached
 from app.db import get_pool
 
 from .models import (
@@ -100,6 +101,7 @@ async def receive_webhook(payload: UptimeWebhookPayload) -> WebhookResponse:
     response_model=list[CurrentStatus],
     tags=["uptime"],
 )
+@cached(ttl_seconds=30, invalidate_tags=["monitor_status"], key_prefix="uptime_status")
 async def get_current_status(
     user: Annotated[AuthUser, Depends(get_current_user)],
 ) -> list[CurrentStatus]:
@@ -265,6 +267,7 @@ async def get_monitor_history(
     "/history/recent",
     tags=["uptime"],
 )
+@cached(ttl_seconds=30, invalidate_tags=["monitor_status"], key_prefix="uptime_history_recent")
 async def get_recent_history(
     user: Annotated[AuthUser, Depends(get_current_user)],
     limit: int = Query(default=30, ge=1, le=100, description="Max entries per monitor"),

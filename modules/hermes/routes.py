@@ -7,6 +7,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cached
 from app.config import settings
 from app.db import get_pool
 
@@ -44,6 +45,7 @@ async def _hermes_get(path: str) -> dict | list | None:
 # ---------------------------------------------------------------------------
 
 @router.get("/health", response_model=HermesHealth)
+@cached(ttl_seconds=120, invalidate_tags=["hermes"], key_prefix="hermes_health")
 async def check_health(
     user: Annotated[AuthUser, Depends(_require_auth)],
 ):
@@ -82,6 +84,7 @@ async def get_status(
 # ---------------------------------------------------------------------------
 
 @router.get("/sessions/stats")
+@cached(ttl_seconds=120, invalidate_tags=["hermes"], key_prefix="hermes_sessions_stats")
 async def get_session_stats(
     user: Annotated[AuthUser, Depends(_require_auth)],
 ):
