@@ -7,7 +7,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth import AuthUser, get_current_user
-from app.cache import cached
+from app.cache import cache_manager, cached
 from app.config import settings
 from app.db import get_pool
 
@@ -289,15 +289,18 @@ async def ingest_payload(
 
     async with pool.acquire() as conn:
         if event_type == "session_finalize":
-            return await _ingest_session_finalize(conn, data, ts)
+            result = await _ingest_session_finalize(conn, data, ts)
         elif event_type == "llm_call":
-            return await _ingest_llm_call(conn, data, ts)
+            result = await _ingest_llm_call(conn, data, ts)
         elif event_type == "credential_error":
-            return await _ingest_credential_error(conn, data, ts)
+            result = await _ingest_credential_error(conn, data, ts)
         elif event_type == "gateway_status":
-            return await _ingest_gateway_status(conn, data, ts)
+            result = await _ingest_gateway_status(conn, data, ts)
         else:
             raise HTTPException(status_code=400, detail=f"Unknown event_type: {event_type}")
+
+    cache_manager.invalidate("hermes")
+    return result
 
 
 async def _ingest_session_finalize(conn, data: dict, ts: float) -> IngestResponse:

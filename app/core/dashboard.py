@@ -283,6 +283,8 @@ async def toggle_module(
     state_file = module_dir / ".state"
     state_file.write_text(json.dumps({"enabled": body["enabled"]}))
 
+    cache_manager.invalidate("modules")
+
     return {
         "name": name,
         "enabled": body["enabled"],
@@ -409,6 +411,8 @@ async def create_api_key(
             body.get("scopes", []),
         )
 
+    cache_manager.invalidate("modules")
+
     return {
         "id": str(row["id"]),
         "name": body["name"],
@@ -441,6 +445,8 @@ async def revoke_api_key(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="API key not found",
             )
+
+    cache_manager.invalidate("modules")
 
     return {"id": key_id, "active": False}
 
@@ -478,6 +484,8 @@ async def rotate_api_key(
             key_hash,
             key_id,
         )
+
+    cache_manager.invalidate("modules")
 
     return {
         "id": str(existing["id"]),

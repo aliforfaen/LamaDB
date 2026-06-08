@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cache_manager
 from app.db import get_pool
 from app.models.events import Event, EventCreate, EventPatch
 
@@ -60,6 +61,8 @@ async def create_event(
             event.tags,
         )
         result = _event_from_row(row)
+
+    cache_manager.invalidate("events")
 
     # Fire notifications reactively (outside the transaction)
     try:

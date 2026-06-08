@@ -18,7 +18,7 @@ from pydantic import BaseModel
 logger = logging.getLogger("uptime.webhook")
 
 from app.auth import AuthUser, get_current_user
-from app.cache import cached
+from app.cache import cache_manager, cached
 from app.db import get_pool
 
 from .models import (
@@ -89,6 +89,7 @@ async def receive_webhook(payload: UptimeWebhookPayload) -> WebhookResponse:
 
     logger.info(f"  → Processing real heartbeat for monitor '{payload.monitor.name}'")
     await process_webhook(payload)
+    cache_manager.invalidate("monitor_status")
     return WebhookResponse(received=True)
 
 

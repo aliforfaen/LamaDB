@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cache_manager
 from app.db import get_pool
 from app.embeddings import embed_document_async
 from app.models.documents import (
@@ -77,6 +78,7 @@ async def create_document(
         )
         # Fire-and-forget embedding generation (non-blocking)
         asyncio.create_task(embed_document_async(str(row["id"]), doc.title, doc.content))
+        cache_manager.invalidate("documents")
         return _doc_from_row(row)
 
 
@@ -215,6 +217,7 @@ async def update_document(
         # Re-embed if title or content changed
         if doc.title is not None or doc.content is not None:
             asyncio.create_task(embed_document_async(str(row["id"]), row["title"], row["content"]))
+        cache_manager.invalidate("documents")
         return _doc_from_row(row)
 
 
@@ -241,6 +244,7 @@ async def delete_document(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Document {doc_id} not found",
             )
+        cache_manager.invalidate("documents")
 
 
 # --- Document Links ---

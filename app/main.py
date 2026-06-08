@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.cache import cache_manager
 from app.config import settings
 from app.db import create_pool, close_pool, get_pool
 from app.sse import pg_listener, _make_notify_callback, sse_manager
@@ -93,6 +94,7 @@ async def poller_loop(module_name: str, interval_seconds: int) -> None:
             mod = __import__(f"modules.{module_name}", fromlist=["collect"])
             if hasattr(mod, "collect"):
                 result = await mod.collect()
+                cache_manager.invalidate(module_name)
                 logger.info(f"Poller '{module_name}': {result}")
         except Exception as e:
             logger.warning(f"Poller '{module_name}' error: {e}")
