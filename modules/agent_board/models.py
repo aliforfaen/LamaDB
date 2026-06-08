@@ -43,10 +43,12 @@ class TaskComplete(BaseModel):
 
 class MessageCreate(BaseModel):
     to_agent: Optional[str] = None
+    inbox_for: Optional[str] = None
     subject: str
     body: Optional[str] = None
     message_type: str = "info"
     parent_id: Optional[int] = None
+    reply_to: Optional[int] = None
     metadata: dict = {}
 
 
@@ -54,10 +56,12 @@ class MessageResponse(BaseModel):
     id: int
     from_agent: str
     to_agent: Optional[str] = None
+    inbox_for: Optional[str] = None
     subject: str
     body: Optional[str] = None
     message_type: str
     parent_id: Optional[int] = None
+    reply_to: Optional[int] = None
     metadata: dict
     read: bool
     created_at: datetime

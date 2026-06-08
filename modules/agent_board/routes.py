@@ -384,9 +384,9 @@ async def unclaim_task(
         )
         return _task_from_row(row)
 # ---------------------------------------------------------------------------
-# POST /api/agent_board/messages/{id}/read — Mark message as read
+# PATCH /api/agent_board/messages/{id}/read — Mark message as read
 # ---------------------------------------------------------------------------
-@router.post("/messages/{msg_id}/read")
+@router.patch("/messages/{msg_id}/read")
 async def mark_message_read(
     msg_id: int,
     user: Annotated[AuthUser, Depends(get_current_user)],
@@ -396,20 +396,163 @@ async def mark_message_read(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            UPDATE agent_messages
-            SET read = true
+            UPDATE agent_messages SET read = true
             WHERE id = $1
-            RETURNING id, from_agent, to_agent, subject, body,
-                      message_type, parent_id, metadata, read, created_at
+            RETURNING id, from_agent, to_agent, inbox_for, subject, body, message_type,
+                      parent_id, reply_to, metadata, read, created_at
             """,
             msg_id,
         )
-        if row is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Message {msg_id} not found",
-            )
+        if not row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
         return _message_from_row(row)
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/agent_board/messages/read-all — Mark all as read for an agent
+# ---------------------------------------------------------------------------
+@router.patch("/messages/read-all")
+async def mark_all_read(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    agent: str = Query(...),
+):
+    """Mark all unread messages in an agent's inbox as read."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """
+            UPDATE agent_messages SET read = true
+            WHERE (inbox_for = $1 OR (inbox_for IS NULL AND to_agent = $1))
+              AND read = false
+            """,
+            agent,
+        )
+        updated = int(result.split()[-1]) if result else 0
+        return {"agent": agent, "marked_read": updated}
+
+
+# ---------------------------------------------------------------------------
+# GET /api/agent_board/inbox — Messages addressed to agent, unread first
+# ---------------------------------------------------------------------------
+@router.get("/inbox", response_model=list[MessageResponse])
+async def get_inbox(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    agent: str = Query(...),
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    """Get inbox for an agent — unread messages first, then by date descending."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, from_agent, to_agent, inbox_for, subject, body, message_type,
+                   parent_id, reply_to, metadata, read, created_at
+            FROM agent_messages
+            WHERE inbox_for = $1 OR (inbox_for IS NULL AND to_agent = $1)
+            ORDER BY read ASC, created_at DESC
+            LIMIT $2 OFFSET $3
+            """,
+            agent, limit, offset,
+        )
+        return [_message_from_row(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# GET /api/agent_board/sent — Messages sent by agent
+# ---------------------------------------------------------------------------
+@router.get("/sent", response_model=list[MessageResponse])
+async def get_sent(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    agent: str = Query(...),
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    """Get messages sent by a specific agent."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, from_agent, to_agent, inbox_for, subject, body, message_type,
+                   parent_id, reply_to, metadata, read, created_at
+            FROM agent_messages
+            WHERE from_agent = $1
+            ORDER BY created_at DESC
+            LIMIT $2 OFFSET $3
+            """,
+            agent, limit, offset,
+        )
+        return [_message_from_row(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# GET /api/agent_board/inbox/count — Unread count for badge
+# ---------------------------------------------------------------------------
+@router.get("/inbox/count")
+async def inbox_unread_count(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    agent: str = Query(...),
+):
+    """Get unread message count for an agent's inbox."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        count = await conn.fetchval(
+            """
+            SELECT count(*) FROM agent_messages
+            WHERE (inbox_for = $1 OR (inbox_for IS NULL AND to_agent = $1))
+              AND read = false
+            """,
+            agent,
+        )
+        return {"agent": agent, "unread": count or 0}
+
+
+# ---------------------------------------------------------------------------
+# GET /api/agent_board/thread/{msg_id} — Full thread via recursive CTE
+# ---------------------------------------------------------------------------
+@router.get("/thread/{msg_id}")
+async def get_thread(
+    msg_id: int,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
+    """Get full message thread by walking reply_to up to root, then recursing down."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        # Walk up to the root message
+        root = msg_id
+        current = msg_id
+        while True:
+            row = await conn.fetchrow(
+                "SELECT reply_to FROM agent_messages WHERE id = $1", current
+            )
+            if not row or not row["reply_to"]:
+                break
+            current = row["reply_to"]
+            root = current
+
+        rows = await conn.fetch(
+            """
+            WITH RECURSIVE thread AS (
+                SELECT id, from_agent, to_agent, inbox_for, subject, body, message_type,
+                       parent_id, reply_to, metadata, read, created_at, 0 AS depth
+                FROM agent_messages
+                WHERE id = $1
+                UNION ALL
+                SELECT m.id, m.from_agent, m.to_agent, m.inbox_for, m.subject, m.body,
+                       m.message_type, m.parent_id, m.reply_to, m.metadata,
+                       m.read, m.created_at, t.depth + 1
+                FROM agent_messages m
+                JOIN thread t ON m.reply_to = t.id
+            )
+            SELECT * FROM thread ORDER BY depth, created_at
+            """,
+            root,
+        )
+        if not rows:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Message not found"
+            )
+        return {"thread": [_message_from_row(r) for r in rows]}
 
 # ---------------------------------------------------------------------------
 # POST /api/agent_board/messages — Send a message
@@ -431,16 +574,19 @@ async def send_message(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO agent_messages (from_agent, to_agent, subject, body, message_type, parent_id, metadata)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING id, from_agent, to_agent, subject, body, message_type, parent_id, metadata, read, created_at
+            INSERT INTO agent_messages (from_agent, to_agent, inbox_for, subject, body, message_type, parent_id, reply_to, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING id, from_agent, to_agent, inbox_for, subject, body, message_type,
+                      parent_id, reply_to, metadata, read, created_at
             """,
             user.role,  # Use role as from_agent
             message.to_agent,
+            message.inbox_for or message.to_agent,  # default inbox_for = to_agent
             message.subject,
             message.body,
             message.message_type,
             message.parent_id,
+            message.reply_to,
             json.dumps(message.metadata),
         )
         return _message_from_row(row)
@@ -478,7 +624,8 @@ async def list_messages(
         where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
         query = f"""
-            SELECT id, from_agent, to_agent, subject, body, message_type, parent_id, metadata, read, created_at
+            SELECT id, from_agent, to_agent, inbox_for, subject, body, message_type,
+                   parent_id, reply_to, metadata, read, created_at
             FROM agent_messages
             {where_clause}
             ORDER BY created_at DESC
