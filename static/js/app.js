@@ -356,9 +356,6 @@
   window.closeModuleConfigForm = function() {
     window.closeModal('modal-module-config');
   };
-    var el = document.getElementById(id);
-    if (el) el.classList.remove('open');
-  };
 
   // ─── Mobile bottom nav ──────────────────────────────────────────────────────
   function initMobileNav() {

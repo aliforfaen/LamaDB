@@ -30,7 +30,7 @@
               '<td>' + window.escHtml(f.title || f.name || '') + '</td>' +
               '<td>' + window.escHtml(f.category || '') + '</td>' +
               '<td class="mono">' + (f.articles || f.article_count || 0) + '</td>' +
-              '<td class="mono" style="font-size:12px;">' + window.relativeTime(f.last_updated || f.last refreshed || '') + '</td>' +
+              '<td class="mono" style="font-size:12px;">' + window.relativeTime(f.last_updated || f['last refreshed'] || '') + '</td>' +
             '</tr>';
           }).join('') +
         '</tbody></table></div>';
