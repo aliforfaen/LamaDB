@@ -18,9 +18,17 @@ class AuthUser(BaseModel):
     scopes: list[str]
 
 
-def _verify_key(key: str, salt: str, stored_hash: str) -> bool:
-    """Verify an API key against a stored bcrypt hash."""
-    return bcrypt.checkpw(f"{salt}{key}".encode(), stored_hash.encode())
+async def _verify_key(key: str, salt: str, stored_hash: str) -> bool:
+    """Verify an API key against a stored bcrypt hash.
+
+    bcrypt.checkpw() is CPU-bound and synchronous; running it in a thread
+    keeps the event loop responsive under concurrent auth checks.
+    """
+    return await asyncio.to_thread(
+        bcrypt.checkpw,
+        f"{salt}{key}".encode(),
+        stored_hash.encode(),
+    )
 
 
 async def _touch_last_used(key_id: str):
@@ -63,7 +71,7 @@ async def get_current_user(
 
     # Verify token against each key hash
     for row in rows:
-        if _verify_key(token, settings.api_key_salt, row["key_hash"]):
+        if await _verify_key(token, settings.api_key_salt, row["key_hash"]):
             user = AuthUser(
                 key_id=str(row["id"]),
                 name=row["name"],
@@ -99,7 +107,7 @@ async def verify_api_key(key: str) -> AuthUser | None:
         )
 
     for row in rows:
-        if _verify_key(key, settings.api_key_salt, row["key_hash"]):
+        if await _verify_key(key, settings.api_key_salt, row["key_hash"]):
             user = AuthUser(
                 key_id=str(row["id"]),
                 name=row["name"],

@@ -247,7 +247,9 @@ async def list_modules(user: AuthUser = Depends(require_admin)):
         state_file = item / ".state"
         enabled = getattr(mod, "ENABLED", False)
         if state_file.exists():
-            state = json.loads(state_file.read_text())
+            # Offload file I/O to thread; this runs in a loop over all modules
+            raw = await asyncio.to_thread(state_file.read_text)
+            state = json.loads(raw)
             enabled = state.get("enabled", enabled)
 
         modules.append({
@@ -711,7 +713,7 @@ async def poll_uptime_kuma(
 async def get_module_settings(user: AuthUser = Depends(require_admin)):
     """Return all modules with their config schemas and resolved values."""
     from app.config import discover_module_configs
-    return {"modules": discover_module_configs()}
+    return {"modules": await discover_module_configs()}
 
 
 # ---------------------------------------------------------------------------
@@ -727,12 +729,12 @@ async def update_module_settings(
     """Update settings for a module. Writes to settings.json overlay."""
     from app.config import save_settings, discover_module_configs
 
-    available = discover_module_configs()
+    available = await discover_module_configs()
     if module_name not in available:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Module '{module_name}' not found or has no config schema")
 
     try:
-        restart_needed = save_settings(module_name, body)
+        restart_needed = await save_settings(module_name, body)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

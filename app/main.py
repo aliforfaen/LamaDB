@@ -34,7 +34,8 @@ async def run_migrations(pool) -> None:
     migration_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
     for migration_file in migration_files:
         logger.info(f"Running migration: {migration_file.name}")
-        sql = migration_file.read_text(encoding="utf-8")
+        # Offload file I/O to thread — migration files can be large
+        sql = await asyncio.to_thread(migration_file.read_text, "utf-8")
 
         # Remove comment lines
         lines = [line for line in sql.split("\n") if not line.strip().startswith("--")]

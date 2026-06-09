@@ -1,4 +1,9 @@
 """Application configuration from environment variables."""
+import asyncio
+import json
+from pathlib import Path as _Path
+from typing import Any
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -65,31 +70,32 @@ settings = Settings()
 # Per-module settings engine
 # ---------------------------------------------------------------------------
 
-import json
-from pathlib import Path as _Path
-from typing import Any
-
 SETTINGS_FILE = _Path(__file__).parent.parent / "settings.json"
 
 
-def _load_settings_file() -> dict:
-    """Load settings.json overlay file. Returns empty dict if missing."""
+async def _load_settings_file() -> dict:
+    """Load settings.json overlay file. Returns empty dict if missing.
+
+    File I/O is offloaded to a thread to keep the event loop responsive
+    when called from async route handlers.
+    """
     if SETTINGS_FILE.exists():
         try:
-            return json.loads(SETTINGS_FILE.read_text())
+            raw = await asyncio.to_thread(SETTINGS_FILE.read_text)
+            return json.loads(raw)
         except json.JSONDecodeError:
             return {}
     return {}
 
 
-def discover_module_configs() -> dict[str, dict]:
+async def discover_module_configs() -> dict[str, dict]:
     """Walk all modules and collect MODULE_CONFIG_SCHEMA declarations."""
     modules_dir = _Path(__file__).parent.parent / "modules"
     result = {}
     if not modules_dir.exists():
         return result
 
-    settings_overlay = _load_settings_file()
+    settings_overlay = await _load_settings_file()
 
     for item in sorted(modules_dir.iterdir()):
         if not item.is_dir() or not (item / "__init__.py").exists():
@@ -125,14 +131,18 @@ def discover_module_configs() -> dict[str, dict]:
     return result
 
 
-def save_settings(module_name: str, key_values: dict) -> bool:
-    """Save settings for a module to settings.json. Returns True if restart needed."""
-    settings_overlay = _load_settings_file()
+async def save_settings(module_name: str, key_values: dict) -> bool:
+    """Save settings for a module to settings.json. Returns True if restart needed.
+
+    File I/O (both read and write) is offloaded to a thread to keep the
+    event loop responsive.
+    """
+    settings_overlay = await _load_settings_file()
     if module_name not in settings_overlay:
         settings_overlay[module_name] = {}
 
     restart_needed = False
-    schemas = discover_module_configs()
+    schemas = await discover_module_configs()
     module_schema = schemas.get(module_name, {}).get("schema", {})
 
     for key, value in key_values.items():
@@ -152,5 +162,6 @@ def save_settings(module_name: str, key_values: dict) -> bool:
         if field.get("restart_required", True):
             restart_needed = True
 
-    SETTINGS_FILE.write_text(json.dumps(settings_overlay, indent=2))
+    payload = json.dumps(settings_overlay, indent=2)
+    await asyncio.to_thread(SETTINGS_FILE.write_text, payload)
     return restart_needed
