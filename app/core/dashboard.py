@@ -11,7 +11,7 @@ import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 
-from app.auth import AuthUser, get_current_user, verify_api_key
+from app.auth import AuthUser, get_current_user, verify_api_key, _hash_prefix
 from app.cache import cache_manager, cached
 from app.config import settings
 from app.db import get_pool
@@ -475,17 +475,19 @@ async def create_api_key(
         f"{settings.api_key_salt}{raw_key}".encode(),
         bcrypt.gensalt(),
     ).decode()
+    key_prefix = _hash_prefix(raw_key)
 
     pool = get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO api_keys (name, key_hash, role, scopes)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO api_keys (name, key_hash, key_prefix, role, scopes)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING id, created_at
             """,
             body["name"],
             key_hash,
+            key_prefix,
             body.get("role", "read"),
             body.get("scopes", []),
         )
@@ -557,10 +559,12 @@ async def rotate_api_key(
             f"{settings.api_key_salt}{raw_key}".encode(),
             bcrypt.gensalt(),
         ).decode()
+        key_prefix = _hash_prefix(raw_key)
 
         await conn.execute(
-            "UPDATE api_keys SET key_hash = $1 WHERE id = $2",
+            "UPDATE api_keys SET key_hash = $1, key_prefix = $2 WHERE id = $3",
             key_hash,
+            key_prefix,
             key_id,
         )
 
