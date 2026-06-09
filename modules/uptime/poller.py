@@ -40,6 +40,33 @@ def _extract_tags(monitor: dict) -> list[str]:
     return tags
 
 
+def _fetch_kuma_data(url: str, username: str, password: str) -> tuple[list[dict], dict[str, dict]]:
+    """Synchronous Uptime Kuma API fetch. Runs in a thread via asyncio.to_thread().
+
+    Returns:
+        (monitors_list, heartbeats_dict)
+    """
+    from uptime_kuma_api import UptimeKumaApi
+
+    api = UptimeKumaApi(url)
+    try:
+        api.login(username, password)
+        monitors = api.get_monitors()
+
+        heartbeats = {}
+        for m in monitors:
+            try:
+                beats = api.get_monitor_beats(m["id"], 1)
+                if beats:
+                    heartbeats[str(m["id"])] = beats[-1]
+            except Exception:
+                pass
+    finally:
+        api.disconnect()
+
+    return monitors, heartbeats
+
+
 async def poll_kuma_registry() -> dict:
     """Fetch monitors from Uptime Kuma and sync with monitor_registry.
 
@@ -62,21 +89,14 @@ async def poll_kuma_registry() -> dict:
         return {"added": 0, "updated": 0, "deleted": 0, "total": 0, "heartbeats": 0}
 
     try:
-        api = UptimeKumaApi(settings.uptime_kuma_url)
-        api.login(settings.uptime_kuma_user, settings.uptime_kuma_password)
-        monitors = api.get_monitors()
-
-        # Fetch latest heartbeat for each monitor
-        heartbeats = {}
-        for m in monitors:
-            try:
-                beats = api.get_monitor_beats(m["id"], 1)  # Last 1 hour
-                if beats:
-                    heartbeats[str(m["id"])] = beats[-1]  # Latest beat
-            except Exception:
-                pass  # Skip if heartbeat fetch fails
-
-        api.disconnect()
+        # Run synchronous UptimeKumaApi calls in a thread to avoid
+        # blocking the async event loop (the library uses requests).
+        monitors, heartbeats = await asyncio.to_thread(
+            _fetch_kuma_data,
+            settings.uptime_kuma_url,
+            settings.uptime_kuma_user,
+            settings.uptime_kuma_password,
+        )
     except Exception as e:
         logger.error(f"Failed to poll Uptime Kuma: {e}")
         return {"added": 0, "updated": 0, "deleted": 0, "total": 0, "heartbeats": 0}

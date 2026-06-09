@@ -89,8 +89,11 @@ async def pg_listener(
 
 
 def _make_notify_callback():
-    """Create the asyncpg notification callback that forwards to sse_manager."""
+    """Create the asyncpg notification callback that forwards to sse_manager.
 
+    Uses asyncio.run_coroutine_threadsafe() to safely schedule the broadcast
+    coroutine from the asyncpg connection thread onto the event loop.
+    """
     def on_notification(connection, pid, channel, payload):
         try:
             data = json.loads(payload) if payload else {}
@@ -98,10 +101,9 @@ def _make_notify_callback():
                 "channel": channel,
                 "data": data,
             }
-            # Use call_soon to avoid blocking the asyncpg connection
             loop = asyncio.get_running_loop()
-            loop.call_soon_threadsafe(
-                lambda: asyncio.ensure_future(sse_manager.broadcast(event))
+            asyncio.run_coroutine_threadsafe(
+                sse_manager.broadcast(event), loop
             )
         except Exception:
             logger.debug("SSE callback failed for channel=%s", channel, exc_info=True)

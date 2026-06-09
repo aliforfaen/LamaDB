@@ -1,6 +1,8 @@
 """LamaDB FastAPI application with module auto-discovery."""
 import asyncio
 import logging
+import faulthandler
+import signal
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -11,6 +13,9 @@ from app.cache import cache_manager
 from app.config import settings
 from app.db import create_pool, close_pool, get_pool
 from app.sse import pg_listener, _make_notify_callback, sse_manager
+
+# Enable faulthandler for on-demand stack dumps (SIGUSR1)
+faulthandler.register(signal.SIGUSR1, all_threads=True)
 
 # Import core routers
 from app.core.documents import router as documents_router
@@ -87,17 +92,36 @@ def _split_sql(sql: str) -> list[str]:
     return statements
 
 
+def _import_collector(module_name: str):
+    """Import a module's collector once and cache it. Called once per poller at startup."""
+    mod = __import__(f"modules.{module_name}", fromlist=["collect"])
+    if hasattr(mod, "collect"):
+        return mod.collect
+    return None
+
+
 async def poller_loop(module_name: str, interval_seconds: int) -> None:
     """Run a module's collector on an interval, logging results."""
+    collect_fn = _import_collector(module_name)
+    if collect_fn is None:
+        logger.warning(f"Poller '{module_name}': no collect() function, skipping")
+        return
+
+    consecutive_errors = 0
     while True:
         try:
-            mod = __import__(f"modules.{module_name}", fromlist=["collect"])
-            if hasattr(mod, "collect"):
-                result = await mod.collect()
-                cache_manager.invalidate(module_name)
-                logger.info(f"Poller '{module_name}': {result}")
+            result = await collect_fn()
+            cache_manager.invalidate(module_name)
+            consecutive_errors = 0
+            logger.info(f"Poller '{module_name}': {result}")
         except Exception as e:
-            logger.warning(f"Poller '{module_name}' error: {e}")
+            consecutive_errors += 1
+            backoff = min(interval_seconds, 10 * (2 ** min(consecutive_errors, 5)))
+            logger.warning(
+                f"Poller '{module_name}' error (#{consecutive_errors}, backoff={backoff}s): {e}"
+            )
+            await asyncio.sleep(backoff)
+            continue
         await asyncio.sleep(interval_seconds)
 
 

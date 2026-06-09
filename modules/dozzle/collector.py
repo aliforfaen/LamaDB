@@ -1,4 +1,6 @@
 """Collector for polling Dozzle v10 container logs and creating events."""
+import asyncio
+import hashlib
 import json
 import logging
 
@@ -9,9 +11,54 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Maximum events to insert per container per cycle to limit CPU/DB load
+MAX_EVENTS_PER_CONTAINER = 50
+
+
 def _sanitize(text: str) -> str:
     """Strip null bytes and replace non-UTF8 sequences so Postgres accepts the text."""
     return text.replace("\x00", "").encode("utf-8", errors="replace").decode("utf-8")
+
+
+def _event_dedup_key(container_id: str, level: str, message: str) -> str:
+    """Generate a deduplication key for a log event.
+
+    Uses a hash of container_id + level + message[:200] so identical log
+    entries don't generate duplicate events across polling cycles.
+    """
+    fingerprint = f"{container_id}|{level}|{message[:200]}"
+    return hashlib.sha256(fingerprint.encode()).hexdigest()
+
+
+async def _parse_logs_in_thread(text: str) -> list[dict]:
+    """Parse JSONL log entries in a thread to avoid blocking the event loop."""
+    return await asyncio.to_thread(_parse_logs_sync, text)
+
+
+def _parse_logs_sync(text: str) -> list[dict]:
+    """Synchronous JSONL parser — runs in thread pool via _parse_logs_in_thread."""
+    entries: list[dict] = []
+    for raw_line in text.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        msg_obj = data.get("m", {})
+        if isinstance(msg_obj, dict):
+            level = msg_obj.get("level", data.get("l", "info"))
+            message = msg_obj.get("message", str(msg_obj))
+        else:
+            level = data.get("l", "info")
+            message = str(msg_obj) if msg_obj else ""
+
+        entries.append({"level": level.lower(), "message": message})
+        if len(entries) >= 500:
+            break
+    return entries
 
 
 async def collect() -> dict:
@@ -19,8 +66,9 @@ async def collect() -> dict:
     Poll Dozzle v10 API for container logs, create events for errors/warnings.
 
     Uses SSE events stream for container discovery, then fetches logs per
-    running container via the v10 API. Error/warn detection is done client-side
-    via keyword matching since v10 has no server-side level filter.
+    running container via the v10 API. Only fetches error/warn levels to
+    minimize bandwidth and CPU. Events are deduplicated across cycles using
+    a content-based hash stored in metadata.
 
     Returns:
         dict with errors, warnings, containers_scanned.
@@ -61,6 +109,23 @@ async def collect() -> dict:
                 logger.warning(f"Dozzle collector: log fetch error for {name}: {e}")
                 continue
 
+            # Fetch existing dedup keys for this container (last 500 events)
+            existing_keys = set()
+            rows = await conn.fetch(
+                """SELECT metadata->>'dedup_key' as dk
+                   FROM events
+                   WHERE source = 'dozzle'
+                     AND metadata->>'container_id' = $1
+                     AND metadata->>'dedup_key' IS NOT NULL
+                   ORDER BY id DESC
+                   LIMIT 500""",
+                cid,
+            )
+            for r in rows:
+                if r["dk"]:
+                    existing_keys.add(r["dk"])
+
+            container_events = 0
             for entry in entries:
                 level = entry.get("level", "")
                 message = entry.get("message", "")
@@ -73,6 +138,12 @@ async def collect() -> dict:
                     error_count += 1
                 else:
                     continue
+
+                # Deduplicate by content hash
+                dedup_key = _event_dedup_key(cid, level, message)
+                if dedup_key in existing_keys:
+                    continue
+                existing_keys.add(dedup_key)
 
                 message = _sanitize(message)
                 ticker = severity == "error"
@@ -93,10 +164,15 @@ async def collect() -> dict:
                         "container_id": cid,
                         "host": host,
                         "level": level,
+                        "dedup_key": dedup_key,
                     }),
                     ticker,
                     ["dozzle", "container", severity],
                 )
+
+                container_events += 1
+                if container_events >= MAX_EVENTS_PER_CONTAINER:
+                    break
 
     return {
         "errors": error_count,
@@ -147,15 +223,16 @@ async def _fetch_container_logs(host: str, container_id: str) -> list[dict]:
     """
     Fetch parsed log entries for a container via Dozzle v10 API.
 
+    Only fetches error/warn levels to minimize bandwidth and CPU (info/debug
+    logs are voluminous and not actionable). Parsing is offloaded to a thread
+    pool via asyncio.to_thread() to avoid blocking the event loop.
+
     Returns list of dicts with ``level`` and ``message`` keys, limited to
-    first 500 lines per container.  The ``everything`` flag fetches all
-    buffered stdout+stderr; the ``levels`` param requests only error and
-    warning lines to keep responses small.
+    first 500 lines per container.
     """
-    levels = "levels=error&levels=warn&levels=info&levels=debug"
     url = (
         f"{settings.dozzle_url}/api/hosts/{host}/containers/"
-        f"{container_id}/logs?stdout=1&stderr=1&{levels}"
+        f"{container_id}/logs?stdout=1&stderr=1&levels=error&levels=warn"
     )
 
     async with httpx.AsyncClient() as client:
@@ -163,27 +240,7 @@ async def _fetch_container_logs(host: str, container_id: str) -> list[dict]:
         response.raise_for_status()
         text = response.text
 
-    entries: list[dict] = []
-    for raw_line in text.split("\n"):
-        line = raw_line.strip()
-        if not line:
-            continue
-        try:
-            data = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-
-        # v10 log entry: {t, m: {level, message, time, ...}, l, s, c, ts, id}
-        msg_obj = data.get("m", {})
-        if isinstance(msg_obj, dict):
-            level = msg_obj.get("level", data.get("l", "info"))
-            message = msg_obj.get("message", str(msg_obj))
-        else:
-            level = data.get("l", "info")
-            message = str(msg_obj) if msg_obj else ""
-
-        entries.append({"level": level.lower(), "message": message})
-        if len(entries) >= 500:
-            break
-
-    return entries
+    # Offload JSON parsing to thread pool to keep event loop responsive
+    if not text.strip():
+        return []
+    return await _parse_logs_in_thread(text)
