@@ -27,6 +27,7 @@ services:
     environment:
       DATABASE_URL: postgresql://lamadb:lamadb_secret@postgres:5432/lamadb
       API_KEY_SALT: ${API_KEY_SALT:-change-me-in-production}
+      LAMADB_SKIP_POLLERS: ${LAMADB_SKIP_POLLERS:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
       WIKI_PATH: /wiki
       UPTIME_KUMA_URL: ${UPTIME_KUMA_URL:-}
