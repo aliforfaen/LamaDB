@@ -812,3 +812,67 @@ async def cache_stats(key: str = Query(..., description="API key for query-param
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or insufficient API key")
 
     return cache_manager.stats()
+
+
+# ---------------------------------------------------------------------------
+# GET /api/dashboard/user-layout — saved module card order
+# ---------------------------------------------------------------------------
+
+DEFAULT_MODULE_ORDER = ["uptime", "hermes", "freshrss", "ntfy", "dozzle",
+                        "notflix", "wiki", "feeds", "notifications"]
+
+
+@router.get("/user-layout")
+async def get_user_layout(
+    page: str = Query("overview"),
+    user: AuthUser = Depends(get_current_user),
+):
+    """
+    Return saved module card order for the overview page.
+    Returns default order if no layout saved.
+    """
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT layout FROM user_layouts WHERE user_id = $1 AND page = $2",
+            user.name, page,
+        )
+        if row:
+            layout = json.loads(row["layout"]) if isinstance(row["layout"], str) else row["layout"]
+            return {"user_id": user.name, "page": page, "layout": layout}
+
+        default = {"module_order": DEFAULT_MODULE_ORDER}
+        return {"user_id": user.name, "page": page, "layout": default}
+
+
+@router.put("/user-layout")
+async def save_user_layout(
+    body: dict,
+    page: str = Query("overview"),
+    user: AuthUser = Depends(get_current_user),
+):
+    """
+    Save module card order for the overview page.
+    The frontend sends module names in desired order.
+
+    Body: {"module_order": ["uptime", "freshrss", "hermes", ...]}
+    """
+    module_order = body.get("module_order", [])
+    if not isinstance(module_order, list):
+        raise HTTPException(status_code=400, detail="'module_order' must be a list")
+
+    layout = json.dumps({"module_order": module_order})
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO user_layouts (user_id, page, layout, updated_at)
+            VALUES ($1, $2, $3, now())
+            ON CONFLICT (user_id, page) DO UPDATE SET
+                layout = EXCLUDED.layout,
+                updated_at = now()
+            """,
+            user.name, page, layout,
+        )
+
+    return {"user_id": user.name, "page": page, "layout": {"module_order": module_order}}
