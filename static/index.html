@@ -3929,6 +3929,8 @@
     else if (pageId === 'notflix') loadNotflixPage();
     else if (pageId === 'settings') loadSettings();
     else if (pageId === 'notifications') loadNotificationsPage();
+    // Update footer on every page navigation, not just Overview
+    updateFooter();
   }
 
   document.querySelectorAll('.nav-item').forEach(function(el) {
@@ -6090,7 +6092,13 @@
         footer.innerHTML = '<div><span class="status-dot"></span>All systems operational</div><span>Self-hosted · PostgreSQL · FastAPI</span>';
         footer.classList.remove('has-issues');
       }
-    } catch (e) { /* ignore footer errors */ }
+    } catch (e) {
+      var footer = document.querySelector('.sidebar-footer');
+      if (footer) {
+        footer.innerHTML = '<div><span class="status-dot" style="background:var(--muted);"></span>Status unavailable</div><span>Self-hosted · PostgreSQL · FastAPI</span>';
+        footer.classList.add('has-issues');
+      }
+    }
   }
 
   // ─── Rows per page selector for Events page ─────────────────────────────────
