@@ -4,9 +4,9 @@
 
 LamaDB is a self-hosted central data layer / Life OS. It stores documents, events, and relationships in PostgreSQL, exposes a FastAPI REST API, and serves RSS feeds generated from its data.
 
-**Current phase: Active development.** 11 modules (feeds, uptime, dashboard, agent_board, freshrss, ntfy, dozzle, wiki, hermes, notflix, notifications). 30+ commits, 134 tests. Dashboard with real-time SSE, uptime sparklines, document detail modals, Hermes analytics, and topology host map.
+**Current phase: Phase 9 — Platform Maturity (S1-S7 feature map).** 11 modules. ~50 commits, 150+ tests. Caching layer (in-memory, TTL + tag invalidation), MCP server (12 JSON-RPC tools), agent mailboxes (inbox/sent/thread/read), per-module settings (settings.json overlay + dashboard forms), dashboard admin expansion (sidebar categories, document management table, module health, mobile responsive, theme toggle, command palette).
 
-Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table.
+Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table. Ingest pipeline for push-based lifecycle hooks. MCP server exposes LamaDB as callable tools for AI agents.
 
 ## Architecture
 
@@ -463,6 +463,55 @@ docker logs lamadb_api --tail 20
 - [x] Bugfix: `modules/hermes/routes.py` — `str(existing)` conversion for UUID→str in upsert `IngestResponse.doc_id`
 - [x] All 14 new tests pass (152s, in-process via httpx ASGITransport, no docker exec)
 
+
+### Phase 9: Platform Maturity ✅ (Completed 2026-06-08)
+
+#### S1: Caching Layer
+- [x] `app/cache.py` — `CacheManager` singleton (in-memory dict, TTL, tag-based invalidation), `@cached(ttl, tags)` decorator for async FastAPI routes
+- [x] Wired @cached on 7 endpoints: dashboard overview/modules/health, uptime status/history, hermes health/stats
+- [x] Write-through invalidation in 6 files: documents, events, api-keys, webhook, ingest, pollers
+- [x] `GET /api/dashboard/cache-stats` — cache hit/miss/expired/entries stats + Settings card
+- [x] 11 tests (6 CacheManager + 5 cache-stats) passing
+
+#### S2: Testing Infrastructure
+- [x] `benchmarks/` — 3 perf scripts: overview, uptime, search (p50/p95 timing)
+- [x] `tests/smoke_test_dashboard.py` — 28 endpoints, 27 pass / 1 skip
+- [x] `docs/module-audit.md` — 15-module table with coverage and issues
+- [x] `pytest.ini` updated: `timeout=30`, `-x --tb=short`
+
+#### S3: API Key & User Management UI
+- [x] `migrations/009_api_key_last_used.sql` — `last_used_at` column + index
+- [x] `app/auth.py` — fire-and-forget `last_used_at` tracking on every auth
+- [x] `PATCH /api/dashboard/api-keys/{id}` — update name/role/scopes/active, scope validation against module registry
+- [x] `GET /api/dashboard/api-keys/stats` — active/inactive/stale counts
+- [x] Dashboard API Keys settings rebuilt: filter tabs, role badges, scope chips, inline editing, create/rotate/revoke with undo toast, relative timestamps
+
+#### S4: MCP Server
+- [x] `app/mcp_server.py` — JSON-RPC 2.0 handler at `POST /mcp` with Bearer auth + role/scope permission checks
+- [x] `app/mcp_registry.py` — auto-discovers tools from module `MODULE_MCP_TOOLS` declarations
+- [x] `app/core/mcp.py` — 6 core tools: search_documents, get_document, create_document, update_document, create_event, get_events
+- [x] Module MCP tools: `modules/uptime/mcp.py` (2), `modules/agent_board/mcp.py` (2), `modules/wiki/mcp.py` (2)
+- [x] All 12 tools verified via curl (tools/list + tools/call)
+
+#### S5: Agent Mailboxes
+- [x] `migrations/010_agent_mailboxes.sql` — `inbox_for`, `reply_to`, `read` columns on agent_messages
+- [x] 6 new endpoints: inbox, sent, inbox/count, messages/{id}/read, messages/read-all, thread/{id} (recursive CTE)
+- [x] Dashboard Inbox tab: split-pane, agent selector, auto mark-as-read, reply, thread view, unread badge
+
+#### S6: Per-Module Settings
+- [x] `app/config.py` — `discover_module_configs()`, `save_settings()`, `settings.json` overlay engine
+- [x] `GET /api/dashboard/module-settings` + `PUT /api/dashboard/module-settings/{module}`
+- [x] `MODULE_CONFIG_SCHEMA` in 6 module `__init__.py` files (freshrss, hermes, ntfy, dozzle, notflix, uptime)
+- [x] Dashboard Module Config forms: type-aware inputs, secret masking, source indicators, restart warnings
+
+#### S7: Dashboard Admin Expansion
+- [x] S7a: Sidebar redesign — 4 collapsible categories, alert badges, keyboard shortcuts (`g d`, `?`), quick search
+- [x] S7b: Document Management — sortable table, inline editing, bulk ops, drag-and-drop linking
+- [x] S7c: Module Health — `GET /api/dashboard/module-health` endpoint with status dots, error tracking
+- [x] S7d: Live Refresh — NOTIFY triggers on documents + monitor_status, WebSocket endpoint at `/api/dashboard/ws`
+- [x] S7e: Mobile — responsive sidebar→tab bar, stacked cards, loading skeletons, theme toggle (system preference), Cmd+K command palette
+
+
 - **Async everywhere.** asyncpg, async FastAPI routes, no sync blocking.
 - **Pydantic for all models.** Request/response validation.
 - **No ORMs.** Raw SQL with asyncpg. Keep it simple, keep it readable.
@@ -511,6 +560,13 @@ UPTIME_KUMA_API_KEY=...           # Uptime Kuma API key
 | `IngestResponse.doc_id` rejects UUID from `fetchval` | `doc_id` expects `str`, but asyncpg returns `UUID`. Use `str(existing)`. |
 | Hermes ingest tests slow (30s each) | Notification dispatch to ntfy blocks each POST. Set `LAMADB_SKIP_NOTIFICATIONS=1` or add ntfy guard in `fire_event()`. |
 | JSONB metadata in tests is a string, not dict | asyncpg returns JSONB as string. Use `json.loads(row["metadata"])` before accessing keys. |
+| `@cached` decorator returns `no-request` key for handlers without `request: Request` param | The decorator extracts the Starlette `Request` from `kwargs["request"]`. Route handlers that don't declare `request: Request` as a parameter share one cache key. For endpoints with query params, declare the request parameter. |
+| Cache invalidation uses tags — misspelled tags silently do nothing | Double-check tag names. `cache_manager.invalidate("documents")` must match the `invalidate_tags=["documents"]` on the `@cached` decorator. |
+| `docker compose build --no-cache api` doesn't always invalidate COPY layers | Use `docker build -t lamadb-api:latest -f Dockerfile . && docker compose up -d api --force-recreate` for guaranteed fresh builds. |
+| MCP tools in MODULE_MCP_TOOLS use `handler` key with dotted path `module.path:func_name` | The `_import_handler()` function splits on `:` and imports. Double-check the module path and function name. |
+| `inbox_for` defaults to `to_agent` when not provided | In `send_message()`, `message.inbox_for or message.to_agent` ensures backward compatibility for old code that doesn't set inbox_for. |
+| `settings.json` overlay sits alongside `.env` — env vars take priority | `discover_module_configs()` checks `settings` (env) first, then `settings_overlay` (file), then `field["default"]`. Don't delete the file manually — use the API. |
+| WebSocket auth uses first-message pattern | `dashboard_websocket()` accepts the connection, then reads the first JSON message for `{"key": "..."}`. Invalid keys get code 4001. |
 
 ## Important Notes
 
