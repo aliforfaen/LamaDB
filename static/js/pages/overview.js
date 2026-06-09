@@ -98,11 +98,12 @@
       });
 
       orderedModules.forEach(function(m) {
-        var statusClass = m.status === 'healthy' ? 'dot-up' :
-          m.status === 'stale' ? 'dot-warn' :
-          m.status === 'error' ? 'dot-down' : 'dot-off';
+        var statusClass = m.status === 'green' ? 'dot-up' :
+          m.status === 'yellow' ? 'dot-warn' :
+          m.status === 'red' ? 'dot-down' : 'dot-off';
 
-        var freshness = m.last_poll ? window.relativeTime(m.last_poll) : 'never';
+        var freshness = m.last_event ? window.relativeTime(m.last_event) : 'never';
+        var errorCount = (m.recent_errors || []).length;
 
         var card = document.createElement('div');
         card.className = 'module-card';
@@ -111,7 +112,8 @@
           var pageMap = {
             uptime: 'uptime', hermes: 'hermes', freshrss: 'freshrss',
             ntfy: 'ntfy', dozzle: 'dozzle', notflix: 'notflix',
-            wiki: 'wiki', feeds: 'feeds', notifications: 'notifications'
+            wiki: 'wiki', feeds: 'feeds', notifications: 'notifications',
+            agent_board: 'agent_board'
           };
           var page = pageMap[m.name];
           if (page && window.navigateTo) window.navigateTo(page);
@@ -121,11 +123,11 @@
           '<div class="module-card-body">' +
             '<span class="module-card-name">' + (m.label || m.name) + '</span>' +
             '<span class="module-card-stats">' +
-              (m.documents_count ? m.documents_count + ' docs &middot; ' : '') +
+              (m.events ? m.events.toLocaleString() + ' events &middot; ' : '') +
               freshness +
             '</span>' +
           '</div>' +
-          (m.errors > 0 ? '<span class="module-card-errors">' + m.errors + '</span>' : '');
+          (errorCount > 0 ? '<span class="module-card-errors">' + errorCount + '</span>' : '');
         grid.appendChild(card);
       });
 
@@ -175,6 +177,9 @@
     } catch (e) {
       feed.innerHTML = '<div class="activity-line error">Activity feed unavailable</div>';
     }
+
+    // Refresh every 60s (SSE covers real-time, polling covers initial + missed)
+    setTimeout(loadActivityFeed, 60000);
   }
 
   // ─── RSS Headlines ────────────────────────────────────────
