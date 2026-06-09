@@ -4,6 +4,20 @@
 
   var POLL_INTERVALS = { health: 30000, modules: 60000, rss: 120000, agents: 60000 };
 
+  // Tracked timers for cleanup on navigation
+  var _timers = [];
+
+  function _setPoll(fn, ms) {
+    var id = setTimeout(fn, ms);
+    _timers.push(id);
+    return id;
+  }
+
+  window.stopOverviewPolling = function() {
+    _timers.forEach(function(id) { clearTimeout(id); });
+    _timers = [];
+  };
+
   window.loadOverview = async function() {
     loadHealthBar();
     loadModuleCards();
@@ -35,15 +49,9 @@
         }
       }
 
-      // Cache
-      try {
-        var cacheKey = window.getApiKey ? window.getApiKey() : '';
-        var cacheStats = await window.api('/api/dashboard/cache-stats?key=' + cacheKey);
-        var total = (cacheStats.hits || 0) + (cacheStats.misses || 0);
-        var rate = total > 0 ? Math.round(cacheStats.hits / total * 100) : 0;
-        var el2 = document.getElementById('hb-cache');
-        if (el2) el2.textContent = rate + '% hit';
-      } catch(e) {}
+      // Cache (graceful fallback — cache-stats uses query-param auth not available here)
+      var el2 = document.getElementById('hb-cache');
+      if (el2) el2.textContent = '--';
 
       // Documents
       var el3 = document.getElementById('hb-documents');
@@ -67,7 +75,7 @@
       if (bar) bar.classList.add('health-bar-error');
     }
 
-    setTimeout(loadHealthBar, POLL_INTERVALS.health);
+    _setPoll(loadHealthBar, POLL_INTERVALS.health);
   }
 
   // ─── Module Cards ─────────────────────────────────────────
@@ -108,16 +116,18 @@
         var card = document.createElement('div');
         card.className = 'module-card';
         card.setAttribute('data-widget-id', m.name);
-        card.onclick = function() {
+        (function(moduleName) {
           var pageMap = {
             uptime: 'uptime', hermes: 'hermes', freshrss: 'freshrss',
             ntfy: 'ntfy', dozzle: 'dozzle', notflix: 'notflix',
             wiki: 'wiki', feeds: 'feeds', notifications: 'notifications',
             agent_board: 'agent_board'
           };
-          var page = pageMap[m.name];
-          if (page && window.navigateTo) window.navigateTo(page);
-        };
+          var page = pageMap[moduleName];
+          card.onclick = function() {
+            if (page && window.navigateTo) window.navigateTo(page);
+          };
+        })(m.name);
         card.innerHTML =
           '<span class="status-dot-lg ' + statusClass + '"></span>' +
           '<div class="module-card-body">' +
@@ -143,7 +153,7 @@
       grid.innerHTML = '<div class="module-card error">Unable to load module status</div>';
     }
 
-    setTimeout(loadModuleCards, POLL_INTERVALS.modules);
+    _setPoll(loadModuleCards, POLL_INTERVALS.modules);
   }
 
   // ─── Activity Feed ────────────────────────────────────────
@@ -179,7 +189,7 @@
     }
 
     // Refresh every 60s (SSE covers real-time, polling covers initial + missed)
-    setTimeout(loadActivityFeed, 60000);
+    _setPoll(loadActivityFeed, 60000);
   }
 
   // ─── RSS Headlines ────────────────────────────────────────
@@ -206,7 +216,7 @@
       list.innerHTML = '<div class="rss-item error">RSS unavailable</div>';
     }
 
-    setTimeout(loadRSSHeadlines, POLL_INTERVALS.rss);
+    _setPoll(loadRSSHeadlines, POLL_INTERVALS.rss);
   }
 
   // ─── Agent Status ─────────────────────────────────────────
@@ -245,7 +255,7 @@
       list.innerHTML = '<div class="agent-item error">Agent API unreachable</div>';
     }
 
-    setTimeout(loadAgentStatus, POLL_INTERVALS.agents);
+    _setPoll(loadAgentStatus, POLL_INTERVALS.agents);
   }
 
   // ─── Quick Capture ────────────────────────────────────────

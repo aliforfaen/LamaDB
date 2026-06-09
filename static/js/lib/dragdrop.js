@@ -2,9 +2,17 @@
 (function() {
   'use strict';
 
+  var _sortable = null;
+
   window.initDragDrop = function(moduleCards) {
     var grid = document.getElementById('modules-grid');
     if (!grid) return;
+
+    // Destroy previous Sortable instance to avoid duplicating handlers
+    if (_sortable) {
+      _sortable.destroy();
+      _sortable = null;
+    }
 
     // Clear existing content
     grid.innerHTML = '';
@@ -14,7 +22,7 @@
 
     // Initialize SortableJS
     if (typeof Sortable !== 'undefined') {
-      var sortable = new Sortable(grid, {
+      _sortable = new Sortable(grid, {
         animation: 150,
         ghostClass: 'sortable-ghost',
         dragClass: 'sortable-drag',

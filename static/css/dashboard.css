@@ -2115,7 +2115,7 @@ table td.nowrap { white-space: nowrap; }
   gap: 4px;
   padding: 8px;
 }
-.module-card {
+#modules-grid .module-card {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2125,26 +2125,26 @@ table td.nowrap { white-space: nowrap; }
   transition: background 0.15s;
   border: 1px solid transparent;
 }
-.module-card:hover {
+#modules-grid .module-card:hover {
   background: var(--surface-2);
   border-color: var(--border);
 }
-.module-card.skeleton {
+#modules-grid .module-card.skeleton {
   grid-column: 1 / -1;
   text-align: center;
   color: var(--muted);
   cursor: default;
 }
-.module-card.error {
+#modules-grid .module-card.error {
   grid-column: 1 / -1;
   text-align: center;
   color: var(--danger);
 }
-.module-card-body {
+#modules-grid .module-card-body {
   flex: 1;
   min-width: 0;
 }
-.module-card-name {
+#modules-grid .module-card-name {
   display: block;
   font-size: 0.85rem;
   font-weight: 600;
@@ -2153,12 +2153,12 @@ table td.nowrap { white-space: nowrap; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.module-card-stats {
+#modules-grid .module-card-stats {
   font-size: 0.7rem;
   color: var(--muted);
   font-family: var(--font-mono);
 }
-.module-card-errors {
+#modules-grid .module-card-errors {
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--danger);
@@ -2256,24 +2256,24 @@ table td.nowrap { white-space: nowrap; }
   margin: 8px 16px 12px auto;
 }
 
-/* Status dots */
-.status-dot-lg {
+/* Status dots (overview page only — other pages use .status-dot-lg/.status-up from line 469) */
+#page-overview .status-dot-lg {
   width: 10px; height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.status-dot-sm {
+#page-overview .status-dot-sm {
   width: 8px; height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.dot-up { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-.dot-down { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
-.dot-warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
-.dot-off { background: var(--muted); }
+#page-overview .dot-up { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+#page-overview .dot-down { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+#page-overview .dot-warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+#page-overview .dot-off { background: var(--muted); }
 
-/* Skeleton loading */
-.skeleton {
+/* Skeleton loading (overview page only) */
+#page-overview .skeleton {
   color: var(--muted) !important;
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
