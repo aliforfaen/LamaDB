@@ -9,27 +9,35 @@ import pytest_asyncio
 import bcrypt
 from uuid import uuid4
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 from app.config import settings
 
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """Create an async test client for the FastAPI app."""
-    from app.main import make_app
-    app = make_app()
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_pool():
-    """Get the database pool for direct DB queries."""
-    from app.db import get_pool
-    return get_pool()
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -68,12 +76,32 @@ async def read_key(db_pool):
         await conn.execute("DELETE FROM api_keys WHERE name = $1", "test-hermes-read")
 
 
+@pytest_asyncio.fixture(scope="function")
+async def hermes_reachable():
+    """Skip the test if the Hermes service is unreachable.
+
+    The /api/hermes/* routes make real HTTP calls to the Hermes Agent
+    service (default http://dev-vm:9119). When that service is down,
+    the upstream calls fail and tests cannot meaningfully exercise
+    the integration.
+    """
+    hermes_url = os.environ.get("HERMES_URL", "http://dev-vm:9119")
+    try:
+        async with httpx.AsyncClient(timeout=3) as c:
+            r = await c.get(f"{hermes_url}/health")
+            if r.status_code >= 500:
+                pytest.skip(f"Hermes service unhealthy: {r.status_code}")
+    except Exception as e:
+        pytest.skip(f"Hermes service unreachable at {hermes_url}: {type(e).__name__}")
+
+
 # ---------------------------------------------------------------------------
 # Test: health reachable
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
-async def test_hermes_health_reachable(client, admin_key):
+async def test_hermes_health_reachable(client, admin_key, hermes_reachable):
     """GET /api/hermes/health with admin key → 200, reachable=true."""
     response = await client.get(
         "/api/hermes/health",
@@ -89,6 +117,7 @@ async def test_hermes_health_reachable(client, admin_key):
 # Test: health no auth
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_hermes_health_no_auth(client):
     """GET /api/hermes/health without key → 401."""
@@ -100,8 +129,9 @@ async def test_hermes_health_no_auth(client):
 # Test: status
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
-async def test_hermes_status(client, admin_key):
+async def test_hermes_status(client, admin_key, hermes_reachable):
     """GET /api/hermes/status with admin key → 200, contains version/gateway_state."""
     response = await client.get(
         "/api/hermes/status",
@@ -117,8 +147,9 @@ async def test_hermes_status(client, admin_key):
 # Test: sessions stats
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
-async def test_hermes_sessions_stats(client, admin_key):
+async def test_hermes_sessions_stats(client, admin_key, hermes_reachable):
     """GET /api/hermes/sessions/stats with admin key → 200, contains total/messages."""
     response = await client.get(
         "/api/hermes/sessions/stats",
@@ -134,8 +165,9 @@ async def test_hermes_sessions_stats(client, admin_key):
 # Test: system stats
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
-async def test_hermes_system(client, admin_key):
+async def test_hermes_system(client, admin_key, hermes_reachable):
     """GET /api/hermes/system with admin key → 200, contains hostname/cpu_percent/memory."""
     response = await client.get(
         "/api/hermes/system",
@@ -152,8 +184,9 @@ async def test_hermes_system(client, admin_key):
 # Test: model info
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
-async def test_hermes_model(client, admin_key):
+async def test_hermes_model(client, admin_key, hermes_reachable):
     """GET /api/hermes/model with admin key → 200, contains model/provider."""
     response = await client.get(
         "/api/hermes/model",
@@ -169,8 +202,9 @@ async def test_hermes_model(client, admin_key):
 # Test: synced sessions
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
-async def test_hermes_synced(client, admin_key):
+async def test_hermes_synced(client, admin_key, hermes_reachable):
     """GET /api/hermes/synced with admin key → 200, has sessions/count."""
     response = await client.get(
         "/api/hermes/synced",
@@ -187,8 +221,9 @@ async def test_hermes_synced(client, admin_key):
 # Test: sync trigger
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
-async def test_hermes_sync_trigger(client, admin_key):
+async def test_hermes_sync_trigger(client, admin_key, hermes_reachable):
     """POST /api/hermes/sync with admin key → 200, status in result."""
     response = await client.post(
         "/api/hermes/sync",
@@ -203,6 +238,7 @@ async def test_hermes_sync_trigger(client, admin_key):
 # Test: read role allowed on health
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_hermes_read_role_allowed(client, read_key):
     """GET /api/hermes/health with read key → 200."""
@@ -217,6 +253,7 @@ async def test_hermes_read_role_allowed(client, read_key):
 # Test: no auth on status
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_hermes_no_auth(client):
     """GET /api/hermes/status without key → 401."""
@@ -228,8 +265,9 @@ async def test_hermes_no_auth(client):
 # Test: models list
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
-async def test_hermes_models(client, admin_key):
+async def test_hermes_models(client, admin_key, hermes_reachable):
     """GET /api/hermes/models with admin key → 200."""
     response = await client.get(
         "/api/hermes/models",
@@ -242,8 +280,9 @@ async def test_hermes_models(client, admin_key):
 # Test: credentials pool
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
-async def test_hermes_credentials(client, admin_key):
+async def test_hermes_credentials(client, admin_key, hermes_reachable):
     """GET /api/hermes/credentials with admin key → 200."""
     response = await client.get(
         "/api/hermes/credentials",

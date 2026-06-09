@@ -8,27 +8,35 @@ import pytest_asyncio
 import bcrypt
 from uuid import uuid4
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 from app.config import settings
 
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """Create an async test client for the FastAPI app."""
-    from app.main import make_app
-    app = make_app()
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_pool():
-    """Get the database pool for direct DB queries."""
-    from app.db import get_pool
-    return get_pool()
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -53,6 +61,7 @@ async def admin_key(db_pool):
 # Test: session_finalize creates document + event
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_ingest_session_finalize(client, db_pool, admin_key):
     """POST session_finalize creates a document and info event."""
@@ -118,6 +127,7 @@ async def test_ingest_session_finalize(client, db_pool, admin_key):
 # Test: session_finalize upsert (same session ID twice)
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_ingest_session_upsert(client, db_pool, admin_key):
     """POST same session ID twice updates document, no duplicate."""
@@ -183,6 +193,7 @@ async def test_ingest_session_upsert(client, db_pool, admin_key):
 # Test: llm_call creates event
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_ingest_llm_call(client, db_pool, admin_key):
     """POST llm_call creates an info event with token data."""
@@ -230,6 +241,7 @@ async def test_ingest_llm_call(client, db_pool, admin_key):
 # Test: credential_error creates error event with ticker
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_ingest_credential_error(client, db_pool, admin_key):
     """POST credential_error creates error-severity event with ticker=true."""
@@ -275,6 +287,7 @@ async def test_ingest_credential_error(client, db_pool, admin_key):
 # Test: gateway_status severity depends on state
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_ingest_gateway_status(client, db_pool, admin_key):
     """POST gateway_status with state=running → info, state=crashed → error."""
@@ -325,6 +338,7 @@ async def test_ingest_gateway_status(client, db_pool, admin_key):
 # Test: unknown event_type returns 400
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_ingest_unknown_type(client, admin_key):
     """POST with unknown event_type returns 400."""

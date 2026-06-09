@@ -9,7 +9,16 @@ import pytest_asyncio
 import xml.etree.ElementTree as ET
 from uuid import uuid4
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
+
+
+from app.config import settings
 
 
 # --------------------------------------------------------------------------
@@ -19,24 +28,22 @@ from httpx import ASGITransport, AsyncClient
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """
-    Create an async test client for the FastAPI app.
-    """
-    from app.main import make_app
-
-    app = make_app()
-
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_pool():
-    """Get the database pool for direct DB queries in tests."""
-    from app.db import get_pool
-    return get_pool()
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -147,6 +154,7 @@ async def sample_feed(client, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_create_feed_via_post(client, db_pool):
     """POST /api/feeds creates a new feed in the database."""
@@ -204,6 +212,7 @@ async def test_create_feed_via_post(client, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_create_feed_requires_admin_or_agent_role(client, db_pool):
     """POST /api/feeds with read-only key returns 403."""
@@ -247,6 +256,7 @@ async def test_create_feed_requires_admin_or_agent_role(client, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_list_feeds(client, sample_feed):
     """GET /api/feeds returns a list of feeds."""
@@ -265,6 +275,7 @@ async def test_list_feeds(client, sample_feed):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_feed_by_slug(client, sample_feed):
     """GET /api/feeds/{slug} returns the feed details."""
@@ -283,6 +294,7 @@ async def test_get_feed_by_slug(client, sample_feed):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_feed_by_slug_not_found(client, db_pool):
     """GET /api/feeds/{nonexistent} returns 404."""
@@ -320,6 +332,7 @@ async def test_get_feed_by_slug_not_found(client, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_update_feed(client, sample_feed):
     """PUT /api/feeds/{slug} updates the feed."""
@@ -343,6 +356,7 @@ async def test_update_feed(client, sample_feed):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_delete_feed(client, db_pool):
     """DELETE /api/feeds/{slug} removes the feed."""
@@ -402,6 +416,7 @@ async def test_delete_feed(client, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_rss_xml_output_valid_xml(client, sample_feed, sample_documents):
     """GET /feeds/{slug}.xml returns valid RSS XML with correct content-type."""
@@ -427,6 +442,7 @@ async def test_rss_xml_output_valid_xml(client, sample_feed, sample_documents):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_rss_filtering_by_tags(client, sample_documents, db_pool):
     """
@@ -488,6 +504,7 @@ async def test_rss_filtering_by_tags(client, sample_documents, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_rss_filtering_by_source_type(client, sample_documents, db_pool):
     """
@@ -548,6 +565,7 @@ async def test_rss_filtering_by_source_type(client, sample_documents, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_rss_public_endpoint_no_auth(client, sample_feed):
     """GET /feeds/{slug}.xml works without any Authorization header."""
@@ -561,6 +579,7 @@ async def test_rss_public_endpoint_no_auth(client, sample_feed):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_rss_feed_with_no_matching_documents(client, db_pool):
     """
@@ -618,6 +637,7 @@ async def test_rss_feed_with_no_matching_documents(client, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_rss_item_content_truncated(client, db_pool):
     """RSS description is truncated to ~500 chars for long content."""
@@ -690,6 +710,7 @@ async def test_rss_item_content_truncated(client, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_create_feed_invalid_slug_format(client, db_pool):
     """POST with invalid slug format (uppercase, spaces) returns 422."""
@@ -729,6 +750,7 @@ async def test_create_feed_invalid_slug_format(client, db_pool):
 # --------------------------------------------------------------------------
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_rss_item_has_pubdate_and_link(client, db_pool):
     """RSS items include pubDate and link elements."""

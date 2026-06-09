@@ -1,15 +1,20 @@
 """
 Tests for the Dashboard Management API (Phase 5A).
 
-Uses httpx ASGITransport to test the FastAPI app directly.
-Tests use the real database (migrations already run on startup via docker compose).
+Uses httpx against the running container. Tests use the real
+database (migrations already run on startup via docker compose).
 """
+import httpx
+import os
 import pytest
 import pytest_asyncio
 import bcrypt
 from uuid import uuid4
 
-from httpx import ASGITransport, AsyncClient
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 from app.config import settings
 
@@ -21,22 +26,26 @@ from app.config import settings
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """Create an async test client for the FastAPI app."""
-    from app.main import make_app
-
-    app = make_app()
-
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_pool():
-    """Get the database pool for direct DB queries in tests."""
-    from app.db import get_pool
-    return get_pool()
+    """Get the database pool for direct DB queries in tests.
+
+    Creates a fresh asyncpg pool against the running container's
+    Postgres so tests can seed/clean up alongside the live API.
+    """
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -132,6 +141,7 @@ async def sample_documents(db_pool):
 # Test: overview endpoint
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_overview_returns_stats(client, admin_key, db_pool, sample_documents):
     """GET /api/dashboard/overview returns all four stat categories."""
@@ -167,6 +177,7 @@ async def test_overview_returns_stats(client, admin_key, db_pool, sample_documen
     assert "delta_yesterday" in data["events"]
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_overview_requires_admin(client, non_admin_key):
     """GET /api/dashboard/overview returns 403 for non-admin users."""
@@ -181,6 +192,7 @@ async def test_overview_requires_admin(client, non_admin_key):
 # Test: modules endpoint
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_list_modules(client, admin_key):
     """GET /api/dashboard/modules returns module list with metadata."""
@@ -203,6 +215,7 @@ async def test_list_modules(client, admin_key):
         assert "directory" in mod
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_toggle_module(client, admin_key):
     """POST /api/dashboard/modules/{name}/toggle writes .state file."""
@@ -236,6 +249,7 @@ async def test_toggle_module(client, admin_key):
     assert response.status_code == 200
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_toggle_module_not_found(client, admin_key):
     """POST /api/dashboard/modules/{name}/toggle returns 404 for nonexistent module."""
@@ -252,6 +266,7 @@ async def test_toggle_module_not_found(client, admin_key):
 # Test: health endpoint
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_health_detail(client, admin_key):
     """GET /api/dashboard/health returns DB version, extensions, tables."""
@@ -280,6 +295,7 @@ async def test_health_detail(client, admin_key):
 # Test: API keys endpoints
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_list_api_keys(client, admin_key):
     """GET /api/dashboard/api-keys returns keys without hashes."""
@@ -301,6 +317,7 @@ async def test_list_api_keys(client, admin_key):
         assert "role" in key
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_create_api_key(client, admin_key, db_pool):
     """POST /api/dashboard/api-keys returns raw key once."""
@@ -337,6 +354,7 @@ async def test_create_api_key(client, admin_key, db_pool):
         await conn.execute("DELETE FROM api_keys WHERE name = $1", "Test Create Key")
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_create_api_key_returns_key(client, admin_key):
     """POST /api/dashboard/api-keys response must include 'key' field."""
@@ -351,6 +369,7 @@ async def test_create_api_key_returns_key(client, admin_key):
     assert len(data["key"]) > 0
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_revoke_api_key(client, admin_key, db_pool):
     """DELETE /api/dashboard/api-keys/{id} sets active=false."""
@@ -394,6 +413,7 @@ async def test_revoke_api_key(client, admin_key, db_pool):
         assert row["active"] is False
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_revoke_api_key_not_found(client, admin_key):
     """DELETE /api/dashboard/api-keys/{id} returns 404 for nonexistent key."""
@@ -405,6 +425,7 @@ async def test_revoke_api_key_not_found(client, admin_key):
     assert response.status_code == 404
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_rotate_api_key(client, admin_key, db_pool):
     """POST /api/dashboard/api-keys/{id}/rotate returns new key."""
@@ -449,6 +470,7 @@ async def test_rotate_api_key(client, admin_key, db_pool):
         await conn.execute("DELETE FROM api_keys WHERE name = $1", "test-rotate")
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_rotate_api_key_not_found(client, admin_key):
     """POST /api/dashboard/api-keys/{id}/rotate returns 404 for nonexistent key."""
@@ -464,6 +486,7 @@ async def test_rotate_api_key_not_found(client, admin_key):
 # Test: PATCH /api/dashboard/api-keys/{key_id}
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_patch_api_key_update_name(client, admin_key, db_pool):
     """PATCH /api/dashboard/api-keys/{id} updates name."""
@@ -504,6 +527,7 @@ async def test_patch_api_key_update_name(client, admin_key, db_pool):
         await conn.execute("DELETE FROM api_keys WHERE id = $1", key_id)
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_patch_api_key_update_role(client, admin_key, db_pool):
     """PATCH /api/dashboard/api-keys/{id} updates role."""
@@ -541,6 +565,7 @@ async def test_patch_api_key_update_role(client, admin_key, db_pool):
         await conn.execute("DELETE FROM api_keys WHERE id = $1", key_id)
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_patch_api_key_update_scopes(client, admin_key, db_pool):
     """PATCH /api/dashboard/api-keys/{id} updates scopes."""
@@ -578,6 +603,7 @@ async def test_patch_api_key_update_scopes(client, admin_key, db_pool):
         await conn.execute("DELETE FROM api_keys WHERE id = $1", key_id)
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_patch_api_key_invalid_scopes(client, admin_key, db_pool):
     """PATCH /api/dashboard/api-keys/{id} returns 400 for invalid scopes."""
@@ -616,6 +642,7 @@ async def test_patch_api_key_invalid_scopes(client, admin_key, db_pool):
         await conn.execute("DELETE FROM api_keys WHERE id = $1", key_id)
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_patch_api_key_not_found(client, admin_key):
     """PATCH /api/dashboard/api-keys/{id} returns 404 for nonexistent key."""
@@ -628,6 +655,7 @@ async def test_patch_api_key_not_found(client, admin_key):
     assert response.status_code == 404
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_patch_api_key_empty_body(client, admin_key, db_pool):
     """PATCH /api/dashboard/api-keys/{id} returns 400 when no fields provided."""
@@ -668,6 +696,7 @@ async def test_patch_api_key_empty_body(client, admin_key, db_pool):
 # Test: GET /api/dashboard/api-keys/stats
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_api_key_stats(client, admin_key, db_pool):
     """GET /api/dashboard/api-keys/stats returns active/inactive/stale counts."""
@@ -713,6 +742,7 @@ async def test_api_key_stats(client, admin_key, db_pool):
             await conn.execute("DELETE FROM api_keys WHERE name = $1", name)
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_api_key_stats_requires_admin(client, non_admin_key):
     """GET /api/dashboard/api-keys/stats returns 403 for non-admin."""
@@ -727,6 +757,7 @@ async def test_api_key_stats_requires_admin(client, non_admin_key):
 # Test: last_used_at in list response
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_list_api_keys_includes_last_used_at(client, admin_key):
     """GET /api/dashboard/api-keys returns last_used_at field."""

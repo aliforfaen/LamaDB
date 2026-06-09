@@ -1,7 +1,12 @@
 """Smoke test: hit all dashboard tab API endpoints, assert 2xx and non-empty body."""
+import httpx
+import os
 import pytest
-from httpx import AsyncClient, ASGITransport
-from app.main import make_app
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 
 # All dashboard page-relevant endpoints (the ones that populate tabs)
@@ -53,13 +58,11 @@ API_KEY = "lamadb_test_key_2026"
 
 @pytest.fixture
 async def client():
-    app = make_app()
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
+@container_required
 @pytest.mark.parametrize("method,path", SMOKE_ENDPOINTS)
 async def test_endpoint_responds(client, method, path):
     """Each dashboard endpoint should return 2xx with non-empty body."""

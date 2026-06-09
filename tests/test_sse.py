@@ -12,27 +12,35 @@ import pytest_asyncio
 import bcrypt
 from uuid import uuid4
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 from app.config import settings
 
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """Create an async test client with lifespan context (initializes DB pool)."""
-    from app.main import make_app
-    app = make_app()
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_pool():
-    """Get the database pool for direct DB queries."""
-    from app.db import get_pool
-    return get_pool()
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -53,6 +61,7 @@ async def admin_key(db_pool):
         await conn.execute("DELETE FROM api_keys WHERE name = $1", "test-sse")
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_sse_endpoint_rejects_unauthenticated(client):
     """Bogus API key returns 401; absent key returns 422 validation error."""
@@ -65,6 +74,7 @@ async def test_sse_endpoint_rejects_unauthenticated(client):
     assert response.status_code == 401
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_sse_manager_broadcast():
     """SSEManager subscribe/broadcast/unsubscribe lifecycle works."""
@@ -102,6 +112,7 @@ async def test_sse_manager_broadcast():
     await manager.broadcast({"final": True})
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_sse_manager_queue_full_does_not_block():
     """Broadcast to a full queue silently drops instead of blocking."""
@@ -118,6 +129,7 @@ async def test_sse_manager_queue_full_does_not_block():
     assert q.qsize() == 64  # Original entries still present
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_sse_manager_client_count_after_unsubscribe():
     """Unsubscribing a queue that was already removed is idempotent."""

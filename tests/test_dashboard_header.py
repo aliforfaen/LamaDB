@@ -6,35 +6,44 @@ The header endpoint is publicly readable (no auth required).
 import pytest
 import pytest_asyncio
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
 
-from app.main import make_app
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
+
+
+
+from app.config import settings
 
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """Create an async test client for the FastAPI app."""
-    app = make_app()
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_pool(client):
-    """Get the database pool for direct DB queries in tests.
-
-    Depends on `client` to ensure the app lifespan has initialized the pool.
-    """
-    from app.db import get_pool
-    return get_pool()
+async def db_pool():
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 # ---------------------------------------------------------------------------
 # Tests: GET /api/dashboard/header
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_header_returns_status_bar_and_ticker(client):
     """GET /api/dashboard/header returns both status_bar and ticker keys."""
@@ -47,6 +56,7 @@ async def test_header_returns_status_bar_and_ticker(client):
     assert isinstance(data["ticker"], list)
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_header_status_bar_has_all_leds(client):
     """status_bar contains services, notifications, dozzle, and agents leds."""
@@ -78,6 +88,7 @@ async def test_header_status_bar_has_all_leds(client):
     assert "pending" in sb["agents"]
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_header_ticker_items_have_icon_field(client):
     """Each ticker item must have an icon field computed server-side."""
@@ -95,6 +106,7 @@ async def test_header_ticker_items_have_icon_field(client):
         assert "tags" in item
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_header_is_public_no_auth_required(client):
     """The header endpoint must NOT require authentication."""
@@ -103,6 +115,7 @@ async def test_header_is_public_no_auth_required(client):
     assert response.status_code == 200
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_header_services_reflects_monitor_status(db_pool, client):
     """Services LED reflects actual monitor_status table data."""
@@ -122,6 +135,7 @@ async def test_header_services_reflects_monitor_status(db_pool, client):
     assert data["status_bar"]["services"]["total"] >= 1
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_header_ticker_respects_breaking_tag_order(db_pool, client):
     """Ticker items with 'breaking' tag appear first."""
@@ -151,6 +165,7 @@ async def test_header_ticker_respects_breaking_tag_order(db_pool, client):
             assert breaking_idx == 0
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_header_ticker_icon_mapping(db_pool, client):
     """Icon mapping: info→✓, warn→⚠, critical→✗."""

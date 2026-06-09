@@ -9,7 +9,13 @@ import pytest_asyncio
 import bcrypt
 from uuid import uuid4
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 from app.config import settings
 
@@ -21,22 +27,22 @@ from app.config import settings
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """Create an async test client for the FastAPI app."""
-    from app.main import make_app
-
-    app = make_app()
-
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_pool():
-    """Get the database pool for direct DB queries in tests."""
-    from app.db import get_pool
-    return get_pool()
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -143,6 +149,7 @@ async def sample_task(client, admin_key):
 # Test: create task
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_create_task(client, admin_key):
     """POST /api/agent_board/tasks → 201, task in response."""
@@ -171,6 +178,7 @@ async def test_create_task(client, admin_key):
 # Test: list tasks
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_list_tasks(client, admin_key, sample_task):
     """GET /api/agent_board/tasks → returns array."""
@@ -188,6 +196,7 @@ async def test_list_tasks(client, admin_key, sample_task):
 # Test: filter tasks by status
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_filter_tasks_by_status(client, admin_key):
     """GET ?status=pending → only pending tasks."""
@@ -225,6 +234,7 @@ async def test_filter_tasks_by_status(client, admin_key):
 # Test: filter tasks by priority
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_filter_tasks_by_priority(client, admin_key):
     """GET ?priority=high → only high priority tasks."""
@@ -253,6 +263,7 @@ async def test_filter_tasks_by_priority(client, admin_key):
 # Test: claim task
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_claim_task(client, admin_key):
     """POST /tasks/{id}/claim → status='claimed', claimed_by set."""
@@ -281,6 +292,7 @@ async def test_claim_task(client, admin_key):
 # Test: claim already claimed task
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_claim_already_claimed_task(client, admin_key):
     """Claim claimed task → 409 Conflict."""
@@ -310,6 +322,7 @@ async def test_claim_already_claimed_task(client, admin_key):
 # Test: complete task
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_complete_task(client, admin_key):
     """POST /tasks/{id}/complete → status='completed', result set."""
@@ -342,6 +355,7 @@ async def test_complete_task(client, admin_key):
 # Test: fail task
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_fail_task(client, admin_key):
     """POST /tasks/{id}/fail → status='failed', error set."""
@@ -370,6 +384,7 @@ async def test_fail_task(client, admin_key):
 # ---------------------------------------------------------------------------
 # Test: unclaim task
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_unclaim_task(client, admin_key):
     """POST /tasks/{id}/unclaim → status='pending', claimed_by cleared."""
@@ -398,6 +413,7 @@ async def test_unclaim_task(client, admin_key):
 # ---------------------------------------------------------------------------
 # Test: unclaim non-claimed task fails
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_unclaim_non_claimed_task(client, admin_key):
     """Unclaim a pending task → 400."""
@@ -415,6 +431,7 @@ async def test_unclaim_non_claimed_task(client, admin_key):
 # ---------------------------------------------------------------------------
 # Test: unclaim not found
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_unclaim_not_found(client, admin_key):
     """Unclaim a fake task → 404."""
@@ -427,6 +444,7 @@ async def test_unclaim_not_found(client, admin_key):
 # ---------------------------------------------------------------------------
 # Test: read role cannot unclaim
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_unclaim_forbidden_for_read_role(client, read_key):
     """Read role → 403 on unclaim."""
@@ -446,6 +464,7 @@ async def test_unclaim_forbidden_for_read_role(client, read_key):
 # ---------------------------------------------------------------------------
 # Test: mark message read
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_mark_message_read(client, admin_key):
     """POST /messages/{id}/read → read=true."""
@@ -457,7 +476,7 @@ async def test_mark_message_read(client, admin_key):
     )
     msg_id = resp.json()["id"]
     # Mark as read
-    response = await client.post(
+    response = await client.patch(
         f"/api/agent_board/messages/{msg_id}/read",
         headers={"Authorization": f"Bearer {admin_key}"}
     )
@@ -467,10 +486,11 @@ async def test_mark_message_read(client, admin_key):
 # ---------------------------------------------------------------------------
 # Test: mark message read not found
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_mark_message_read_not_found(client, admin_key):
     """Mark a fake message → 404."""
-    response = await client.post(
+    response = await client.patch(
         "/api/agent_board/messages/999999/read",
         headers={"Authorization": f"Bearer {admin_key}"}
     )
@@ -480,6 +500,7 @@ async def test_mark_message_read_not_found(client, admin_key):
 # Test: complete unclaimed task
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_complete_unclaimed_task(client, admin_key):
     """Complete without claim → 400."""
@@ -503,6 +524,7 @@ async def test_complete_unclaimed_task(client, admin_key):
 # Test: send message
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_send_message(client, admin_key):
     """POST /api/agent_board/messages → 201."""
@@ -529,6 +551,7 @@ async def test_send_message(client, admin_key):
 # Test: list messages filtered
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_list_messages_filtered(client, admin_key):
     """GET ?to_agent=muninn&unread=true → filtered."""
@@ -559,6 +582,7 @@ async def test_list_messages_filtered(client, admin_key):
 # Test: unauthorized create
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_unauthorized_create(client, read_key):
     """Read role → 403 on POST."""
@@ -574,6 +598,7 @@ async def test_unauthorized_create(client, read_key):
 # Test: create task with metadata
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_create_task_with_metadata(client, admin_key):
     """JSONB round-trips correctly."""
@@ -595,6 +620,7 @@ async def test_create_task_with_metadata(client, admin_key):
 # Test: get task by ID
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_task_by_id(client, admin_key, sample_task):
     """GET /api/agent_board/tasks/{id} → returns task."""
@@ -613,6 +639,7 @@ async def test_get_task_by_id(client, admin_key, sample_task):
 # Test: get task not found
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_task_not_found(client, admin_key):
     """GET /api/agent_board/tasks/{fake_id} → 404."""
@@ -628,6 +655,7 @@ async def test_get_task_not_found(client, admin_key):
 # Test: agent role can create tasks
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_agent_can_create_task(client, agent_key):
     """Agent role (not admin) can create tasks."""

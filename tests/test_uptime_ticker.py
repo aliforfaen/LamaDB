@@ -13,7 +13,13 @@ Tests use the real database (migrations already run on startup via docker compos
 import pytest
 import pytest_asyncio
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 
 # Payload with status DOWN (0)
@@ -47,30 +53,27 @@ PAYLOAD_UP = {
 }
 
 
+from app.config import settings
+
+
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """
-    Create an async test client for the FastAPI app.
-    The lifespan context is entered explicitly to ensure the DB pool
-    is initialized before any test runs.
-    """
-    from app.main import make_app
-
-    app = make_app()
-
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_pool():
-    """
-    Get the database pool for direct DB queries in tests.
-    """
-    from app.db import get_pool
-    return get_pool()
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -100,6 +103,7 @@ async def clean_monitor_100(db_pool):
 # ---------------------------------------------------------------------------
 # Test 1: first heartbeat does NOT create ticker event
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_first_heartbeat_no_ticker(client, db_pool, clean_monitor_100):
     """First heartbeat ever for a monitor should NOT create a ticker event."""
@@ -123,6 +127,7 @@ async def test_first_heartbeat_no_ticker(client, db_pool, clean_monitor_100):
 # ---------------------------------------------------------------------------
 # Test 2: same status does NOT create ticker event
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_same_status_no_ticker(client, db_pool, clean_monitor_100):
     """Two heartbeats with the same status should NOT create a ticker event."""
@@ -151,6 +156,7 @@ async def test_same_status_no_ticker(client, db_pool, clean_monitor_100):
 # ---------------------------------------------------------------------------
 # Test 3: UP → DOWN creates ticker with breaking tag
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_up_to_down_creates_ticker_with_breaking_tag(client, db_pool, clean_monitor_100):
     """Transition from UP to DOWN should create a ticker event with 'breaking' tag."""
@@ -186,6 +192,7 @@ async def test_up_to_down_creates_ticker_with_breaking_tag(client, db_pool, clea
 # ---------------------------------------------------------------------------
 # Test 4: DOWN → UP creates ticker with recovered tag
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_down_to_up_creates_ticker_with_recovered_tag(client, db_pool, clean_monitor_100):
     """Transition from DOWN to UP should create a ticker event with 'recovered' tag."""
@@ -221,6 +228,7 @@ async def test_down_to_up_creates_ticker_with_recovered_tag(client, db_pool, cle
 # ---------------------------------------------------------------------------
 # Test 5: regular event still created for every heartbeat
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_regular_event_still_created_every_heartbeat(client, db_pool, clean_monitor_100):
     """Every heartbeat should still create a regular (non-ticker) event."""
@@ -252,6 +260,7 @@ async def test_regular_event_still_created_every_heartbeat(client, db_pool, clea
 # ---------------------------------------------------------------------------
 # Test 6: ticker event has correct source and type
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_ticker_event_source_and_type(client, db_pool, clean_monitor_100):
     """Ticker event should have source='uptime_kuma' and type='status_change'."""

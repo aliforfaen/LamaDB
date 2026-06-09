@@ -7,27 +7,36 @@ Tests seed both tables to reflect the real data flow.
 import pytest
 import pytest_asyncio
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
+
+
+from app.config import settings
 
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """Create an async test client for the FastAPI app."""
-    from app.main import make_app
-
-    app = make_app()
-
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_pool(client):
-    """Get the database pool for direct DB queries in tests."""
-    from app.db import get_pool
-    return get_pool()
+async def db_pool():
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 async def _clear_all(db_pool):
@@ -69,6 +78,7 @@ async def _seed_heartbeat(conn, monitor_id, name, url, status, msg=""):
 # ---------------------------------------------------------------------------
 # Test 1: topology_hosts_and_services
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_topology_hosts_and_services(client, db_pool):
     """Monitors with matching host-key tags are grouped under the host."""
@@ -89,7 +99,7 @@ async def test_topology_hosts_and_services(client, db_pool):
 
     response = await client.get(
         "/api/uptime/topology",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -117,6 +127,7 @@ async def test_topology_hosts_and_services(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 2: topology_orphans
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_topology_orphans(client, db_pool):
     """Monitors with unrecognized tags are returned as orphans."""
@@ -130,7 +141,7 @@ async def test_topology_orphans(client, db_pool):
 
     response = await client.get(
         "/api/uptime/topology",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -147,6 +158,7 @@ async def test_topology_orphans(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 3: topology_host_key_matching
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_topology_host_key_matching(client, db_pool):
     """Host key matching is case-insensitive; 'Plex Box' host matches 'plex-box' tag."""
@@ -160,7 +172,7 @@ async def test_topology_host_key_matching(client, db_pool):
 
     response = await client.get(
         "/api/uptime/topology",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -177,6 +189,7 @@ async def test_topology_host_key_matching(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 4: topology_empty_tags
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_topology_empty_tags(client, db_pool):
     """Monitors with no tags (empty) are treated as orphans."""
@@ -190,7 +203,7 @@ async def test_topology_empty_tags(client, db_pool):
 
     response = await client.get(
         "/api/uptime/topology",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -205,6 +218,7 @@ async def test_topology_empty_tags(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 5: topology_summary_counts
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_topology_summary_counts(client, db_pool):
     """Summary correctly counts up/down/total for hosts and services."""
@@ -231,7 +245,7 @@ async def test_topology_summary_counts(client, db_pool):
 
     response = await client.get(
         "/api/uptime/topology",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -246,13 +260,14 @@ async def test_topology_summary_counts(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 6: topology_no_data
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_topology_no_data(client, db_pool):
     """Empty tables return empty topology with zeroed summary."""
     await _clear_all(db_pool)
     response = await client.get(
         "/api/uptime/topology",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -269,6 +284,7 @@ async def test_topology_no_data(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 7: topology_endpoint_requires_auth
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_topology_endpoint_requires_auth(client, db_pool):
     """GET /topology without auth returns 401."""

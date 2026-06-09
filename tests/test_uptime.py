@@ -7,7 +7,13 @@ Tests use the real database (migrations already run on startup via docker compos
 import pytest
 import pytest_asyncio
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 
 VALID_PAYLOAD = {
@@ -39,40 +45,33 @@ VALID_PAYLOAD_UP = {
 }
 
 
+from app.config import settings
+
+
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """
-    Create an async test client for the FastAPI app.
-
-    The lifespan context is entered explicitly to ensure the DB pool
-    is initialized before any test runs.
-    """
-    from app.main import make_app
-
-    app = make_app()
-
-    # Manually enter the lifespan to initialize the DB pool
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_pool():
-    """
-    Get the database pool for direct DB queries in tests.
-
-    The pool is created by the app lifespan context when 'client' is initialized,
-    so it should already exist by the time this fixture runs.
-    """
-    from app.db import get_pool
-    return get_pool()
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 # ---------------------------------------------------------------------------
 # Test 1: webhook_creates_monitor_status
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_webhook_creates_monitor_status(client, db_pool):
     """POST valid payload creates a row in monitor_status."""
@@ -98,6 +97,7 @@ async def test_webhook_creates_monitor_status(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 2: webhook_creates_event
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_webhook_creates_event(client, db_pool):
     """POST valid payload also creates an event in the events table."""
@@ -119,6 +119,7 @@ async def test_webhook_creates_event(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 3: webhook_down_status_critical_severity
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_webhook_down_status_critical_severity(client, db_pool):
     """status=0 (DOWN) maps to severity='critical' on the event."""
@@ -135,6 +136,7 @@ async def test_webhook_down_status_critical_severity(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 4: webhook_up_status_info_severity
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_webhook_up_status_info_severity(client, db_pool):
     """status=1 (UP) maps to severity='info' on the event."""
@@ -151,6 +153,7 @@ async def test_webhook_up_status_info_severity(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 5: get_status_returns_latest_per_monitor
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_get_status_returns_latest_per_monitor(client, db_pool):
     """Insert 2 statuses for same monitor, GET /status returns only 1 (latest)."""
@@ -184,7 +187,7 @@ async def test_get_status_returns_latest_per_monitor(client, db_pool):
     # GET /status should return 1 row (the latest)
     response = await client.get(
         "/api/uptime/status",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -197,6 +200,7 @@ async def test_get_status_returns_latest_per_monitor(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 6: get_status_multiple_monitors
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_get_status_multiple_monitors(client, db_pool):
     """Insert 2 monitors, GET /status returns 2 rows."""
@@ -227,7 +231,7 @@ async def test_get_status_multiple_monitors(client, db_pool):
 
     response = await client.get(
         "/api/uptime/status",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -237,6 +241,7 @@ async def test_get_status_multiple_monitors(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 7: get_history_filters_by_monitor_id
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_get_history_filters_by_monitor_id(client, db_pool):
     """GET /history?monitor_id=X returns only that monitor's entries."""
@@ -258,7 +263,7 @@ async def test_get_history_filters_by_monitor_id(client, db_pool):
 
     response = await client.get(
         "/api/uptime/history?monitor_id=filter_x",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -269,6 +274,7 @@ async def test_get_history_filters_by_monitor_id(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 8: get_history_pagination
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_get_history_pagination(client, db_pool):
     """Insert 5 records, GET /history?limit=3 returns 3."""
@@ -284,7 +290,7 @@ async def test_get_history_pagination(client, db_pool):
 
     response = await client.get(
         "/api/uptime/history?limit=3",
-        headers={"Authorization": "Bearer test-agent-key"}
+        headers={"Authorization": "Bearer lamadb_test_key_2026"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -294,6 +300,7 @@ async def test_get_history_pagination(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 9: webhook_no_auth_required
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_webhook_no_auth_required(client, db_pool):
     """POST /webhook without auth header succeeds (201)."""
@@ -304,6 +311,7 @@ async def test_webhook_no_auth_required(client, db_pool):
 # ---------------------------------------------------------------------------
 # Test 10: status_endpoint_requires_auth
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_status_endpoint_requires_auth(client, db_pool):
     """GET /status without auth returns 401."""

@@ -9,7 +9,13 @@ Verifies:
 import pytest
 import pytest_asyncio
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 # Payload with tags included
 VALID_PAYLOAD_WITH_TAGS = {
@@ -43,40 +49,33 @@ VALID_PAYLOAD_NO_TAGS = {
 }
 
 
+from app.config import settings
+
+
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """
-    Create an async test client for the FastAPI app.
-
-    The lifespan context is entered explicitly to ensure the DB pool
-    is initialized before any test runs.
-    """
-    from app.main import make_app
-
-    app = make_app()
-
-    # Manually enter the lifespan to initialize the DB pool
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_pool(client):
-    """
-    Get the database pool for direct DB queries in tests.
-
-    The pool is created by the app lifespan context when 'client' is initialized,
-    so it should already exist by the time this fixture runs.
-    """
-    from app.db import get_pool
-    return get_pool()
+async def db_pool():
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 # ---------------------------------------------------------------------------
 # Test 1: MonitorPayload accepts tags
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_monitor_payload_accepts_tags():
     """MonitorPayload model accepts and stores tags field."""
@@ -91,6 +90,7 @@ async def test_monitor_payload_accepts_tags():
     assert [t.name for t in payload.tags] == ["production", "critical"]
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_monitor_payload_tags_default_to_empty_list():
     """MonitorPayload tags defaults to empty list when not provided."""
@@ -107,6 +107,7 @@ async def test_monitor_payload_tags_default_to_empty_list():
 # ---------------------------------------------------------------------------
 # Test 2: Webhook handler stores tags in the DB
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_webhook_stores_tags_in_db(client, db_pool):
     """POST payload with tags stores them correctly in monitor_status."""
@@ -129,6 +130,7 @@ async def test_webhook_stores_tags_in_db(client, db_pool):
         assert row["tags"] == ["production", "critical", "api"]
 
 
+@container_required
 @pytest.mark.asyncio
 async def test_webhook_stores_empty_tags_for_monitor_without_tags(client, db_pool):
     """POST payload without tags stores empty array in monitor_status."""
@@ -151,6 +153,7 @@ async def test_webhook_stores_empty_tags_for_monitor_without_tags(client, db_poo
 # ---------------------------------------------------------------------------
 # Test 3: Migration adds the column successfully
 # ---------------------------------------------------------------------------
+@container_required
 @pytest.mark.asyncio
 async def test_migration_adds_tags_column(client, db_pool):
     """The tags column exists on monitor_status with correct type and default."""

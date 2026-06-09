@@ -1,9 +1,7 @@
-"""Tests for the in-memory caching layer."""
+"""Tests for the in-memory caching layer (pure unit tests, no container needed)."""
 import time
 import json
 import pytest
-from httpx import AsyncClient, ASGITransport
-from app.main import make_app
 from app.cache import CacheManager, cache_manager
 
 

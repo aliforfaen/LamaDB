@@ -6,27 +6,35 @@ import pytest_asyncio
 import bcrypt
 from uuid import uuid4
 
-from httpx import ASGITransport, AsyncClient
+import httpx
+import os
+
+from tests.conftest import container_required
+
+BASE_URL = os.environ.get("LAMADB_TEST_URL", "http://localhost:8000")
+AUTH_HEADERS = {"Authorization": "Bearer lamadb_test_key_2026"}
 
 from app.config import settings
 
 
 @pytest_asyncio.fixture(scope="function")
 async def client():
-    """Create an async test client for the FastAPI app."""
-    from app.main import make_app
-    app = make_app()
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as ac:
-            yield ac
+    """Create an async httpx client pointing at the running container."""
+    async with httpx.AsyncClient(base_url=BASE_URL, timeout=30) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_pool():
-    """Get the database pool for direct DB queries."""
-    from app.db import get_pool
-    return get_pool()
+    """Create a fresh asyncpg pool against the running container's Postgres."""
+    import asyncpg
+    pool = await asyncpg.create_pool(
+        dsn=settings.database_url, min_size=1, max_size=4, command_timeout=60,
+    )
+    try:
+        yield pool
+    finally:
+        await pool.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -69,6 +77,7 @@ async def read_key(db_pool):
 # Test: get ntfy events (empty)
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_ntfy_events_empty(client, admin_key):
     """GET /api/ntfy/events → 200 with empty list when no events exist."""
@@ -87,6 +96,7 @@ async def test_get_ntfy_events_empty(client, admin_key):
 # Test: get ntfy events returns events
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_ntfy_events_returns_events(client, admin_key, db_pool):
     """Directly insert an ntfy event and verify it appears in the endpoint."""
@@ -114,6 +124,7 @@ async def test_get_ntfy_events_returns_events(client, admin_key, db_pool):
 # Test: filter by priority=critical
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_ntfy_events_priority_critical(client, admin_key, db_pool):
     """priority=critical → SQL filters severity=critical."""
@@ -143,6 +154,7 @@ async def test_get_ntfy_events_priority_critical(client, admin_key, db_pool):
 # Test: filter by priority=high
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_ntfy_events_priority_high(client, admin_key, db_pool):
     """priority=high → SQL filters severity IN (critical, warn)."""
@@ -172,6 +184,7 @@ async def test_get_ntfy_events_priority_high(client, admin_key, db_pool):
 # Test: since parameter
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_ntfy_events_since_param(client, admin_key):
     """since=1h, 6h, 24h all return 200 without error."""
@@ -187,6 +200,7 @@ async def test_get_ntfy_events_since_param(client, admin_key):
 # Test: read role is allowed
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_ntfy_events_read_role_allowed(client, read_key):
     """Read role is allowed on ntfy/events (no scope restriction)."""
@@ -201,6 +215,7 @@ async def test_get_ntfy_events_read_role_allowed(client, read_key):
 # Test: no auth header
 # ---------------------------------------------------------------------------
 
+@container_required
 @pytest.mark.asyncio
 async def test_get_ntfy_events_no_auth(client):
     """No auth header → 401."""

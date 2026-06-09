@@ -1,35 +1,27 @@
 """Shared test fixtures for LamaDB tests.
 
 Sets LAMADB_SKIP_POLLERS=1 so the lifespan skips background
-poller tasks during test runs. Also seeds a test API key so
-auth-required tests have a key to verify against.
-
-Each test file defines its own client, db_pool, and auth fixtures.
+poller tasks during test runs. Provides a container_required
+marker that skips tests when the Docker container isn't running.
 """
 import os
-import pytest_asyncio
+import socket
+import pytest
 
 os.environ["LAMADB_SKIP_POLLERS"] = "1"
 
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def seed_test_api_key():
-    """Ensure the test API key exists so auth-required tests pass."""
-    from app.config import settings
-    import asyncpg
-
-    conn = await asyncpg.connect(settings.database_url)
+def _container_reachable() -> bool:
+    """Check if the LamaDB container is running on localhost:8000."""
     try:
-        await conn.execute(
-            """
-            INSERT INTO api_keys (name, key_hash, role, scopes, active)
-            VALUES ($1, $2, $3, $4, true)
-            ON CONFLICT (key_hash) DO NOTHING
-            """,
-            "test-agent",
-            "$2b$12$oEdTQNnKaKXLHg9EkfoYkeOrQnQHYsbC06jjudpYZfmbnLfk90k8i",
-            "admin",
-            ["feeds", "uptime", "documents", "dashboard", "wiki", "agent_board", "ntfy", "dozzle", "freshrss", "notflix"],
-        )
-    finally:
-        await conn.close()
+        s = socket.create_connection(("localhost", 8000), timeout=1)
+        s.close()
+        return True
+    except Exception:
+        return False
+
+
+container_required = pytest.mark.skipif(
+    not _container_reachable(),
+    reason="Docker container not running — run: docker compose up -d"
+)
