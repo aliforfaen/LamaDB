@@ -212,152 +212,96 @@
       <!-- ════════════════════ OVERVIEW PAGE ════════════════════ -->
       <section id="page-overview" class="page page-active" aria-label="Overview">
 
-        <div class="stat-grid">
-          <div class="stat-card" data-stat="documents">
-            <span class="label">Total Documents</span>
-            <span class="value" data-api="GET /api/documents">1,247</span>
-            <span class="change up">+12 today</span>
+        <!-- ═══ Health Bar ═══ -->
+        <div id="health-bar" class="health-bar">
+          <div class="health-stat" data-metric="services">
+            <span class="health-label">Services</span>
+            <span class="health-value" id="hb-services">--</span>
+            <span class="health-dot" id="hb-services-dot"></span>
           </div>
-          <div class="stat-card" data-stat="feeds">
-            <span class="label">Active Feeds</span>
-            <span class="value" data-api="GET /api/feeds">3</span>
-            <span class="change up">All healthy</span>
+          <div class="health-stat" data-metric="cache">
+            <span class="health-label">Cache</span>
+            <span class="health-value" id="hb-cache">--</span>
           </div>
-          <div class="stat-card" data-stat="monitors">
-            <span class="label">Monitors Up</span>
-            <span class="value" data-api="GET /api/uptime/status">33 <span class="stat-divider">/</span> 35</span>
-            <span class="change down">2 down</span>
+          <div class="health-stat" data-metric="documents">
+            <span class="health-label">Documents</span>
+            <span class="health-value" id="hb-documents">--</span>
           </div>
-          <div class="stat-card" data-stat="events">
-            <span class="label">Events Today</span>
-            <span class="value" data-api="GET /api/events">89</span>
-            <span class="change up">+5 from yesterday</span>
+          <div class="health-stat" data-metric="events">
+            <span class="health-label">Events Today</span>
+            <span class="health-value" id="hb-events">--</span>
           </div>
-        </div>
-
-        <div class="two-col">
-          <!-- Recent Events -->
-          <div class="col-card">
-            <div class="section-header">
-              <h3>Recent Events</h3>
-              <span class="count">5 latest</span>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr><th>Timestamp</th><th>Source</th><th></th><th>Title</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="mono nowrap">2026-05-29 14:32</td>
-                    <td class="nowrap">feed-processor</td>
-                    <td><span class="sev-dot sev-info"></span></td>
-                    <td>Feed "TechCrunch" fetched — 12 new items</td>
-                  </tr>
-                  <tr>
-                    <td class="mono nowrap">2026-05-29 14:28</td>
-                    <td class="nowrap">uptime-checker</td>
-                    <td><span class="sev-dot sev-critical"></span></td>
-                    <td>Monitor "API Gateway" returned 503</td>
-                  </tr>
-                  <tr>
-                    <td class="mono nowrap">2026-05-29 14:15</td>
-                    <td class="nowrap">doc-indexer</td>
-                    <td><span class="sev-dot sev-warn"></span></td>
-                    <td>Index rebuild for "blog-posts" completed with 3 warnings</td>
-                  </tr>
-                  <tr>
-                    <td class="mono nowrap">2026-05-29 13:58</td>
-                    <td class="nowrap">rss-ingester</td>
-                    <td><span class="sev-dot sev-info"></span></td>
-                    <td>New feed "HackerNews" registered successfully</td>
-                  </tr>
-                  <tr>
-                    <td class="mono nowrap">2026-05-29 13:42</td>
-                    <td class="nowrap">auth-service</td>
-                    <td><span class="sev-dot sev-info"></span></td>
-                    <td>Admin login from 192.168.1.42</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Uptime Status -->
-          <div class="col-card">
-            <div class="section-header">
-              <h3>Uptime Status</h3>
-              <span class="count">33 up · 2 down</span>
-            </div>
-            <div class="uptime-list">
-              <div class="uptime-item">
-                <span class="status-dot-lg status-up"></span>
-                <span class="u-name">API Gateway</span>
-                <span class="u-time">14:32:18</span>
-              </div>
-              <div class="uptime-item">
-                <span class="status-dot-lg status-up"></span>
-                <span class="u-name">PostgreSQL Primary</span>
-                <span class="u-time">14:32:15</span>
-              </div>
-              <div class="uptime-item">
-                <span class="status-dot-lg status-down"></span>
-                <span class="u-name">Webhook Relay</span>
-                <span class="u-time">14:28:04</span>
-              </div>
-              <div class="uptime-item">
-                <span class="status-dot-lg status-up"></span>
-                <span class="u-name">Feed Processor</span>
-                <span class="u-time">14:32:10</span>
-              </div>
-              <div class="uptime-item">
-                <span class="status-dot-lg status-up"></span>
-                <span class="u-name">Redis Cache</span>
-                <span class="u-time">14:32:12</span>
-              </div>
-              <div class="uptime-item">
-                <span class="status-dot-lg status-down"></span>
-                <span class="u-name">Metrics Collector</span>
-                <span class="u-time" style="color:var(--danger)">14:22:51</span>
-              </div>
-            </div>
+          <div class="health-stat" data-metric="db">
+            <span class="health-label">Database</span>
+            <span class="health-value" id="hb-db">--</span>
+            <span class="health-dot" id="hb-db-dot"></span>
           </div>
         </div>
 
-        <!-- Active Feeds -->
-        <div class="col-card">
-          <div class="section-header">
-            <h3>Active Feeds</h3>
-            <span class="count">3 feeds</span>
+        <!-- ═══ Main Overview Grid ═══ -->
+        <div class="overview-main">
+          <!-- Left Column -->
+          <div class="overview-left">
+
+            <!-- Module Status Cards (draggable) -->
+            <div id="widget-modules" class="widget">
+              <div class="widget-header">
+                <h3>Module Status</h3>
+                <span class="widget-badge" id="modules-count">9 modules</span>
+              </div>
+              <div id="modules-grid" class="modules-grid">
+                <div class="module-card skeleton">Loading...</div>
+              </div>
+              <div class="widget-footer"><small>Drag cards to reorder — layout saved automatically</small></div>
+            </div>
+
+            <!-- Recent Activity Feed -->
+            <div id="widget-activity" class="widget">
+              <div class="widget-header">
+                <h3>Recent Activity</h3>
+              </div>
+              <div id="activity-feed" class="activity-feed">
+                <div class="activity-line skeleton">Loading...</div>
+              </div>
+            </div>
           </div>
-          <div class="feed-strip">
-            <div class="feed-card">
-              <span class="name">TechCrunch</span>
-              <span class="slug">/feeds/techcrunch</span>
-              <div class="meta">
-                <span class="num">247 items</span>
-                <span>Every 30m</span>
+
+          <!-- Right Column -->
+          <div class="overview-right">
+
+            <!-- RSS Headlines -->
+            <div id="widget-rss" class="widget">
+              <div class="widget-header">
+                <h3>RSS Headlines</h3>
+              </div>
+              <div id="rss-list" class="rss-list">
+                <div class="rss-item skeleton">Loading...</div>
               </div>
             </div>
-            <div class="feed-card">
-              <span class="name">HackerNews</span>
-              <span class="slug">/feeds/hackernews</span>
-              <div class="meta">
-                <span class="num">189 items</span>
-                <span>Every 15m</span>
+
+            <!-- Agent Status -->
+            <div id="widget-agents" class="widget">
+              <div class="widget-header">
+                <h3>Agent Status</h3>
+              </div>
+              <div id="agent-list" class="agent-list">
+                <div class="agent-item skeleton">Loading...</div>
               </div>
             </div>
-            <div class="feed-card">
-              <span class="name">Dev.to</span>
-              <span class="slug">/feeds/devto</span>
-              <div class="meta">
-                <span class="num">156 items</span>
-                <span>Every 30m</span>
+
+            <!-- Quick Capture -->
+            <div id="widget-scratchpad" class="widget">
+              <div class="widget-header">
+                <h3>Quick Capture</h3>
               </div>
+              <textarea id="scratchpad-input" class="scratchpad-input"
+                placeholder="Capture a thought, idea, or reminder..."
+                rows="3"></textarea>
+              <button id="scratchpad-save" class="btn btn-primary btn-sm"
+                onclick="window.submitScratchpad()">Save</button>
             </div>
           </div>
         </div>
-
       </section>
 
       <!-- ════════════════════ FEEDS PAGE ════════════════════ -->
@@ -1168,18 +1112,18 @@
 
         <div id="hermes-panel-overview">
           <!-- Health + System cards -->
-          <div id="hermes-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
+          <div id="hermes-sys-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
           </div>
 
           <!-- Session stats -->
           <h3 style="margin-bottom:10px;">Session Statistics</h3>
-          <div id="hermes-session-stats" style="margin-bottom:20px;">
+          <div id="hermes-stats" style="margin-bottom:20px;">
             <p class="loading">Loading…</p>
           </div>
 
           <!-- Recent sessions table -->
           <h3 style="margin-bottom:10px;">Recent Sessions</h3>
-          <div id="hermes-sessions"><p class="loading">Loading…</p></div>
+          <div id="hermes-sessions"><table style="width:100%;"><tbody id="hermes-sessions-tbody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">Loading…</td></tr></tbody></table></div>
         </div>
 
         <div id="hermes-panel-costs" style="display:none;">
@@ -1499,6 +1443,8 @@
   <script src="/js/pages/agent_board.js"></script>
   <script src="/js/pages/notifications.js"></script>
   <script src="/js/pages/settings.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+  <script src="/js/lib/dragdrop.js"></script>
 
 <!-- ════════════════════ SHORTCUT HELP OVERLAY ════════════════════ -->
 <div class="shortcut-overlay" id="shortcut-overlay">
