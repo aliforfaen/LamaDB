@@ -8,7 +8,12 @@
     var feeds = document.getElementById('freshrss-feeds');
     var articles = document.getElementById('freshrss-articles');
     try {
-      var data = await window.api('/api/freshrss/status');
+      var results = await Promise.all([
+        window.api('/api/freshrss/status'),
+        window.api('/api/freshrss/feeds')
+      ]);
+      var data = results[0];
+      var feedList = results[1];
       if (statusText) statusText.textContent = data.status || 'Unknown';
       if (cards) {
         cards.innerHTML = '<div class="stat-grid" style="grid-template-columns:repeat(3,1fr);">' +
@@ -21,22 +26,17 @@
       if (statusText) statusText.textContent = 'Error';
       if (cards) cards.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed to load FreshRSS status: ' + e.message + '</div>';
     }
-    try {
-      var feedList = await window.api('/api/freshrss/feeds');
-      if (feeds) {
-        feeds.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Feed</th><th>Category</th><th>Articles</th><th>Last Updated</th></tr></thead><tbody>' +
-          (feedList || []).map(function(f) {
-            return '<tr>' +
-              '<td>' + window.escHtml(f.title || f.name || '') + '</td>' +
-              '<td>' + window.escHtml(f.category || '') + '</td>' +
-              '<td class="mono">' + (f.articles || f.article_count || 0) + '</td>' +
-              '<td class="mono" style="font-size:12px;">' + window.relativeTime(f.last_updated || f['last refreshed'] || '') + '</td>' +
-            '</tr>';
-          }).join('') +
-        '</tbody></table></div>';
-      }
-    } catch (e) {
-      if (feeds) feeds.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed to load feeds: ' + e.message + '</div>';
+    if (feeds) {
+      feeds.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Feed</th><th>Category</th><th>Articles</th><th>Last Updated</th></tr></thead><tbody>' +
+        (feedList || []).map(function(f) {
+          return '<tr>' +
+            '<td>' + window.escHtml(f.title || f.name || '') + '</td>' +
+            '<td>' + window.escHtml(f.category || '') + '</td>' +
+            '<td class="mono">' + (f.articles || f.article_count || 0) + '</td>' +
+            '<td class="mono" style="font-size:12px;">' + window.relativeTime(f.last_updated || f['last refreshed'] || '') + '</td>' +
+          '</tr>';
+        }).join('') +
+      '</tbody></table></div>';
     }
   };
 

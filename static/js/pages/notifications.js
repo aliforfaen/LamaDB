@@ -4,16 +4,16 @@
 
   window.loadNotificationsPage = async function() {
     try {
-      var rules = await window.api('/api/notifications/rules');
-      renderNotificationRules(rules);
+      var results = await Promise.all([
+        window.api('/api/notifications/rules'),
+        window.api('/api/notifications/log?limit=50')
+      ]);
+      renderNotificationRules(results[0]);
+      renderNotificationLog(results[1]);
     } catch (e) {
       var el = document.getElementById('notif-rules-list');
       if (el) el.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
     }
-    try {
-      var log = await window.api('/api/notifications/log?limit=50');
-      renderNotificationLog(log);
-    } catch (e) {}
   };
 
   function renderNotificationRules(rules) {

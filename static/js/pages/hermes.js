@@ -5,17 +5,18 @@
   window.loadHermesPage = async function() {
     loadHermesHealth();
     try {
-      var sysData = await window.api('/api/hermes/system');
-      renderHermesSystem(sysData);
-    } catch (e) { document.getElementById('hermes-sys-cards') && (document.getElementById('hermes-sys-cards').innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>'); }
-    try {
-      var stats = await window.api('/api/hermes/sessions/stats');
-      renderHermesStats(stats);
-    } catch (e) {}
-    try {
-      var sessions = await window.api('/api/hermes/sessions');
-      renderHermesSessions(sessions);
-    } catch (e) {}
+      var results = await Promise.all([
+        window.api('/api/hermes/system'),
+        window.api('/api/hermes/sessions/stats'),
+        window.api('/api/hermes/sessions')
+      ]);
+      renderHermesSystem(results[0]);
+      renderHermesStats(results[1]);
+      renderHermesSessions(results[2]);
+    } catch (e) {
+      var cards = document.getElementById('hermes-sys-cards');
+      if (cards) cards.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
+    }
   };
 
   function renderHermesSystem(data) {

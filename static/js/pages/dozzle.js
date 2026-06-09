@@ -8,13 +8,13 @@
       renderDozzleLogs(logs);
       updateDozzleContainerSelect(logs);
     } catch (e) {
-      var container = document.getElementById('dozzle-logs');
+      var container = document.getElementById('dozzle-content');
       if (container) container.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load logs: ' + e.message + '</div>';
     }
   };
 
   function renderDozzleLogs(logs) {
-    var container = document.getElementById('dozzle-logs');
+    var container = document.getElementById('dozzle-content');
     if (!container) return;
     if (!logs || logs.length === 0) {
       container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:30px;">No log entries found.</div>';
@@ -64,11 +64,22 @@
   }
 
   window.setDozzleLevel = function(level) {
-    document.querySelectorAll('#page-dozzle .filter-bar .sub-tab-btn[id^="dozzle-level-"]').forEach(function(b) {
+    document.querySelectorAll('#page-dozzle .filter-bar [id^="dozzle-level-"]').forEach(function(b) {
       b.classList.toggle('active', b.id === 'dozzle-level-' + level);
     });
     window.loadDozzlePage();
   };
 
+
+  window.setDozzleSince = function(since) {
+    document.querySelectorAll('#page-dozzle .filter-bar [id^="dozzle-since-"]').forEach(function(b) {
+      b.classList.toggle('active', b.id === 'dozzle-since-' + since);
+    });
+    window.loadDozzlePage();
+  };
+
+  window.syncDozzle = function() {
+    window.loadDozzlePage();
+  };
   window.setDozzleContainer = function() { window.loadDozzlePage(); };
 })();

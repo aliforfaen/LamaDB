@@ -6,24 +6,25 @@
     try {
       var src = document.getElementById('ntfy-src-events').classList.contains('active') ? 'events' : 'live';
       var pri = 'all';
-      document.querySelectorAll('#page-ntfy .filter-bar .sub-tab-btn[id^="ntfy-pri-"]').forEach(function(b) {
+      document.querySelectorAll('#page-ntfy .filter-bar [id^="ntfy-pri-"]').forEach(function(b) {
         if (b.classList.contains('active')) pri = b.id.replace('ntfy-pri-', '');
       });
       var since = '24h';
-      document.querySelectorAll('#page-ntfy .filter-bar .sub-tab-btn[id^="ntfy-since-"]').forEach(function(b) {
+      document.querySelectorAll('#page-ntfy .filter-bar [id^="ntfy-since-"]').forEach(function(b) {
         if (b.classList.contains('active')) since = b.id.replace('ntfy-since-', '');
       });
       var params = '?source=' + src + '&priority=' + pri + '&since=' + since;
-      var messages = await window.api('/api/ntfy/messages' + params);
+      var data = await window.api('/api/ntfy/messages' + params);
+      var messages = data.messages || data;
       renderNtfyMessages(messages, src === 'events');
     } catch (e) {
-      var container = document.getElementById('ntfy-messages');
+      var container = document.getElementById('ntfy-content');
       if (container) container.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load messages: ' + e.message + '</div>';
     }
   };
 
   function renderNtfyMessages(messages, showDetail) {
-    var container = document.getElementById('ntfy-messages');
+    var container = document.getElementById('ntfy-content');
     if (!container) return;
     if (!messages || messages.length === 0) {
       container.innerHTML = '<div style="color:var(--muted);text-align:center;padding:30px;">No notifications found matching these filters.</div>';
@@ -46,4 +47,33 @@
       '</div>';
     }).join('');
   }
+
+  window.setNtfySource = function(src) {
+    document.querySelectorAll('#page-ntfy .filter-bar [id^="ntfy-src-"]').forEach(function(b) {
+      b.classList.toggle('active', b.id === 'ntfy-src-' + src);
+    });
+    window.loadNtfyPage();
+  };
+
+  window.setNtfyPriority = function(pri) {
+    document.querySelectorAll('#page-ntfy .filter-bar [id^="ntfy-pri-"]').forEach(function(b) {
+      b.classList.toggle('active', b.id === 'ntfy-pri-' + pri);
+    });
+    window.loadNtfyPage();
+  };
+
+  window.setNtfySince = function(since) {
+    document.querySelectorAll('#page-ntfy .filter-bar [id^="ntfy-since-"]').forEach(function(b) {
+      b.classList.toggle('active', b.id === 'ntfy-since-' + since);
+    });
+    window.loadNtfyPage();
+  };
+
+  window.toggleNtfyAutoRefresh = function() {
+    // Placeholder — auto-refresh interval logic can be added later
+  };
+
+  window.syncNtfy = function() {
+    window.loadNtfyPage();
+  };
 })();

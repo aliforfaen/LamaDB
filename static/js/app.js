@@ -39,6 +39,7 @@
     }
     return resp.json();
   }
+  window.api = api;
 
   function showAuthModal() {
     document.getElementById('auth-modal').style.display = 'flex';

@@ -4,16 +4,16 @@
 
   window.loadNotflixPage = async function() {
     try {
-      var data = await window.api('/api/notflix/status');
-      renderNotflixStats(data);
+      var results = await Promise.all([
+        window.api('/api/notflix/status'),
+        window.api('/api/notflix/activity?limit=30')
+      ]);
+      renderNotflixStats(results[0]);
+      renderNotflixActivity(results[1]);
     } catch (e) {
       var statsEl = document.getElementById('notflix-stats');
       if (statsEl) statsEl.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
     }
-    try {
-      var events = await window.api('/api/notflix/activity?limit=30');
-      renderNotflixActivity(events);
-    } catch (e) {}
   };
 
   function renderNotflixStats(data) {
