@@ -3,11 +3,12 @@ import asyncio
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 import httpx
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cached
 from app.db import get_pool
 from app.config import settings
 
@@ -112,7 +113,9 @@ async def _discover_host(container_id: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 @router.get("/containers")
+@cached(ttl_seconds=120, invalidate_tags=["dozzle"], key_prefix="dozzle_containers")
 async def list_containers(
+    request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
 ):
     """Proxy to Dozzle v10 SSE events stream to list containers."""
@@ -161,7 +164,9 @@ async def list_containers(
 # ---------------------------------------------------------------------------
 
 @router.get("/logs")
+@cached(ttl_seconds=30, invalidate_tags=["dozzle"], key_prefix="dozzle_logs")
 async def get_logs(
+    request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
     container_id: str = Query(..., description="Container ID"),
     host: str | None = Query(default=None, description="Dozzle host UUID (auto-discovered if omitted)"),

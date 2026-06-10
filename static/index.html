@@ -1087,13 +1087,28 @@
           <button class="btn btn-sm btn-secondary" onclick="window.loadNotflixPage()">↻ Refresh</button>
         </div>
 
-        <!-- Stats cards -->
-        <div id="notflix-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+        <!-- Service Health -->
+        <h3>Service Health</h3>
+        <div id="notflix-stats" class="stat-grid" style="grid-template-columns:repeat(3,1fr);">
+          <p class="loading">Loading…</p>
         </div>
+
+        <!-- Library Snapshot -->
+        <h3 style="margin-top:20px;">Library Snapshot</h3>
+        <div id="notflix-snapshot"><p class="loading">Loading…</p></div>
 
         <!-- Recent activity -->
         <h3 style="margin-top:20px;">Recent Activity</h3>
-        <div id="notflix-activity"><p class="loading">Loading…</p></div>
+        <div id="notflix-activity" class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Time</th><th>Source</th><th>Title</th><th>Detail</th></tr>
+            </thead>
+            <tbody id="notflix-tbody">
+              <tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
 

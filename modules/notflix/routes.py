@@ -2,10 +2,11 @@
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 import httpx
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cached
 from app.config import settings
 from app.db import get_pool
 
@@ -21,7 +22,8 @@ def _require_auth(user: AuthUser = Depends(get_current_user)) -> AuthUser:
 # ---------------------------------------------------------------------------
 
 @router.get("/status")
-async def get_status(user: Annotated[AuthUser, Depends(_require_auth)]):
+@cached(ttl_seconds=60, invalidate_tags=["notflix", "events"], key_prefix="notflix_status")
+async def get_status(request: Request, user: Annotated[AuthUser, Depends(_require_auth)]):
     """Get the latest media library snapshot from the events table."""
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -44,7 +46,9 @@ async def get_status(user: Annotated[AuthUser, Depends(_require_auth)]):
 # ---------------------------------------------------------------------------
 
 @router.get("/activity")
+@cached(ttl_seconds=30, invalidate_tags=["notflix", "events"], key_prefix="notflix_activity")
 async def get_activity(
+    request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
     limit: int = Query(default=20, ge=1, le=100),
 ):
@@ -81,7 +85,8 @@ async def get_activity(
 # ---------------------------------------------------------------------------
 
 @router.get("/health")
-async def check_health(user: Annotated[AuthUser, Depends(_require_auth)]):
+@cached(ttl_seconds=120, invalidate_tags=["notflix"], key_prefix="notflix_health")
+async def check_health(request: Request, user: Annotated[AuthUser, Depends(_require_auth)]):
     """Check which media services are reachable."""
     results = {}
     async with httpx.AsyncClient(timeout=10.0) as client:

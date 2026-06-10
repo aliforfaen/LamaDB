@@ -9,3 +9,7 @@ modules/feeds/.state
 dogfood-screenshots/
 entities.json
 mempalace.yaml
+.superpowers/
+raw/
+dogfood-output/
+dogfood-screenshots/

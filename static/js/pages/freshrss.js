@@ -27,15 +27,16 @@
       if (cards) cards.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed to load FreshRSS status: ' + e.message + '</div>';
     }
     if (feeds) {
+      var feedRows = Array.isArray(feedList) ? feedList.map(function(f) {
+        return '<tr>' +
+          '<td>' + window.escHtml(f.title || f.name || '') + '</td>' +
+          '<td>' + window.escHtml(f.category || '') + '</td>' +
+          '<td class="mono">' + (f.articles || f.article_count || 0) + '</td>' +
+          '<td class="mono" style="font-size:12px;">' + window.relativeTime(f.last_updated || f['last refreshed'] || '') + '</td>' +
+        '</tr>';
+      }).join('') : '';
       feeds.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Feed</th><th>Category</th><th>Articles</th><th>Last Updated</th></tr></thead><tbody>' +
-        (feedList || []).map(function(f) {
-          return '<tr>' +
-            '<td>' + window.escHtml(f.title || f.name || '') + '</td>' +
-            '<td>' + window.escHtml(f.category || '') + '</td>' +
-            '<td class="mono">' + (f.articles || f.article_count || 0) + '</td>' +
-            '<td class="mono" style="font-size:12px;">' + window.relativeTime(f.last_updated || f['last refreshed'] || '') + '</td>' +
-          '</tr>';
-        }).join('') +
+        feedRows +
       '</tbody></table></div>';
     }
   };
@@ -137,4 +138,8 @@
       if (btn) { btn.disabled = false; btn.textContent = '\u21bb Sync Now'; }
     });
   };
+
+  // Export ticker and header LED updater so other modules (overview, SSE) can call them
+  window.renderTicker = renderTicker;
+  window.updateHeader = updateHeader;
 })();

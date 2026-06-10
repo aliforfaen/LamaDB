@@ -75,14 +75,14 @@
     if (!key) return;
     _sseSource = new EventSource('/api/dashboard/stream?key=' + encodeURIComponent(key));
     _sseSource.addEventListener('event_created', function(e) {
-      try { updateHeader(); } catch(ex) {}
+      try { if (window.updateHeader) window.updateHeader(); } catch(ex) {}
     });
     _sseSource.addEventListener('task_update', function(e) {
       try {
         var data = JSON.parse(e.data);
         var pendingEl = document.getElementById('led-agents');
         if (pendingEl && data.status === 'completed') {
-          updateHeader();
+          if (window.updateHeader) window.updateHeader();
         }
       } catch(ex) {}
     });
@@ -292,7 +292,8 @@
     'agentboard': document.getElementById('page-agentboard'),
     'notflix':    document.getElementById('page-notflix'),
     'hermes':     document.getElementById('page-hermes'),
-    'settings':   document.getElementById('page-settings')
+    'settings':   document.getElementById('page-settings'),
+    'notifications': document.getElementById('page-notifications')
   };
   var titles = {
     'overview': 'Overview',
@@ -308,7 +309,7 @@
     'notflix': 'Notflix',
     'hermes': 'Hermes',
     'settings': 'Settings',
-    'notifications': document.getElementById('page-notifications')
+    'notifications': 'Notifications'
   };
   var currentPage = 'overview';
 

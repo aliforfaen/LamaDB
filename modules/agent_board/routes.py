@@ -437,24 +437,39 @@ async def mark_all_read(
 @router.get("/inbox", response_model=list[MessageResponse])
 async def get_inbox(
     user: Annotated[AuthUser, Depends(get_current_user)],
-    agent: str = Query(...),
+    agent: Optional[str] = Query(default=None),
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ):
-    """Get inbox for an agent — unread messages first, then by date descending."""
+    """Get inbox for an agent — unread messages first, then by date descending.
+
+    If `agent` is None, returns ALL inbox messages (no filter).
+    """
     pool = get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT id, from_agent, to_agent, inbox_for, subject, body, message_type,
-                   parent_id, reply_to, metadata, read, created_at
-            FROM agent_messages
-            WHERE inbox_for = $1 OR (inbox_for IS NULL AND to_agent = $1)
-            ORDER BY read ASC, created_at DESC
-            LIMIT $2 OFFSET $3
-            """,
-            agent, limit, offset,
-        )
+        if agent is None:
+            rows = await conn.fetch(
+                """
+                SELECT id, from_agent, to_agent, inbox_for, subject, body, message_type,
+                       parent_id, reply_to, metadata, read, created_at
+                FROM agent_messages
+                ORDER BY read ASC, created_at DESC
+                LIMIT $1 OFFSET $2
+                """,
+                limit, offset,
+            )
+        else:
+            rows = await conn.fetch(
+                """
+                SELECT id, from_agent, to_agent, inbox_for, subject, body, message_type,
+                       parent_id, reply_to, metadata, read, created_at
+                FROM agent_messages
+                WHERE inbox_for = $1 OR (inbox_for IS NULL AND to_agent = $1)
+                ORDER BY read ASC, created_at DESC
+                LIMIT $2 OFFSET $3
+                """,
+                agent, limit, offset,
+            )
         return [_message_from_row(r) for r in rows]
 
 
@@ -491,19 +506,27 @@ async def get_sent(
 @router.get("/inbox/count")
 async def inbox_unread_count(
     user: Annotated[AuthUser, Depends(get_current_user)],
-    agent: str = Query(...),
+    agent: Optional[str] = Query(default=None),
 ):
-    """Get unread message count for an agent's inbox."""
+    """Get unread message count for an agent's inbox (or all agents if None)."""
     pool = get_pool()
     async with pool.acquire() as conn:
-        count = await conn.fetchval(
-            """
-            SELECT count(*) FROM agent_messages
-            WHERE (inbox_for = $1 OR (inbox_for IS NULL AND to_agent = $1))
-              AND read = false
-            """,
-            agent,
-        )
+        if agent is None:
+            count = await conn.fetchval(
+                """
+                SELECT count(*) FROM agent_messages
+                WHERE read = false
+                """,
+            )
+        else:
+            count = await conn.fetchval(
+                """
+                SELECT count(*) FROM agent_messages
+                WHERE (inbox_for = $1 OR (inbox_for IS NULL AND to_agent = $1))
+                  AND read = false
+                """,
+                agent,
+            )
         return {"agent": agent, "unread": count or 0}
 
 

@@ -26,7 +26,34 @@
     loadAgentStatus();
 
     if (window.updateFooter) window.updateFooter();
+
+    // Initialize header LEDs with real data on page load
+    if (window.updateHeader) window.updateHeader();
+
+    // Fetch recent important events for the scrolling ticker
+    loadTicker();
   };
+
+  // ─── Ticker ────────────────────────────────────────────
+
+  async function loadTicker() {
+    try {
+      // Fetch recent events — the ticker displays with severity-appropriate icons
+      var events = await window.api('/api/events?limit=10');
+      if (window.renderTicker && events && events.length > 0) {
+        var items = events.map(function(e) {
+          return {
+            text: (e.source ? e.source + ': ' : '') + (e.title || e.body || ''),
+            severity: e.severity,
+            type: e.severity === 'critical' ? 'break' : e.severity
+          };
+        });
+        window.renderTicker(items);
+      }
+    } catch (e) {
+      // Ticker not essential — silently ignore failures
+    }
+  }
 
   // ─── Health Bar ───────────────────────────────────────────
 

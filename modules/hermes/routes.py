@@ -4,7 +4,7 @@ import logging
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.auth import AuthUser, get_current_user
 from app.cache import cache_manager, cached
@@ -45,8 +45,9 @@ async def _hermes_get(path: str) -> dict | list | None:
 # ---------------------------------------------------------------------------
 
 @router.get("/health", response_model=HermesHealth)
-@cached(ttl_seconds=120, invalidate_tags=["hermes"], key_prefix="hermes_health")
+@cached(ttl_seconds=60, invalidate_tags=["hermes"], key_prefix="hermes_health")
 async def check_health(
+    request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
 ):
     """Check if Hermes is reachable and return basic status."""
@@ -84,8 +85,9 @@ async def get_status(
 # ---------------------------------------------------------------------------
 
 @router.get("/sessions/stats")
-@cached(ttl_seconds=120, invalidate_tags=["hermes"], key_prefix="hermes_sessions_stats")
+@cached(ttl_seconds=30, invalidate_tags=["hermes"], key_prefix="hermes_sessions_stats")
 async def get_session_stats(
+    request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
 ):
     """Return aggregate session + message counts from Hermes."""
@@ -100,7 +102,9 @@ async def get_session_stats(
 # ---------------------------------------------------------------------------
 
 @router.get("/sessions")
+@cached(ttl_seconds=30, invalidate_tags=["hermes"], key_prefix="hermes_sessions")
 async def get_sessions(
+    request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
     limit: int = Query(default=20, ge=1, le=100),
 ):
@@ -116,7 +120,9 @@ async def get_sessions(
 # ---------------------------------------------------------------------------
 
 @router.get("/system")
+@cached(ttl_seconds=60, invalidate_tags=["hermes"], key_prefix="hermes_system")
 async def get_system_stats(
+    request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
 ):
     """Return Hermes host system metrics (CPU, memory, disk)."""
@@ -479,7 +485,9 @@ async def _ingest_gateway_status(conn, data: dict, ts: float) -> IngestResponse:
 # ---------------------------------------------------------------------------
 
 @router.get("/costs")
+@cached(ttl_seconds=120, invalidate_tags=["hermes"], key_prefix="hermes_costs")
 async def get_costs(
+    request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
     days: int = Query(default=7, ge=1, le=90),
 ):

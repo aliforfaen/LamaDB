@@ -358,72 +358,107 @@ async def health_detail(user: AuthUser = Depends(require_admin)):
 # ---------------------------------------------------------------------------
 
 @router.get("/module-health")
+@cached(ttl_seconds=60, invalidate_tags=["events", "documents", "modules"], key_prefix="dashboard_module_health")
 async def module_health(user: AuthUser = Depends(require_admin)):
-    """Return health status for each module: freshness, doc/event counts, recent errors."""
+    """Return health status for each module: freshness, doc/event counts, recent errors.
+
+    Optimized: was 44 sequential roundtrips (11 modules x 4 queries), now 2 batched
+    queries (stats rollup + latest error per module) regardless of module count.
+    """
     modules_dir = Path(__file__).parent.parent.parent / "modules"
     pool = get_pool()
     result = []
 
+    # Collect module names first (still iterates the directory, but no per-module SQL)
+    module_names: list[str] = []
+    enabled_map: dict[str, bool] = {}
+    for item in sorted(modules_dir.iterdir()):
+        if not item.is_dir() or not (item / "__init__.py").exists():
+            continue
+        try:
+            mod = importlib.import_module(f"modules.{item.name}")
+            enabled_map[item.name] = getattr(mod, "ENABLED", False)
+        except Exception:
+            enabled_map[item.name] = False
+        module_names.append(item.name)
+
     async with pool.acquire() as conn:
-        for item in sorted(modules_dir.iterdir()):
-            if not item.is_dir() or not (item / "__init__.py").exists():
-                continue
-            try:
-                mod = importlib.import_module(f"modules.{item.name}")
-                enabled = getattr(mod, "ENABLED", False)
-            except Exception:
-                enabled = False
+        # ── Batched stats: counts + latest event timestamp in one roundtrip ──
+        stats_rows = await conn.fetch(
+            """
+            SELECT
+                s.source,
+                COALESCE(d.doc_count, 0) AS doc_count,
+                COALESCE(e.event_count, 0) AS event_count,
+                e.latest_ts AS latest_event
+            FROM unnest($1::text[]) AS s(source)
+            LEFT JOIN (
+                SELECT source_type, count(*) AS doc_count
+                FROM documents
+                WHERE source_type = ANY($1)
+                GROUP BY source_type
+            ) d ON d.source_type = s.source
+            LEFT JOIN (
+                SELECT source, count(*) AS event_count, max(ts) AS latest_ts
+                FROM events
+                WHERE source = ANY($1)
+                GROUP BY source
+            ) e ON e.source = s.source
+            """,
+            module_names,
+        )
+        stats_by_source = {r["source"]: r for r in stats_rows}
 
-            name = item.name
-            doc_count = await conn.fetchval(
-                "SELECT count(*) FROM documents WHERE source_type = $1", name
-            ) or 0
-            event_count = await conn.fetchval(
-                "SELECT count(*) FROM events WHERE source = $1", name
-            ) or 0
-
-            error_rows = await conn.fetch(
-                "SELECT id, ts, title, body FROM events "
-                "WHERE source = $1 AND severity = 'error' "
-                "ORDER BY ts DESC LIMIT 5",
-                name,
-            )
-            errors = [
-                {
-                    "id": r["id"],
-                    "ts": r["ts"].isoformat(),
-                    "title": r["title"],
-                    "body": (r["body"] or "")[:200],
-                }
-                for r in error_rows
-            ]
-
-            latest_event = await conn.fetchrow(
-                "SELECT ts FROM events WHERE source = $1 ORDER BY ts DESC LIMIT 1",
-                name,
-            )
-            status_color = "grey"  # disabled
-            if enabled:
-                if latest_event:
-                    age = (datetime.now(timezone.utc) - latest_event["ts"]).total_seconds()
-                    if age < 3600:
-                        status_color = "green"
-                    elif age < 7200:
-                        status_color = "yellow"
-                    else:
-                        status_color = "red"
-                else:
-                    status_color = "yellow"
-
-            result.append({
-                "name": name,
-                "enabled": enabled,
-                "status": status_color,
-                "documents": doc_count,
-                "events": event_count,
-                "last_event": latest_event["ts"].isoformat() if latest_event else None,
-                "recent_errors": errors,
+        # ── Batched latest error per module (one error per source, not five) ──
+        error_rows = await conn.fetch(
+            """
+            SELECT DISTINCT ON (source) source, id, ts, title, body
+            FROM events
+            WHERE source = ANY($1) AND severity = 'error'
+            ORDER BY source, ts DESC
+            """,
+            module_names,
+        )
+        errors_by_source: dict[str, list[dict]] = {name: [] for name in module_names}
+        for r in error_rows:
+            errors_by_source[r["source"]].append({
+                "id": r["id"],
+                "ts": r["ts"].isoformat(),
+                "title": r["title"],
+                "body": (r["body"] or "")[:200],
             })
+
+    # Assemble response from the two batched lookups
+    now = datetime.now(timezone.utc)
+    for name in module_names:
+        stats = stats_by_source.get(name)
+        doc_count = stats["doc_count"] if stats else 0
+        event_count = stats["event_count"] if stats else 0
+        latest_event_ts = stats["latest_event"] if stats else None
+
+        enabled = enabled_map.get(name, False)
+        status_color = "grey"  # disabled
+        if enabled:
+            if latest_event_ts:
+                age = (now - latest_event_ts).total_seconds()
+                if age < 3600:
+                    status_color = "green"
+                elif age < 7200:
+                    status_color = "yellow"
+                else:
+                    status_color = "red"
+            else:
+                status_color = "yellow"
+
+        result.append({
+            "name": name,
+            "enabled": enabled,
+            "status": status_color,
+            "documents": doc_count,
+            "events": event_count,
+            "last_event": latest_event_ts.isoformat() if latest_event_ts else None,
+            "recent_errors": errors_by_source.get(name, []),
+        })
 
     return {"modules": result}
 

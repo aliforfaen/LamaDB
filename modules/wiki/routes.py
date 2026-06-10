@@ -1,4 +1,5 @@
 """Wiki module routes — scratchpad, wiki reader, wiki editor, and edit log."""
+import asyncio
 import json
 from datetime import datetime, timezone
 from typing import Annotated
@@ -6,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cached
 from app.db import get_pool
 from app.config import settings
 
@@ -143,14 +145,24 @@ async def create_wiki_page(
 
 
 @router.get("/pages", response_model=list[WikiPage])
+@cached(ttl_seconds=60, invalidate_tags=["wiki"], key_prefix="wiki_pages")
 async def get_wiki_pages(
     user: Annotated[AuthUser, Depends(get_current_user)],
     sort: str = Query(default="updated_at", description="Sort field: updated_at, created_at, title"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ):
-    """List wiki pages from the database."""
+    """List wiki pages from the database, falling back to the filesystem if the DB is empty.
+
+    The DB may be empty until pages are ingested; in that case we read .md files
+    directly from the wiki directory so the API still returns something useful.
+    """
     pages = await db_list_pages(sort=sort, limit=limit, offset=offset)
+    if not pages:
+        # DB has no pages yet — fall back to filesystem reader (sync, run in a thread)
+        pages = await asyncio.to_thread(fs_list_pages, settings.wiki_path)
+        # Apply limit/offset client-side for the FS path
+        pages = pages[offset:offset + limit] if limit else pages[offset:]
     return [WikiPage(**p) for p in pages]
 
 
@@ -332,6 +344,7 @@ async def search_wiki_pages_fs(
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.get("/log", response_model=list[WikiLogEntry])
+@cached(ttl_seconds=30, invalidate_tags=["wiki", "events"], key_prefix="wiki_log")
 async def get_wiki_log(
     user: Annotated[AuthUser, Depends(get_current_user)],
     limit: int = Query(default=50, ge=1, le=200),

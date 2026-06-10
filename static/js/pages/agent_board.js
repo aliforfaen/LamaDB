@@ -37,7 +37,7 @@
   function renderInboxList(messages) {
     var el = document.getElementById('ab-inbox-list');
     if (!el) return;
-    if (!messages || messages.length === 0) {
+    if (!Array.isArray(messages) || messages.length === 0) {
       el.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center;">No messages in inbox.</div>'; return;
     }
     el.innerHTML = messages.map(function(m) {
@@ -65,7 +65,7 @@
     window.api('/api/agent_board/thread/' + msgId).then(function(thread) {
       var el = document.getElementById('ab-inbox-detail');
       if (!el) return;
-      if (!thread || thread.length === 0) {
+      if (!Array.isArray(thread) || thread.length === 0) {
         el.innerHTML = '<div style="color:var(--muted);padding:20px;">No messages</div>'; return;
       }
       el.innerHTML = thread.map(function(m) {
@@ -112,7 +112,7 @@
   function renderAbTasks(tasks) {
     var el = document.getElementById('ab-tasks');
     if (!el) return;
-    if (!tasks || tasks.length === 0) {
+    if (!Array.isArray(tasks) || tasks.length === 0) {
       el.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center;">No tasks.</div>'; return;
     }
     el.innerHTML = '<div class="table-wrap"><table><thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Agent</th><th>Created</th></tr></thead><tbody>' +
@@ -141,7 +141,7 @@
   function renderAbMessages(messages) {
     var el = document.getElementById('ab-messages');
     if (!el) return;
-    if (!messages || messages.length === 0) {
+    if (!Array.isArray(messages) || messages.length === 0) {
       el.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center;">No messages.</div>'; return;
     }
     el.innerHTML = messages.map(function(m) {
