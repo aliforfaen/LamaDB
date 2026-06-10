@@ -125,11 +125,15 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1.05A9 9 0 0 0 3 15h2a7 7 0 0 1 14 0h2a9 9 0 0 0-6-8.95V5a3 3 0 0 0-3-3z"/><circle cx="12" cy="16" r="2"/></svg>
             <span>Hermes</span>
           </button>
-          <button class="nav-item" data-page="agentboard">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            <span>Agent Board</span><span id="ab-tab-count" class="tab-badge"></span>
-          </button>
-        </div>
+            <button class="nav-item" data-page="agentboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <span>Agent Board</span><span id="ab-tab-count" class="tab-badge"></span>
+            </button>
+            <button class="nav-item" data-page="kanban">
+              <span class="nav-icon">▦</span>
+              <span>Kanban</span>
+            </button>
+          </div>
       </div>
 
       <!-- ─── Data Sources ─── -->
@@ -1079,6 +1083,12 @@
         </div>
       </section>
 
+      <!-- ════════════════════ KANBAN PAGE ════════════════════ -->
+      <section id="page-kanban" class="page" aria-label="Kanban">
+        <div id="kanban-board-selector" style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;align-items:center;"></div>
+        <div id="kanban-columns" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;min-height:300px;"></div>
+      </section>
+
       <!-- ════════════════════ NOTFLIX PAGE ════════════════════ -->
       <section id="page-notflix" class="page" aria-label="Notflix">
         <div class="filter-bar" style="margin-bottom:12px;">
@@ -1458,6 +1468,7 @@
   <script src="/js/pages/agent_board.js"></script>
   <script src="/js/pages/notifications.js"></script>
   <script src="/js/pages/settings.js"></script>
+  <script src="/js/pages/kanban.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <script src="/js/lib/dragdrop.js"></script>
 

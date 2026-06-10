@@ -86,6 +86,14 @@
         }
       } catch(ex) {}
     });
+    _sseSource.addEventListener('message', function(e) {
+      try {
+        var data = JSON.parse(e.data);
+        if (data.channel === 'kanban_task_updated' && window._sseCallbacks && window._sseCallbacks['kanban_task_updated']) {
+          window._sseCallbacks['kanban_task_updated'](data);
+        }
+      } catch(ex) {}
+    });
     _sseSource.onerror = function() {
       if (_sseSource && _sseSource.readyState === EventSource.CLOSED) {
         _sseSource = null;
@@ -151,6 +159,7 @@
       { id: 'dozzle', label: 'Dozzle Logs', icon: 'terminal' },
       { id: 'hermes', label: 'Hermes AI', icon: 'cpu' },
       { id: 'agentboard', label: 'Agent Board', icon: 'grid' },
+      { id: 'kanban', label: 'Kanban', icon: 'grid' },
       { id: 'freshrss', label: 'FreshRSS', icon: 'rss' },
       { id: 'ntfy', label: 'Ntfy', icon: 'bell' },
       { id: 'notflix', label: 'Notflix', icon: 'film' },
@@ -290,6 +299,7 @@
     'dozzle':     document.getElementById('page-dozzle'),
     'freshrss':   document.getElementById('page-freshrss'),
     'agentboard': document.getElementById('page-agentboard'),
+    'kanban':     document.getElementById('page-kanban'),
     'notflix':    document.getElementById('page-notflix'),
     'hermes':     document.getElementById('page-hermes'),
     'settings':   document.getElementById('page-settings'),
@@ -306,6 +316,7 @@
     'dozzle': 'Dozzle',
     'freshrss': 'FreshRSS',
     'agentboard': 'Agent Board',
+    'kanban': 'Kanban',
     'notflix': 'Notflix',
     'hermes': 'Hermes',
     'settings': 'Settings',
@@ -343,6 +354,7 @@
     else if (pageId === 'dozzle') window.loadDozzlePage && window.loadDozzlePage();
     else if (pageId === 'freshrss') window.loadFreshrssPage && window.loadFreshrssPage();
     else if (pageId === 'agentboard') window.loadAgentBoardPage && window.loadAgentBoardPage();
+    else if (pageId === 'kanban') window.loadKanbanPage && window.loadKanbanPage();
     else if (pageId === 'notflix') window.loadNotflixPage && window.loadNotflixPage();
     else if (pageId === 'settings') window.loadSettings && window.loadSettings();
     else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
@@ -509,7 +521,8 @@
         'w': 'wiki',
         'n': 'notifications',
         'h': 'hermes',
-        'a': 'agentboard'
+        'a': 'agentboard',
+        'k': 'kanban'
       };
       var target = pageMap[e.key];
       if (target) {
