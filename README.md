@@ -1,107 +1,211 @@
-# LamaDB
+# LamaDB — Central Data Layer / Life OS
 
-Self-hosted central data layer / Life OS. Stores documents, events, and relationships in PostgreSQL. Exposes a REST API with 11 auto-discovered modules and a management dashboard.
+Self-hosted PostgreSQL-backed data hub that serves as the central nervous system for a homelab, agent ecosystem, and personal life management. 13 auto-discovered modules, real-time dashboard, MCP server for AI agents, and a Kanban board for task orchestration.
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/fastapi-0.100+-teal.svg)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/postgresql-16-blue.svg)](https://www.postgresql.org/)
+
+## What It Does
+
+LamaDB replaces scattered JSONL files, Telegram notification channels, paper notes, and manual service monitoring with a single queryable database. Everything writes to one place; everything reads from one place.
+
+- **📄 Universal Document Store** — wiki pages, agent output, summaries, notes, all in one table with full-text, semantic (pgvector), and graph traversal search
+- **📡 Event Bus** — PostgreSQL-backed event log with severity routing, NOTIFY triggers, and SSE real-time streaming
+- **📊 Life Console Dashboard** — 15-tab web UI with draggable widgets, real-time updates, mobile responsive, theme toggle, command palette
+- **🤖 Agent Orchestration** — Kanban boards with task state machines, agent identity with API keys, MCP server with 22+ tools, inter-agent mailboxes
+- **📡 Infrastructure Monitoring** — 37 Uptime Kuma monitors with sparklines, Docker container logs via Dozzle, service health cards
+- **📰 RSS Feeds** — LLM-summarized XML feeds from documents, public endpoints for feed readers
+- **🔔 Smart Notifications** — rule-based routing with priority, channel selection, and batching
+- **📚 Wiki Integration** — 83-page knowledge base served from filesystem with search, scratchpad, and activity log
+- **🎬 Media Stack** — Sonarr/Radarr/Tautulli status, library snapshots, recent activity
+- **🧠 Agent Analytics** — Hermes session tracking, token usage, cost estimates, system health
+
+## Requirements
+
+- **Docker** and **Docker Compose** (PostgreSQL 16 + FastAPI in containers)
+- **PostgreSQL 16** with extensions: `pgvector`, `pg_trgm`
+- **Python 3.12** (included in Docker image)
+- **OpenAI API key** (optional — for vector embeddings, falls back to pseudo-embeddings)
+- **Hermes Agent** (optional — for agent analytics, session tracking, cost monitoring)
 
 ## Quick Start
 
 ```bash
+# Clone and start
+git clone <repo-url> lamadb
+cd lamadb
+cp .env.example .env
+# Edit .env with your API keys and URLs
+
 docker compose up -d
-# Dashboard at http://localhost:8000
-# Swagger docs at http://localhost:8000/docs
+
+# Dashboard: http://localhost:8000
+# Swagger docs: http://localhost:8000/docs
+# MCP endpoint: http://localhost:8000/mcp
 ```
 
-## What It Does
-
-- **Document store** — universal storage for wiki pages, agent output, summaries, notes
-- **Event bus** — queryable PostgreSQL event log with severity filtering
-- **RSS feeds** — per-topic XML feeds from summarized documents
-- **Uptime monitoring** — Uptime Kuma webhooks + registry poller + topology host map
-- **Agent Board** — task queue with claim workflow + inter-agent messaging (LISTEN/NOTIFY)
-- **Dashboard** — command center with status bar, ticker, 12 tabs (Overview, Feeds, Uptime, Events, Wiki, Documents, Ntfy, Dozzle, Agent Board, Notflix, Hermes, Settings)
-- **Hermes analytics** — session stats, token usage, system health from Hermes API (v0.16.0)
-- **Smart notifications** — rule-based routing to Telegram/ntfy/webhook channels
-- **Data collectors** — background pollers for FreshRSS, ntfy, Dozzle, Notflix, Hermes
+Default API key for dashboard: `lamadb_test_key_2026` (admin, all scopes).
 
 ## Architecture
 
 ```
-PostgreSQL 16 + pgvector + pg_trgm
-       ↑
-FastAPI (async, module auto-discovery)
-       ↑
-┌──────┼──────┬──────────┬───────────┐
-│ Documents │ Events │ Modules  │ Dashboard │
-│ + Links   │ + Bus  │ (11)     │ (12 tabs) │
-│ + Search  │        │          │           │
-│ + Graph   │        │          │           │
-└───────────┴────────┴──────────┴───────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    Docker Compose                         │
+│                                                          │
+│  ┌──────────────────┐    ┌──────────────────────────┐   │
+│  │ PostgreSQL 16    │    │  FastAPI (Python 3.12)    │   │
+│  │ + pgvector       │◀──▶│  + asyncpg (async driver) │   │
+│  │ + pg_trgm        │    │  + Module auto-discovery  │   │
+│  │ + LISTEN/NOTIFY  │    │  + SSE / WebSocket        │   │
+│  └──────────────────┘    │  + MCP server (JSON-RPC)  │   │
+│                          │  + bcrypt API key auth    │   │
+│                          └──────────┬────────────────┘   │
+│                                     │                    │
+│         ┌───────────────┬───────────┼──────────┬────────┤
+│         ▼               ▼           ▼          ▼        │
+│    ┌─────────┐   ┌──────────┐  ┌────────┐  ┌────────┐  │
+│    │Documents│   │  Events  │  │Modules │  │Dashboard│  │
+│    │+ Links  │   │  + Bus   │  │ (13)   │  │(15 tabs)│  │
+│    │+ Search │   │  + SSE   │  │        │  │+ Widgets│  │
+│    │+ Graph  │   │          │  │        │  │+ Kanban │  │
+│    └─────────┘   └──────────┘  └────────┘  └────────┘  │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ## Core API
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/documents` | List/search documents |
-| `POST /api/documents` | Create document |
-| `GET /api/documents/{id}/graph` | Recursive graph traversal (recursive CTE, cycle detection) |
-| `GET /api/search?q=term` | Full-text search (pg_trgm) |
-| `GET /api/search/semantic?q=term` | Vector similarity search (pgvector `<=>`, placeholder) |
-| `GET /api/events` | Event bus with severity/source filters |
-| `POST /api/events` | Publish event |
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `GET /health` | None | Health check |
+| `GET /api/documents` | Bearer | List/search documents |
+| `POST /api/documents` | admin/agent | Create document |
+| `GET /api/documents/{id}/graph` | Bearer | Recursive graph traversal (CTE, cycle detection) |
+| `GET /api/search?q=term` | Bearer | Full-text search (pg_trgm) |
+| `GET /api/search/semantic?q=term` | Bearer | Vector similarity search (pgvector, OpenAI embeddings) |
+| `GET /api/events` | Bearer | Event bus with severity/source filters |
+| `POST /api/events` | admin/agent | Publish event |
+| `POST /api/embeddings/backfill` | admin | Batch embed existing documents |
+| `POST /mcp` | Bearer | MCP JSON-RPC 2.0 endpoint (22+ tools) |
 
 ## Modules
 
-| Module | Description | Poller |
-|--------|-------------|--------|
-| **feeds** | RSS XML generator from documents | — |
-| **uptime** | Uptime Kuma webhook + registry poller + topology | 1h |
-| **agent_board** | Task queue + agent messaging | — |
-| **freshrss** | FreshRSS feed aggregation | 15m |
-| **ntfy** | ntfy notification history | 5m |
-| **dozzle** | Docker container log viewer | 5m |
-| **wiki** | Karakeep wiki reader + scratchpad | — |
-| **hermes** | Hermes Agent analytics (health, sessions, tokens) | 5m |
-| **notflix** | Sonarr/Radarr/Tautulli media status | 30m |
-| **notifications** | Smart notification routing engine | — |
-| **dashboard** | Serves static SPA | — |
+| Module | Description | Endpoints | Poller |
+|--------|-------------|-----------|--------|
+| **kanban** | Agent task orchestration — boards, columns, tasks, dependencies, MCP tools | 30 | — |
+| **agent_board** | Task queue + agent messaging + mailboxes | 15 | — |
+| **feeds** | RSS XML generator from documents | 6 | — |
+| **uptime** | Uptime Kuma webhook + registry poller + topology | 7 | 1h |
+| **freshrss** | FreshRSS feed aggregation | 4 | 15m |
+| **ntfy** | ntfy notification history | 2 | 5m |
+| **dozzle** | Docker container log viewer | 3 | 5m |
+| **wiki** | Wiki reader (83 pages) + scratchpad + activity log | 10+ | — |
+| **hermes** | Hermes Agent analytics (health, sessions, tokens, costs) | 8 | 5m |
+| **notflix** | Sonarr/Radarr/Tautulli media status | 3 | 30m |
+| **notifications** | Smart notification routing engine | 4 | — |
+| **dashboard** | Management dashboard + Life Console UI | 12+ | — |
+| **users** | User identity profiles + API key management | 6 | — |
 
 ## Auth
 
-API key authentication via `Authorization: Bearer <key>` header.
+Bearer token via `Authorization: Bearer <key>`. Keys stored as bcrypt hashes with O(1) prefix lookup.
 
 | Role | Access |
 |------|--------|
-| `admin` | Full read/write, all modules |
-| `agent` | Scoped read/write per module |
-| `read` | Read-only public endpoints |
+| `admin` | Full read/write on all modules + core |
+| `agent` | Read/write on scoped modules (kanban, documents, events) |
+| `read` | Read-only on public endpoints |
 
-RSS feed endpoints (`/feeds/*.xml`) and uptime webhook are public.
+Public endpoints: `GET /feeds/*.xml`, `POST /api/uptime/webhook`, `POST /api/dozzle/webhook`.
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `API_KEY_SALT` | Salt for API key bcrypt hashing |
-| `CORS_ORIGINS` | Allowed CORS origins |
-| `UPTIME_KUMA_URL` | Uptime Kuma API base URL (for registry poller) |
-| `UPTIME_KUMA_API_KEY` | Uptime Kuma API key |
+See `.env.example` for all 25+ variables. Key ones:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `API_KEY_SALT` | Yes | Salt for API key bcrypt hashing |
+| `CORS_ORIGINS` | No | Allowed CORS origins |
+| `OPENAI_API_KEY` | No | For vector embeddings (skips if empty) |
+| `HERMES_URL` | No | Hermes Agent API URL |
+| `UPTIME_KUMA_URL` | No | Uptime Kuma API URL |
+| `FRESHRSS_URL` | No | FreshRSS GReader API URL |
+| `DOZZLE_URL` | No | Dozzle API URL |
+| `SONARR_URL` / `RADARR_URL` / `TAUTULLI_URL` | No | Media stack URLs |
 
 ## Development
 
 ```bash
-# Docker (recommended)
+# Start
 docker compose up -d
-# Rebuild after changes
+
+# Rebuild after code changes
 docker compose build api && docker compose up -d api
 
-# Run specific tests
+# Run a specific test
 docker exec lamadb_api python3 -m pytest tests/test_feeds.py -q
+
+# Run benchmarks
+docker exec lamadb_api python3 benchmarks/bench_all_endpoints.py
 
 # Check logs
 docker logs lamadb_api --tail 20
+
+# DB access
+docker exec lamadb_postgres psql -U lamadb -d lamadb
+
+# Swagger UI
+open http://localhost:8000/docs
 ```
+
+Static files are COPY'd into the Docker image — rebuild after any `static/`, `app/`, `modules/`, or `migrations/` changes.
+
+## MCP Server
+
+22 JSON-RPC tools for AI agents. Connect at `POST /mcp` with Bearer auth.
+
+| Tool | Module | Description |
+|------|--------|-------------|
+| `search_documents` | Core | Full-text + semantic search |
+| `get_document` | Core | Get document by ID |
+| `create_document` | Core | Create document |
+| `create_event` | Core | Publish event |
+| `get_events` | Core | Query events |
+| `kanban_my_tasks` | Kanban | Open tasks for agent |
+| `kanban_find_work` | Kanban | Find unassigned tasks |
+| `kanban_claim_task` | Kanban | Claim and move to In Progress |
+| `kanban_complete_task` | Kanban | Complete with auto-start dependents |
+| `kanban_create_task` | Kanban | Create task |
+| `kanban_get_task` | Kanban | Full task detail |
+| `kanban_my_instructions` | Kanban | Agent onboarding instructions |
+| `get_agent_tasks` | Agent Board | Query task queue |
+| `send_agent_message` | Agent Board | Send inter-agent message |
+| `get_uptime_status` | Uptime | Current monitor status |
+| `scratchpad_capture` | Wiki | Save quick note |
+
+## Performance
+
+| Metric | Value | Tool |
+|--------|-------|------|
+| CPU idle | 0.09% | docker stats |
+| `/health` | 4ms | curl |
+| `/api/dashboard/overview` | 324ms | benchmarks |
+| All API endpoints p95 | < 350ms | benchmarks |
+| Cache hit rate | 72% | `/api/dashboard/cache-stats` |
+| Wiki pages | 83 | `/api/wiki/pages` |
+| Monitors | 37 | `/api/uptime/status` |
+| Hermes sessions | 193 | `/api/hermes/sessions/stats` |
+
+See `benchmarks/bench_all_endpoints.py` for the full endpoint timing suite.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE) for details.
+
+---
+
+**Built on:** PostgreSQL 16, FastAPI, asyncpg, SortableJS, pgvector  
+**Deployed with:** Docker Compose, Coolify  
+**Part of:** [LamaFiles](https://lamafiles.com) ecosystem

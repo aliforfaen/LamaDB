@@ -4,7 +4,7 @@
 
 LamaDB is a self-hosted central data layer / Life OS. It stores documents, events, and relationships in PostgreSQL, exposes a FastAPI REST API, and serves RSS feeds generated from its data.
 
-**Current phase: Phase 9 — Platform Maturity (S1-S7 feature map).** 11 modules. ~50 commits, 150+ tests. Caching layer (in-memory, TTL + tag invalidation), MCP server (12 JSON-RPC tools), agent mailboxes (inbox/sent/thread/read), per-module settings (settings.json overlay + dashboard forms), dashboard admin expansion (sidebar categories, document management table, module health, mobile responsive, theme toggle, command palette).
+**Current phase: Phase 10 — Kanban Module.** 13 modules. ~60 commits, 200+ tests. Kanban boards with agent task orchestration (backported from LlamaBan), user identity profiles with API key management, MCP server (22 JSON-RPC tools), agent mailboxes (inbox/sent/thread/read), caching layer (in-memory, TTL + tag invalidation), per-module settings (settings.json overlay + dashboard forms), dashboard admin expansion (sidebar categories, document management table, module health, mobile responsive, theme toggle, command palette).
 
 Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table. Ingest pipeline for push-based lifecycle hooks. MCP server exposes LamaDB as callable tools for AI agents.
 
@@ -14,7 +14,9 @@ Hermes Agent integration live — polls session stats, token usage, system healt
 FastAPI app (app/main.py)
   ├── Core: documents, document_links, events tables
   ├── Module auto-discovery from modules/ directory
+  ├── Users: identity profiles (api_keys.user_id → users table)
   ├── Role-based API key auth
+  ├── SSE / WebSocket real-time
   └── PostgreSQL connection pool
 
 Docker Compose
@@ -46,8 +48,11 @@ lamadb/
 │   ├── config.py          # Settings from env vars
 │   ├── db.py              # asyncpg connection pool
 │   ├── auth.py            # API key auth with roles (includes verify_api_key for SSE)
+│   ├── cache.py           # In-memory TTL cache with tag invalidation
 │   ├── embeddings.py      # OpenAI embedding service (text-embedding-3-small, 1536d)
 │   ├── sse.py             # SSE infrastructure (SSEManager + pg_listener)
+│   ├── mcp_server.py      # MCP JSON-RPC 2.0 handler
+│   ├── mcp_registry.py    # Auto-discovers MCP tools from modules
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── documents.py   # Document + Link models
@@ -56,7 +61,10 @@ lamadb/
 │       ├── __init__.py
 │       ├── documents.py   # Document CRUD routes (/api/documents)
 │       ├── events.py      # Event CRUD routes (/api/events)
-│       └── search.py      # Search routes (/api/search + /embeddings/backfill)
+│       ├── search.py      # Search routes (/api/search + /embeddings/backfill)
+│       ├── dashboard.py   # Dashboard API + module health
+│       ├── users.py       # User management endpoints
+│       └── mcp.py         # Core MCP tools
 ├── modules/
 │   ├── __init__.py        # Module registry
 │   ├── feeds/             # RSS feed generator
@@ -78,6 +86,11 @@ lamadb/
 │   │   ├── __init__.py
 │   │   ├── routes.py      # /api/agent_board/*
 │   │   └── models.py
+│   ├── kanban/            # Kanban boards with agent orchestration
+│   │   ├── __init__.py    # MODULE_MCP_TOOLS (11 tools)
+│   │   ├── routes.py      # /api/kanban/* (30 endpoints)
+│   │   ├── models.py      # Pydantic models (29 classes)
+│   │   └── mcp.py         # Agent-first MCP tools
 │   ├── freshrss/          # FreshRSS feed scraper
 │   │   ├── __init__.py
 │   │   ├── routes.py
@@ -130,7 +143,16 @@ lamadb/
 │   ├── 005_monitor_registry.sql
 │   ├── 006_notification_rules.sql
 │   ├── 007_embedding_hnsw.sql # HNSW index for vector search
-│   └── 008_event_notify.sql  # NOTIFY triggers for SSE
+│   ├── 008_event_notify.sql  # NOTIFY triggers for SSE
+│   ├── 009_api_key_last_used.sql
+│   ├── 010_agent_mailboxes.sql
+│   ├── 011_user_layouts.sql
+│   ├── 012_dashboard_notify_triggers.sql
+│   ├── 013_api_key_prefix.sql
+│   └── 014_kanban_core.sql   # Users + 7 kanban tables + NOTIFY triggers
+├── benchmarks/
+│   └── bench_all_endpoints.py
+├── tests/
 └── deploy/
     └── coolify.md         # Coolify deployment notes
 ```
@@ -169,9 +191,6 @@ CREATE TABLE document_links (
     context TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX idx_links_source ON document_links (source_id);
-CREATE INDEX idx_links_target ON document_links (target_id);
-CREATE INDEX idx_links_type ON document_links (link_type);
 
 -- Event bus (replaces events.jsonl)
 CREATE TABLE events (
@@ -185,10 +204,6 @@ CREATE TABLE events (
     metadata JSONB DEFAULT '{}',
     processed BOOLEAN DEFAULT false
 );
-CREATE INDEX idx_events_ts ON events (ts DESC);
-CREATE INDEX idx_events_source ON events (source);
-CREATE INDEX idx_events_severity ON events (severity);
-CREATE INDEX idx_events_processed ON events (processed) WHERE NOT processed;
 
 -- Feeds (module: feeds)
 CREATE TABLE feeds (
@@ -213,8 +228,37 @@ CREATE TABLE monitor_status (
     duration_ms INT,
     received_at TIMESTAMPTZ DEFAULT now()
 );
-CREATE INDEX idx_monitor_received ON monitor_status (received_at DESC);
-CREATE INDEX idx_monitor_id ON monitor_status (monitor_id);
+```
+
+### User Identity Tables (migration 014)
+
+```sql
+-- User profiles (sits alongside api_keys)
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL DEFAULT 'agent',  -- 'human' | 'agent'
+    status TEXT NOT NULL DEFAULT 'active',
+    instructions TEXT,                    -- per-agent onboarding
+    last_active_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- api_keys gets user_id FK for attribution
+ALTER TABLE api_keys ADD COLUMN user_id UUID REFERENCES users(id);
+```
+
+### Kanban Tables (migration 014)
+
+```sql
+kanban_boards      — type: agentic|personal, owner_id → users
+kanban_columns     — status: backlog|in_progress|review|done
+kanban_tasks        — task_number (per-board), priority, assignee, help_wanted, deps
+kanban_subtasks     — per-task checklist
+kanban_task_dependencies — auto-start dependents on completion
+kanban_comments     — user-attributed task discussion
+kanban_agent_logs   — action audit trail (task_claimed, task_completed, etc.)
 ```
 
 ### API Key Table
@@ -224,9 +268,12 @@ CREATE TABLE api_keys (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     key_hash TEXT NOT NULL UNIQUE,
+    key_prefix TEXT NOT NULL,     -- SHA-256 of first 16 chars for O(1) lookup
     role TEXT NOT NULL DEFAULT 'read',
     scopes TEXT[] DEFAULT '{}',
     active BOOLEAN DEFAULT true,
+    user_id UUID REFERENCES users(id),
+    last_used_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 ```
@@ -241,9 +288,11 @@ Role-based API keys. Three roles:
 | `agent` | Read/write on scoped modules + events | Worker agents |
 | `read` | Read-only on public endpoints | Dashboards, external |
 
-API key sent via `Authorization: Bearer <key>` header. Keys stored as bcrypt hashes.
+API key sent via `Authorization: Bearer <key>` header. Keys stored as bcrypt hashes. O(1) prefix hash lookup (migration 013).
 
-Scopes are module names: `['feeds', 'uptime', 'documents']`. Empty scopes = access to nothing (must be explicitly granted). Admin role ignores scopes.
+Scopes are module names: `['kanban', 'feeds', 'uptime', 'documents']`. Empty scopes = access to nothing (must be explicitly granted). Admin role ignores scopes.
+
+AuthUser populates `user_id` from `api_keys.user_id`, enabling per-user identity for task assignment, agent attribution, and profile lookups.
 
 ## Module Pattern
 
@@ -267,9 +316,9 @@ Module discovery in `app/main.py`:
 3. Call `get_router()` to get the FastAPI router
 4. Include router with prefix `/api/{module_name}`
 
-Modules can define their own database tables (like `feeds`, `monitor_status`). Migration files for modules go in `migrations/` with the module name prefix.
+Modules can define their own database tables. Migration files for modules go in `migrations/` with the module name prefix.
 
-
+MCP tools are declared via `MODULE_MCP_TOOLS` list in `__init__.py` and auto-registered by `app/mcp_registry.py`.
 
 ## Development Workflow
 
@@ -296,263 +345,50 @@ docker logs lamadb_api --tail 20
 
 **Do:** Use Swagger UI (`/docs`) for manual testing. Write a test only when verifying something complex. Keep the fun ratio high.
 
-## What to Build (PoC Scope)
+## What to Build — Completed Phases
 
-### Phase 1: Skeleton ✅ (Completed 2026-05-29)
-- [x] `docker-compose.yml` with PostgreSQL 16 (use pgvector/pgvector:pg16 image) + API server
-- [x] `Dockerfile` for Python 3.12 app
-- [x] `requirements.txt` with all dependencies (+ httpx, pytest, pytest-asyncio for tests)
-- [x] `app/main.py` — FastAPI app with lifespan (connect/disconnect DB), module auto-discovery, CORS
-- [x] `app/config.py` — pydantic Settings from env vars (DATABASE_URL, API_KEY_SALT, etc.)
-- [x] `app/db.py` — asyncpg connection pool (create on startup, close on shutdown)
-- [x] `app/auth.py` — API key dependency (check header, verify hash, return role + scopes)
-- [x] `migrations/001_initial.sql` — all core tables above
-- [x] Health endpoint: `GET /health` returns `{"status": "ok"}`
-- [x] Auto-run migrations on startup (read SQL file, execute)
+### Phase 1: Skeleton ✅ (2026-05-29)
+- [x] docker-compose.yml, Dockerfile, requirements.txt
+- [x] app/main.py — FastAPI + module auto-discovery + CORS
+- [x] app/config.py, app/db.py, app/auth.py
+- [x] migrations/001_initial.sql — all core tables
+- [x] Health endpoint, auto-run migrations
 
-### Phase 2: Core Endpoints ✅ (Completed 2026-05-29)
-- [x] `app/models/documents.py` — Pydantic models for Document, DocumentCreate, DocumentLink
-- [x] `app/models/events.py` — Pydantic models for Event, EventCreate, EventPatch
-- [x] `app/core/documents.py` — CRUD: POST/GET/PUT/DELETE /api/documents, GET /api/documents/{id}, typed links
-- [x] `app/core/events.py` — CRUD: POST /api/events, GET /api/events (with filters: source, severity, processed), PATCH
-- [x] `app/core/search.py` — GET /api/search?q=term (full-text on documents using pg_trgm similarity)
+### Phase 2: Core Endpoints ✅ (2026-05-29)
+- [x] Documents CRUD, Events CRUD, Search (pg_trgm)
 
-### Phase 3: Module 1 — Feeds ✅ (Completed 2026-05-29)
-- [x] `modules/feeds/__init__.py` — module metadata + ENABLED=True + get_public_router()
-- [x] `modules/feeds/models.py` — Feed, FeedCreate, FeedUpdate pydantic models
-- [x] `modules/feeds/routes.py`:
-  - `POST /api/feeds` — create feed (name, slug, filter criteria)
-  - `GET /api/feeds` — list feeds
-  - `GET /api/feeds/{slug}` — feed details
-  - `PUT /api/feeds/{slug}` — update feed
-  - `DELETE /api/feeds/{slug}` — delete feed
-  - `GET /feeds/{slug}.xml` — RSS XML output (public, no auth)
-- [x] `modules/feeds/generator.py` — query documents matching feed filters, generate RSS XML using feedgen
-- Feed filtering: by tags (ANY match), by source_type, ordered by created_at DESC, limited to max_items
-- **RSS content rule:** Feeds serve SUMMARIES, not raw logs. Raw agent output has source_type='agent_output'. Summaries have source_type='summary'. The feed generator filters for summaries by default. This keeps RSS readable — dense logs are unreadable in feed readers, but summaries are great.
-- Each summary document should link to its raw source(s) via document_links (link_type='derived_from')
-- [x] `tests/test_feeds.py` — 15 TDD tests (CRUD, RSS output, filtering, public access, validation) — ALL PASSING
+### Phase 3: Feeds Module ✅ (2026-05-29)
+- [x] RSS XML generator, feed CRUD, public endpoints
 
-### Phase 4: Module 2 — Uptime ✅ (Completed 2026-05-29)
-- [x] `modules/uptime/__init__.py` — module metadata + ENABLED=True
-- [x] `modules/uptime/models.py` — UptimeWebhookPayload, MonitorStatus, CurrentStatus, WebhookResponse
-- [x] `modules/uptime/routes.py`:
-  - `POST /api/uptime/webhook` — receive Kuma webhook payload (no auth, validated by tailnet)
-  - `GET /api/uptime/status` — current status of all monitors (DISTINCT ON monitor_id)
-  - `GET /api/uptime/history` — recent status changes (paginated, filterable)
-  - `GET /api/uptime/history/{monitor_id}` — history for specific monitor
-- [x] `modules/uptime/webhook.py` — parse Kuma webhook, insert into monitor_status, also write to events
-- [x] Uptime Kuma webhook format: `{"heartbeat": {"status": 0|1|2|3, "msg": "...", "duration": ..., "time": "..."}, "monitor": {"id": ..., "name": "...", "url": "..."}}`
-- [x] `tests/test_uptime.py` — 10 TDD tests (webhook creation, severity mapping, status querying, auth, pagination) — ALL PASSING
+### Phase 4: Uptime Module ✅ (2026-05-29)
+- [x] Webhook receiver, registry poller, topology host map
 
-### Phase 5: Dashboard + Config 🔧 (Design done → Wiring next)
+### Phase 5: Dashboard + Config ✅ (2026-05-29)
+- [x] Backend API (8 endpoints), frontend wiring, settings page
 
-**Spec:** `docs/specs/2026-05-29-phase5-dashboard-spec.md`
+### Phase 6: Core Enhancements ✅ (2026-06-07)
+- [x] Semantic search (pgvector), document graph traversal, Hermes dashboard
 
-#### 5A: Dashboard Backend (Management API) ✅ (2026-05-29)
-- [x] `app/core/dashboard.py` — Dashboard API routes (/api/dashboard/*)
-  - `GET /api/dashboard/overview` — aggregated stats (doc count, feed count, monitor up/down, events today)
-  - `GET /api/dashboard/modules` — list all modules with metadata + runtime state
-  - `POST /api/dashboard/modules/{name}/toggle` — enable/disable module (writes .state file, requires restart)
-  - `GET /api/dashboard/health` — system health (DB version, extensions, table sizes, pool stats)
-  - `GET /api/dashboard/api-keys` — list API keys (hashes never returned)
-  - `POST /api/dashboard/api-keys` — create API key (returns raw key once)
-  - `DELETE /api/dashboard/api-keys/{id}` — revoke API key
-  - `POST /api/dashboard/api-keys/{id}/rotate` — rotate API key
-- [x] `tests/test_dashboard.py` — 13 TDD tests, ALL PASSING
-- [x] `modules/dashboard/__init__.py` — ENABLED=True, get_router() returns dashboard router
-- [x] `modules/dashboard/routes.py` — static file serving at /
-- [x] `static/index.html` — copied from Open Design artifact
+### Phase 7: Embeddings, FreshRSS, SSE ✅ (2026-06-07)
+- [x] OpenAI embeddings, HNSW index, SSE real-time events, migration runner fix
 
-#### 5B: Dashboard Frontend (Wiring) ✅ (2026-05-29)
-- [x] `open-design/index.html` — design artifact (73KB, 5 pages, Tech Utility aesthetic)
-- [x] `open-design/brand-spec.md` — color tokens + typography
-- [x] `modules/dashboard/__init__.py` — ENABLED=True, get_router()
-- [x] `modules/dashboard/routes.py` — serve static files at /
-- [x] `static/index.html` — wired dashboard (fetch calls, auth, loading/error states)
-- [x] Auth flow: localStorage API key, 401 → auth modal
-- [x] P0 fix: dynamic footer (reflect actual uptime status)
-- [x] P1 fixes: URL contrast, event row count, description tooltips, loading skeletons
+### Phase 8: Dashboard Polish & Test Suite Rebuild ✅ (2026-06-08)
+- [x] Document detail modal, uptime sparklines, SSE bugfixes, 14 new tests
 
-#### 5C: Settings Page (Config/Management) ✅ (2026-05-29)
-- [x] Sidebar: "Settings" nav item (gear icon)
-- [x] Module Management section: card grid with toggle switches, metadata display, restart prompt
-- [x] API Keys section: table with create/revoke/rotate, one-time key display modal
-- [x] System Health section: DB status, extensions, table sizes, pool stats
+### Phase 9: Platform Maturity ✅ (2026-06-08)
+- [x] Caching layer, MCP server (12 tools), agent mailboxes, per-module settings
+- [x] Dashboard admin expansion, user layout persistence, performance hardening
+- [x] CPU saturation fixed (101% → 0.09%), O(1) auth lookup
 
-### Phase 6: Core Enhancements ✅ (Completed 2026-06-07)
-
-#### 6A: Semantic Search
-- [x] `GET /api/search/semantic?q=term&limit=N` — pgvector cosine similarity endpoint
-- [x] Deterministic hash-based pseudo-embedding generator (SHA-256 → 1536-dim L2-normalized vector)
-- [x] Uses pgvector `<=>` operator for cosine distance ranking
-- [x] Returns empty when no embeddings stored — placeholder until real embedding model is connected
-
-#### 6B: Document Graph Traversal
-- [x] `GET /api/documents/{id}/graph?depth=N&link_type=X` — recursive CTE graph traversal
-- [x] Cycle detection via ARRAY path tracking in recursive CTE
-- [x] Returns `{root_id, nodes: [{id, title, source_type}], edges: [{source_id, target_id, link_type, context, level}]}`
-- [x] Depth limited to 1–5, optional link_type filter
-
-#### 6C: Hermes Dashboard Tab
-- [x] Added Hermes nav item to sidebar (between Notflix and Settings)
-- [x] Page section with health badge, system stats cards, session statistics, and recent sessions table
-- [x] Fetches from `/api/hermes/health`, `/api/hermes/system`, `/api/hermes/sessions/stats`, `/api/hermes/sessions`
-- [x] Shows gateway connectivity, host metrics, token usage summary, and session list with cost estimates
-- [x] Exported `loadHermesPage` to window for onclick handler (IIFE scoping)
-
-### Phase 7: Embeddings, FreshRSS, SSE, Dashboard Polish ✅ (Completed 2026-06-07)
-
-#### 7A: FreshRSS Polling Activation
-- [x] Added `FRESHRSS_URL`, `FRESHRSS_USERNAME`, `FRESHRSS_API_PASSWORD` env vars to `docker-compose.yml`
-- [x] Deduplicated auth helper: `routes.py` now imports `AuthToken` from `collector.py`
-- [x] Added FreshRSS dashboard tab (nav item + page section with status cards, feed list, articles, Sync Now button)
-
-#### 7B: Vector Embeddings Pipeline
-- [x] Added `openai>=1.0.0` dependency + `OPENAI_API_KEY` / `embedding_model` config
-- [x] Created `app/embeddings.py` — `generate_embedding()`, `generate_embeddings_batch()`, `embed_document_async()` fire-and-forget
-- [x] `POST /api/embeddings/backfill` — admin-only batch backfill for existing documents
-- [x] `GET /api/search/semantic` upgraded: real OpenAI embeddings with pseudo-embedding fallback (no API key → no embeddings stored)
-- [x] `migrations/007_embedding_hnsw.sql` — HNSW index on `documents.embedding vector_cosine_ops`
-- [x] Fire-and-forget embedding hooked into `POST /api/documents` (create) and `PUT /api/documents/{id}` (update)
-
-#### 7C: Real-Time Dashboard (SSE)
-- [x] `migrations/008_event_notify.sql` — NOTIFY triggers on `events` INSERT and `agent_tasks` UPDATE
-- [x] Created `app/sse.py` — `SSEManager` (per-client `asyncio.Queue`) + `pg_listener` (dedicated asyncpg connection outside pool)
-- [x] `GET /api/dashboard/stream?key=<api_key>` — SSE endpoint with query-param auth + 15s heartbeat
-- [x] `app/auth.py` — added `verify_api_key()` for non-Bearer auth mechanisms
-- [x] Frontend `connectSSE()` EventSource client, connected after auth success
-- [x] Dashboard polling interval reduced from 30s → 120s (SSE covers real-time)
-
-#### 7C.5: Migration Runner Fix
-- [x] Rewrote `_split_sql()` from naive `split(";")` to character-by-character state machine that preserves `$$` dollar-quoted blocks
-- [x] Rewrote `migrations/008_event_notify.sql` to avoid nested `$$` blocks (bare `CREATE OR REPLACE FUNCTION` instead of `DO $$` wrappers)
-
-#### 7D/7E: Verification & Dogfood
-- [x] All 14 dashboard sidebar items present and navigable
-- [x] Triggers `trg_event_created_notify`, `trg_task_updated_notify` verified active
-- [x] HNSW index `idx_documents_embedding_hnsw` created
-- [x] SSE pg_listener connected on `event_created`, `task_update` channels
-- [x] NOTIFY end-to-end: inserting into `events` table fires notification received by listener
-- [x] 1,247 documents, 33/35 monitors up, 89 events today (verified via dashboard overview)
-- [x] Hermes tab: health green, version 0.16.0, gateway running, 189 sessions
-
-
-### Phase 8: Dashboard Polish & Test Suite Rebuild ✅ (Completed 2026-06-08)
-
-#### 8A: Document Detail Modal
-- [x] Rewrote `openDocDetail()` from DOM-scraping to async API fetch (parallel document + links calls)
-- [x] Loading state, 404 handling, real timestamps from API
-- [x] Linked documents rendered as clickable chips instead of static SVG placeholder
-- [x] Removed 6 hard-coded stub cards — `loadDocuments()` populates dynamically
-
-#### 8B: Uptime Sparklines
-- [x] `GET /api/uptime/history/recent?limit=30` — batch endpoint grouped by monitor_id using `ROW_NUMBER() OVER (PARTITION BY)`
-- [x] Inline SVG sparklines (stepped polylines, 120×24px) injected into each monitor card
-- [x] Color-coded by latest status: green=UP, red=DOWN, grey=pending
-
-#### 8C: SSE Bugfixes
-- [x] `app/sse.py`: Fixed `NameError` when `asyncpg.connect()` fails — `conn` initialized to `None` before try, guarded `finally`
-- [x] Frontend `connectSSE()`: Removed manual `setTimeout(connectSSE, 5000)` retry that raced with EventSource auto-reconnect
-
-#### 8D: Test Suite Rebuild
-- [x] `tests/test_hermes_ingest.py` — 6 tests: session_finalize, upsert, llm_call, credential_error, gateway_status, unknown_type
-- [x] `tests/test_dozzle_collector.py` — 4 tests: sanitize null bytes, invalid UTF-8, SSE parsing, JSONL parsing
-- [x] `tests/test_sse.py` — 4 tests: auth rejection, SSEManager broadcast/subscribe/unsubscribe lifecycle
-- [x] `Dockerfile`: Added `COPY tests/` and `COPY pytest.ini` so tests run in container
-- [x] Bugfix: `modules/hermes/routes.py` — `str(existing)` conversion for UUID→str in upsert `IngestResponse.doc_id`
-- [x] All 14 new tests pass (152s, in-process via httpx ASGITransport, no docker exec)
-
-### Phase 10: Kanban Module (LlamaBan backport) 🚧 (In Progress)
-
-#### 10A: Module Skeleton ✅ (2026-06-10)
-- [x] `migrations/014_kanban_core.sql` — users, boards, columns, tasks, agent_logs + api_keys.user_id link + NOTIFY triggers
-- [x] Seeded `users` with `ali` (human, admin), linked all existing admin api_keys
-- [x] Module metadata in `modules/kanban/__init__.py` + Pydantic models + MCP tool declarations
-- [x] Auto-registered in `app/main.py` module discovery
-
-#### 10B: User Management Backend ✅ (2026-06-10)
-- [x] `app/core/users.py` — 6 endpoints: list/create/get/update/rotate-key/deactivate
-- [x] Auto-generates `lamadb_user_<token>` API keys with bcrypt+salt+key_prefix
-- [x] Role assignment: human→admin, agent→agent with kanban/documents/events scopes
-- [x] Soft-delete via status='inactive' + api_keys.active=false
-- [x] AuthUser extended with optional `user_id` field (populated in `_authenticate` from api_keys.user_id)
-
-
-### Phase 9: Platform Maturity ✅ (Completed 2026-06-08)
-
-#### S1: Caching Layer
-- [x] `app/cache.py` — `CacheManager` singleton (in-memory dict, TTL, tag-based invalidation), `@cached(ttl, tags)` decorator for async FastAPI routes
-- [x] Wired @cached on 7 endpoints: dashboard overview/modules/health, uptime status/history, hermes health/stats
-- [x] Write-through invalidation in 6 files: documents, events, api-keys, webhook, ingest, pollers
-- [x] `GET /api/dashboard/cache-stats` — cache hit/miss/expired/entries stats + Settings card
-- [x] 11 tests (6 CacheManager + 5 cache-stats) passing
-
-#### S2: Testing Infrastructure
-- [x] `benchmarks/` — 3 perf scripts: overview, uptime, search (p50/p95 timing)
-- [x] `tests/smoke_test_dashboard.py` — 28 endpoints, 27 pass / 1 skip
-- [x] `docs/module-audit.md` — 15-module table with coverage and issues
-- [x] `pytest.ini` updated: `timeout=30`, `-x --tb=short`
-
-#### S3: API Key & User Management UI
-- [x] `migrations/009_api_key_last_used.sql` — `last_used_at` column + index
-- [x] `app/auth.py` — fire-and-forget `last_used_at` tracking on every auth
-- [x] `PATCH /api/dashboard/api-keys/{id}` — update name/role/scopes/active, scope validation against module registry
-- [x] `GET /api/dashboard/api-keys/stats` — active/inactive/stale counts
-- [x] Dashboard API Keys settings rebuilt: filter tabs, role badges, scope chips, inline editing, create/rotate/revoke with undo toast, relative timestamps
-
-#### S4: MCP Server
-- [x] `app/mcp_server.py` — JSON-RPC 2.0 handler at `POST /mcp` with Bearer auth + role/scope permission checks
-- [x] `app/mcp_registry.py` — auto-discovers tools from module `MODULE_MCP_TOOLS` declarations
-- [x] `app/core/mcp.py` — 6 core tools: search_documents, get_document, create_document, update_document, create_event, get_events
-- [x] Module MCP tools: `modules/uptime/mcp.py` (2), `modules/agent_board/mcp.py` (2), `modules/wiki/mcp.py` (2)
-- [x] All 12 tools verified via curl (tools/list + tools/call)
-
-#### S5: Agent Mailboxes
-- [x] `migrations/010_agent_mailboxes.sql` — `inbox_for`, `reply_to`, `read` columns on agent_messages
-- [x] 6 new endpoints: inbox, sent, inbox/count, messages/{id}/read, messages/read-all, thread/{id} (recursive CTE)
-- [x] Dashboard Inbox tab: split-pane, agent selector, auto mark-as-read, reply, thread view, unread badge
-
-#### S6: Per-Module Settings
-- [x] `app/config.py` — `discover_module_configs()`, `save_settings()`, `settings.json` overlay engine
-- [x] `GET /api/dashboard/module-settings` + `PUT /api/dashboard/module-settings/{module}`
-- [x] `MODULE_CONFIG_SCHEMA` in 6 module `__init__.py` files (freshrss, hermes, ntfy, dozzle, notflix, uptime)
-- [x] Dashboard Module Config forms: type-aware inputs, secret masking, source indicators, restart warnings
-
-#### S7: Dashboard Admin Expansion
-- [x] S7a: Sidebar redesign — 4 collapsible categories, alert badges, keyboard shortcuts (`g d`, `?`), quick search
-- [x] S7b: Document Management — sortable table, inline editing, bulk ops, drag-and-drop linking
-- [x] S7c: Module Health — `GET /api/dashboard/module-health` endpoint with status dots, error tracking
-- [x] S7d: Live Refresh — NOTIFY triggers on documents + monitor_status, WebSocket endpoint at `/api/dashboard/ws`
-- [x] S7e: Mobile — responsive sidebar→tab bar, stacked cards, loading skeletons, theme toggle (system preference), Cmd+K command palette
-
-
-- **Async everywhere.** asyncpg, async FastAPI routes, no sync blocking.
-- **Pydantic for all models.** Request/response validation.
-- **No ORMs.** Raw SQL with asyncpg. Keep it simple, keep it readable.
-- **Type hints everywhere.** Python 3.12 syntax.
-- **Docstrings on public functions.** Google style.
-- **Error handling:** Use FastAPI HTTPException with proper status codes.
-- **JSONB for flexible data.** Don't add columns for module-specific fields — use metadata.
-- **UUIDs for document IDs.** SERIAL/BIGSERIAL for internal tables (events, monitor_status).
-- **TIMESTAMPTZ always.** Never naive timestamps.
-
-## Environment Variables
-
-
-```
-DATABASE_URL=postgresql://lamadb:lamadb@postgres:5432/lamadb
-API_KEY_SALT=<random-string-for-hashing>
-CORS_ORIGINS=http://localhost:3000,http://localhost:8080
-OPENAI_API_KEY=sk-...            # Optional — embeddings silently skipped if empty
-FRESHRSS_URL=http://valhalla:8780 # FreshRSS GReader API base URL
-FRESHRSS_USERNAME=lamadb          # FreshRSS login username
-FRESHRSS_API_PASSWORD=...         # FreshRSS API password
-HERMES_URL=http://dev-vm:9119     # Hermes Agent API
-HERMES_DASHBOARD_SESSION_TOKEN=.. # Fallback auth for Hermes API
-UPTIME_KUMA_URL=...               # Uptime Kuma API URL
-UPTIME_KUMA_API_KEY=...           # Uptime Kuma API key
-```
+### Phase 10: Kanban Module ✅ (2026-06-10)
+- [x] Users table + identity profiles with API key management
+- [x] Kanban boards (agentic + personal types), columns, task state machine
+- [x] Subtasks, task dependencies (auto-start on completion)
+- [x] Agent log audit trail, MCP tools (11 kanban tools)
+- [x] Dashboard kanban board with drag-drop (SortableJS)
+- [x] User management frontend (create, rotate, deactivate)
+- [x] SSE real-time updates, caching on read endpoints
+- [x] Backported from LlamaBan (`~/LamaFiles/projects/kanban/`)
 
 ## Known Pitfalls
 
@@ -582,11 +418,41 @@ UPTIME_KUMA_API_KEY=...           # Uptime Kuma API key
 | `inbox_for` defaults to `to_agent` when not provided | In `send_message()`, `message.inbox_for or message.to_agent` ensures backward compatibility for old code that doesn't set inbox_for. |
 | `settings.json` overlay sits alongside `.env` — env vars take priority | `discover_module_configs()` checks `settings` (env) first, then `settings_overlay` (file), then `field["default"]`. Don't delete the file manually — use the API. |
 | WebSocket auth uses first-message pattern | `dashboard_websocket()` accepts the connection, then reads the first JSON message for `{"key": "..."}`. Invalid keys get code 4001. |
-| `AuthUser` has optional `user_id: str \| None` | Populated in `_authenticate()` from `api_keys.user_id` (added by migration 014). `None` for legacy keys not yet linked. Use for self-vs-other authorization checks. |
+| `AuthUser` has optional `user_id: str | None` | Populated in `_authenticate()` from `api_keys.user_id` (added by migration 014). `None` for legacy keys not yet linked. Use for self-vs-other authorization checks. |
 | New `api_keys` inserts MUST populate `key_prefix` | O(1) auth (migration 013) won't find keys without it. Compute via `app.auth._hash_prefix(raw_key)` (SHA-256 of first 16 chars). |
+| Kanban board types determine default columns | Agentic: Backlog/In Progress/Review/Done. Personal: Inbox/In Progress/Review/Done. Board creation auto-populates columns from `DEFAULT_COLUMNS_AGENTIC` / `DEFAULT_COLUMNS_PERSONAL` tuples. |
+| Completing a task must move it to Done column | `complete_task` route finds the Done column via `status = 'done'` and updates `column_id` BEFORE auto-starting dependents. |
+| Kanban SSE channel is `kanban_task_updated` | NOTIFY triggers fire on INSERT/UPDATE/DELETE of `kanban_tasks`. Frontend registers callback via `window._sseCallbacks['kanban_task_updated']`. pg_listener subscribes in app/main.py. |
+| User creation auto-generates API key with user_id link | `POST /api/users` creates both a `users` row and an `api_keys` row with `user_id` FK. New keys MUST include `key_prefix` for O(1) lookup. Legacy keys in migration get user_id backfilled from name matching. |
 
 ## Important Notes
 
 - The `/feeds/{slug}.xml` endpoint is PUBLIC (no auth). It's RSS — readers can't send API keys.
 - The `/api/uptime/webhook` endpoint is semi-public. We'll validate by source IP later, but for PoC it's open.
 - Module tables are created by module-specific migrations. The feeds and uptime tables are in 001_initial.sql for PoC simplicity.
+- Lambda uses `STATUS` column in kanban migration — ensure `IF NOT EXISTS` guards on ALTER TABLE commands.
+
+## Environment Variables
+
+See `.env.example` for full list. Key variables:
+
+```
+DATABASE_URL=postgresql://lamadb:lamadb@postgres:5432/lamadb
+API_KEY_SALT=<random-string-for-hashing>
+CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+OPENAI_API_KEY=sk-...            # Optional — embeddings silently skipped if empty
+FRESHRSS_URL=http://valhalla:8780 # FreshRSS GReader API base URL
+HERMES_URL=http://dev-vm:9119     # Hermes Agent API
+UPTIME_KUMA_URL=...               # Uptime Kuma API URL
+DOZZLE_URL=...                    # Dozzle API URL
+SONARR_URL=... / RADARR_URL=... / TAUTULLI_URL=...
+```
+
+## Known Pitfalls (Legacy — preserved from Phase 1-9)
+
+| Pitfall | Fix |
+|---------|-----|
+| `pgvector/pgvector:pg16` uses extension name `vector` | `CREATE EXTENSION IF NOT EXISTS vector;` |
+| Migration runner splits on `;` before stripping comments | Strip comments first then split |
+| Static files are COPY'd, not mounted | Rebuild after static/ changes |
+| API_KEY_SALT must be set BEFORE creating keys | Don't change salt after keys exist |
