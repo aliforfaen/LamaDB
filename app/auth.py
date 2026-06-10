@@ -63,6 +63,20 @@ async def _touch_last_used(key_id: str):
         pass  # Never fail a request because of tracking
 
 
+async def _touch_last_active(user_id: str):
+    """Fire-and-forget: update users.last_active_at on every auth."""
+    try:
+        from app.db import get_pool
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE users SET last_active_at = now() WHERE id = $1",
+                user_id,
+            )
+    except Exception:
+        pass  # Never fail a request because of tracking
+
+
 async def _authenticate(token: str) -> AuthUser:
     """Core auth logic: O(1) prefix lookup with O(N) fallback.
 
@@ -96,6 +110,8 @@ async def _authenticate(token: str) -> AuthUser:
                     user_id=str(row["user_id"]) if row["user_id"] else None,
                 )
                 asyncio.create_task(_touch_last_used(user.key_id))
+                if user.user_id:
+                    asyncio.create_task(_touch_last_active(user.user_id))
                 return user
 
         # Fallback for legacy keys without key_prefix populated.
@@ -137,6 +153,8 @@ async def _authenticate(token: str) -> AuthUser:
                     user_id=str(row["user_id"]) if row["user_id"] else None,
                 )
                 asyncio.create_task(_touch_last_used(user.key_id))
+                if user.user_id:
+                    asyncio.create_task(_touch_last_active(user.user_id))
                 return user
 
     raise HTTPException(

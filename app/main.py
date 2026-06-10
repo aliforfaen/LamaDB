@@ -187,13 +187,13 @@ async def lifespan(app: FastAPI):
         listener_task = asyncio.create_task(
             pg_listener(
                 settings.database_url,
-                ["event_created", "task_update", "document_created", "monitor_status"],
+                ["event_created", "task_update", "document_created", "monitor_status", "kanban_task_updated"],
                 _make_notify_callback(),
             )
         )
         background_tasks.add(listener_task)
         listener_task.add_done_callback(background_tasks.discard)
-        logger.info("Started SSE pg_listener on channels: event_created, task_update, document_created, monitor_status")
+        logger.info("Started SSE pg_listener on channels: event_created, task_update, document_created, monitor_status, kanban_task_updated")
 
     yield
     for task in background_tasks:

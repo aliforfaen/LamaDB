@@ -602,7 +602,7 @@ async def send_message(
             RETURNING id, from_agent, to_agent, inbox_for, subject, body, message_type,
                       parent_id, reply_to, metadata, read, created_at
             """,
-            user.role,  # Use role as from_agent
+            user.name,  # Use API key name as from_agent (e.g. "muninn", "ali")
             message.to_agent,
             message.inbox_for or message.to_agent,  # default inbox_for = to_agent
             message.subject,

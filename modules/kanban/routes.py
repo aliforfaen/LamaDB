@@ -3,9 +3,10 @@ import json
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cache_manager, cached
 from app.db import get_pool
 
 from .models import (
@@ -31,7 +32,11 @@ def _require_admin_or_agent(user: AuthUser = Depends(get_current_user)) -> AuthU
 # ── Agent Connect ──────────────────────────────────────────────
 
 @router.get("/me")
-async def agent_connect(user: Annotated[AuthUser, Depends(get_current_user)]):
+@cached(ttl_seconds=60, invalidate_tags=["kanban"], key_prefix="kanban_me")
+async def agent_connect(
+    request: Request,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
     """Agent first-connect: profile, boards, open tasks, instructions."""
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -108,7 +113,11 @@ DEFAULT_COLUMNS_PERSONAL = [
 
 
 @router.get("/boards")
-async def list_boards(user: Annotated[AuthUser, Depends(get_current_user)]):
+@cached(ttl_seconds=120, invalidate_tags=["kanban"], key_prefix="kanban_boards")
+async def list_boards(
+    request: Request,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
     """List all kanban boards with column and task counts."""
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -150,11 +159,17 @@ async def create_board(
                 board_id, col_name, col_status, col_pos,
             )
 
+    cache_manager.invalidate("kanban")
     return {"id": str(board_id), "name": body.name, "type": body.type, "columns": len(cols)}
 
 
 @router.get("/boards/{board_id}")
-async def get_board(board_id: str, user: Annotated[AuthUser, Depends(get_current_user)]):
+@cached(ttl_seconds=60, invalidate_tags=["kanban"], key_prefix="kanban_board")
+async def get_board(
+    request: Request,
+    board_id: str,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
     """Get a board with its columns and task counts per column."""
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -204,6 +219,7 @@ async def update_board(
             params.append(board_id)
             await conn.execute(f"UPDATE kanban_boards SET {', '.join(updates)} WHERE id = ${idx}", *params)
 
+    cache_manager.invalidate("kanban")
     return {"status": "ok"}
 
 
@@ -215,6 +231,8 @@ async def delete_board(
     pool = get_pool()
     async with pool.acquire() as conn:
         await conn.execute("DELETE FROM kanban_boards WHERE id = $1", board_id)
+    cache_manager.invalidate("kanban")
+    cache_manager.invalidate("kanban_tasks")
     return {"status": "deleted"}
 
 
@@ -232,6 +250,7 @@ async def add_column(
             "INSERT INTO kanban_columns (board_id, name, status, position, wip_limit) VALUES ($1, $2, $3, $4, $5) RETURNING id",
             board_id, body.name, body.status, body.position, body.wip_limit,
         )
+    cache_manager.invalidate("kanban")
     return {"id": str(col_id), "board_id": board_id, "name": body.name, "status": body.status}
 
 
@@ -253,6 +272,7 @@ async def update_column(
         if updates:
             params.append(column_id)
             await conn.execute(f"UPDATE kanban_columns SET {', '.join(updates)} WHERE id = ${idx}", *params)
+    cache_manager.invalidate("kanban")
     return {"status": "ok"}
 
 
@@ -278,13 +298,16 @@ async def delete_column(
             )
 
         await conn.execute("DELETE FROM kanban_columns WHERE id = $1", column_id)
+    cache_manager.invalidate("kanban")
     return {"status": "deleted"}
 
 
 # ── Tasks ─────────────────────────────────────────────────────
 
 @router.get("/boards/{board_id}/tasks")
+@cached(ttl_seconds=30, invalidate_tags=["kanban_tasks"], key_prefix="kanban_board_tasks")
 async def list_tasks(
+    request: Request,
     board_id: str, user: Annotated[AuthUser, Depends(get_current_user)],
     column_id: str | None = Query(default=None),
     assignee_id: str | None = Query(default=None),
@@ -365,11 +388,17 @@ async def create_task(
         """, board_id, col_id, next_num, body.title, body.description,
             body.priority, body.assignee_id, max_pos, body.due_at, body.estimate)
 
+    cache_manager.invalidate("kanban_tasks")
     return {"id": str(task_id), "task_number": next_num, "title": body.title}
 
 
 @router.get("/tasks/{task_id}")
-async def get_task(task_id: str, user: Annotated[AuthUser, Depends(get_current_user)]):
+@cached(ttl_seconds=30, invalidate_tags=["kanban_tasks"], key_prefix="kanban_task")
+async def get_task(
+    request: Request,
+    task_id: str,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
     """Get full task detail with subtasks, comments, dependencies."""
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -459,6 +488,7 @@ async def update_task(
             params.append(task_id)
             await conn.execute(f"UPDATE kanban_tasks SET {', '.join(updates)} WHERE id = ${idx}", *params)
 
+    cache_manager.invalidate("kanban_tasks")
     return {"status": "ok"}
 
 
@@ -474,6 +504,7 @@ async def move_task(
             "UPDATE kanban_tasks SET column_id = $1, position = $2, updated_at = now() WHERE id = $3",
             body.column_id, body.position, task_id,
         )
+    cache_manager.invalidate("kanban_tasks")
     return {"status": "moved"}
 
 
@@ -503,6 +534,7 @@ async def claim_task(
             user.user_id, task_id, task["board_id"],
         )
 
+    cache_manager.invalidate("kanban_tasks")
     return {"status": "claimed"}
 
 
@@ -552,6 +584,7 @@ async def complete_task(
             user.user_id, task_id, task["board_id"], body.summary,
         )
 
+    cache_manager.invalidate("kanban_tasks")
     return {"status": "completed"}
 
 
@@ -573,6 +606,7 @@ async def add_subtask(
             "INSERT INTO kanban_subtasks (task_id, title, position) VALUES ($1, $2, $3) RETURNING id",
             task_id, body.title, max_pos,
         )
+    cache_manager.invalidate("kanban_tasks")
     return {"id": str(sub_id), "task_id": task_id, "title": body.title}
 
 
@@ -594,6 +628,7 @@ async def update_subtask(
                 "UPDATE kanban_subtasks SET title = $1 WHERE id = $2",
                 body.title, subtask_id,
             )
+    cache_manager.invalidate("kanban_tasks")
     return {"status": "ok"}
 
 
