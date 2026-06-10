@@ -403,6 +403,28 @@
     else { input.type = 'password'; btn.textContent = '\ud83d\udc41'; }
   };
 
+  // ─── Settings sub-tab switching ──────────────────────────────────────────
+  window.switchSettingsTab = function(tab) {
+    // Hide all settings tab-panels
+    document.querySelectorAll('#page-settings .tab-panel').forEach(function(el) {
+      el.style.display = 'none';
+    });
+    // Deactivate all tab buttons
+    document.querySelectorAll('#page-settings .tab-bar .tab-btn').forEach(function(el) {
+      el.classList.remove('active');
+    });
+    // Show selected panel
+    var panel = document.getElementById('tab-settings-' + tab);
+    if (panel) panel.style.display = '';
+    // Activate selected button
+    var btn = document.querySelector('#page-settings .tab-bar .tab-btn[data-tab="settings-' + tab + '"]');
+    if (btn) btn.classList.add('active');
+    // Load tab-specific content
+    if (tab === 'users') {
+      window.loadUsersPage && window.loadUsersPage();
+    }
+  };
+
   window.saveModuleConfig = function() {
     var moduleName = _moduleConfigName;
     if (!moduleName || !_moduleConfigData || !_moduleConfigData[moduleName]) {

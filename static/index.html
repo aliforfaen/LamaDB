@@ -1164,6 +1164,18 @@
       <!-- ════════════════════ SETTINGS PAGE ════════════════════ -->
       <section id="page-settings" class="page" aria-label="Settings">
 
+        <!-- Sub-tab bar -->
+        <div class="tab-bar" style="margin-bottom:16px;">
+          <button class="tab-btn active" data-tab="settings-modules" onclick="window.switchSettingsTab('modules')">Modules</button>
+          <button class="tab-btn" data-tab="settings-module-config" onclick="window.switchSettingsTab('module-config')">Module Config</button>
+          <button class="tab-btn" data-tab="settings-apikeys" onclick="window.switchSettingsTab('apikeys')">API Keys</button>
+          <button class="tab-btn" data-tab="settings-health" onclick="window.switchSettingsTab('health')">System Health</button>
+          <button class="tab-btn" data-tab="settings-cache-stats" onclick="window.switchSettingsTab('cache-stats')">Cache Stats</button>
+          <button class="tab-btn" data-tab="settings-uptime-poll" onclick="window.switchSettingsTab('uptime-poll')">Uptime Sync</button>
+          <button class="tab-btn" data-tab="settings-users" onclick="window.switchSettingsTab('users')">Users</button>
+        </div>
+
+        <div id="tab-settings-modules" class="tab-panel">
         <div class="settings-section" id="settings-modules">
           <h3>Module Management</h3>
           <div id="modules-list">
@@ -1173,7 +1185,9 @@
             </div>
           </div>
         </div>
+        </div>
 
+        <div id="tab-settings-module-config" class="tab-panel" style="display:none;">
         <div class="settings-section" id="settings-module-config">
           <h3>Module Config</h3>
           <div class="module-config-grid" id="module-config-grid">
@@ -1182,7 +1196,9 @@
             </div>
           </div>
         </div>
+        </div>
 
+        <div id="tab-settings-apikeys" class="tab-panel" style="display:none;">
         <div class="settings-section" id="settings-apikeys">
           <h3>API Keys</h3>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
@@ -1213,7 +1229,9 @@
             </table>
           </div>
         </div>
+        </div>
 
+        <div id="tab-settings-health" class="tab-panel" style="display:none;">
         <div class="settings-section" id="settings-health">
           <h3>System Health</h3>
           <div id="health-cards">
@@ -1223,7 +1241,9 @@
             </div>
           </div>
         </div>
+        </div>
 
+        <div id="tab-settings-cache-stats" class="tab-panel" style="display:none;">
         <div class="settings-section" id="settings-cache-stats">
           <h3>Cache Stats</h3>
           <div class="health-card">
@@ -1235,7 +1255,9 @@
             </div>
           </div>
         </div>
+        </div>
 
+        <div id="tab-settings-uptime-poll" class="tab-panel" style="display:none;">
         <div class="settings-section" id="settings-uptime-poll">
           <h3>Uptime Kuma Sync</h3>
           <div class="health-card">
@@ -1245,6 +1267,16 @@
             </button>
             <div id="poll-result" style="margin-top:12px;display:none;"></div>
           </div>
+        </div>
+        </div>
+
+        <div id="tab-settings-users" class="tab-panel" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;">Users</h3>
+            <button class="btn btn-sm btn-primary" onclick="window.showNewUserForm()">+ New User</button>
+          </div>
+          <div id="users-table"><p class="loading">Loading\u2026</p></div>
+          <div id="new-user-form" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-top:12px;"></div>
         </div>
 
       </section>
@@ -1468,6 +1500,7 @@
   <script src="/js/pages/agent_board.js"></script>
   <script src="/js/pages/notifications.js"></script>
   <script src="/js/pages/settings.js"></script>
+  <script src="/js/pages/users.js"></script>
   <script src="/js/pages/kanban.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <script src="/js/lib/dragdrop.js"></script>
