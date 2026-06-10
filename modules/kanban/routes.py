@@ -252,6 +252,8 @@ async def delete_board(
     """Delete a board and all its tasks/columns (CASCADE)."""
     pool = get_pool()
     async with pool.acquire() as conn:
+        # Delete agent logs first (FK may not have CASCADE)
+        await conn.execute("DELETE FROM kanban_agent_logs WHERE board_id = $1", board_id)
         await conn.execute("DELETE FROM kanban_boards WHERE id = $1", board_id)
     cache_manager.invalidate("kanban")
     cache_manager.invalidate("kanban_tasks")
@@ -578,8 +580,20 @@ async def complete_task(
             now, task_id,
         )
 
+        # Move to Done column
+        done_col = await conn.fetchval(
+            "SELECT id FROM kanban_columns WHERE board_id = $1 AND status = 'done' ORDER BY position LIMIT 1",
+            task["board_id"],
+        )
+        if done_col:
+            await conn.execute(
+                "UPDATE kanban_tasks SET column_id = $1, updated_at = now() WHERE id = $2",
+                done_col, task_id,
+            )
+
         dependents = await conn.fetch("""
-            SELECT d.task_id FROM kanban_task_dependencies d
+            SELECT d.task_id, t.board_id as board_id FROM kanban_task_dependencies d
+            JOIN kanban_tasks t ON t.id = d.task_id
             WHERE d.depends_on_id = $1
         """, task_id)
 
@@ -599,6 +613,11 @@ async def complete_task(
                 await conn.execute(
                     "UPDATE kanban_tasks SET column_id = $1, updated_at = now() WHERE id = $2",
                     in_progress_col, dep["task_id"],
+                )
+                # Log auto-start for each dependent
+                await conn.execute(
+                    "INSERT INTO kanban_agent_logs (user_id, task_id, board_id, action, details) VALUES ($1, $2, $3, 'task_auto_started', 'Dependencies completed')",
+                    user.user_id, dep["task_id"], dep["board_id"],
                 )
 
         await conn.execute(
@@ -627,6 +646,14 @@ async def add_subtask(
         sub_id = await conn.fetchval(
             "INSERT INTO kanban_subtasks (task_id, title, position) VALUES ($1, $2, $3) RETURNING id",
             task_id, body.title, max_pos,
+        )
+        # Fetch board_id for logging
+        board_id = await conn.fetchval(
+            "SELECT board_id FROM kanban_tasks WHERE id = $1", task_id
+        )
+        await conn.execute(
+            "INSERT INTO kanban_agent_logs (user_id, task_id, board_id, action, details) VALUES ($1, $2, $3, 'subtask_added', $4)",
+            user.user_id, task_id, board_id, body.title[:200],
         )
     cache_manager.invalidate("kanban_tasks")
     return {"id": str(sub_id), "task_id": task_id, "title": body.title}
@@ -717,5 +744,10 @@ async def add_comment(
         comment_id = await conn.fetchval(
             "INSERT INTO kanban_comments (task_id, user_id, body) VALUES ($1, $2, $3) RETURNING id",
             task_id, user.user_id, body.body,
+        )
+        # Log the comment
+        await conn.execute(
+            "INSERT INTO kanban_agent_logs (user_id, task_id, action, details) VALUES ($1, $2, 'comment_added', $3)",
+            user.user_id, task_id, body.body[:200],
         )
     return {"id": str(comment_id), "task_id": task_id, "body": body.body}

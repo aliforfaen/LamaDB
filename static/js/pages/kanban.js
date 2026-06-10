@@ -12,7 +12,7 @@
       _boards = await window.api('/api/kanban/boards');
       renderBoardSelector();
       if (_boards.length > 0) {
-        await selectBoard(_boards[0].id);
+        await window.selectKanbanBoard(_boards[0].id);
       } else {
         document.getElementById('kanban-columns').innerHTML =
           '<div style="color:var(--muted);padding:40px;text-align:center;">No boards yet. <a href="#" onclick="window.newKanbanBoard();return false;">Create one!</a></div>';
@@ -193,6 +193,7 @@
       '</div>' +
     '</div>';
     document.body.appendChild(modal);
+    modal.classList.add('open');
     modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
 
     // Focus comment input

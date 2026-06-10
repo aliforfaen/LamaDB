@@ -160,3 +160,8 @@ CREATE TRIGGER trg_kanban_task_update AFTER UPDATE ON kanban_tasks
 DROP TRIGGER IF EXISTS trg_kanban_task_delete ON kanban_tasks;
 CREATE TRIGGER trg_kanban_task_delete AFTER DELETE ON kanban_tasks
     FOR EACH ROW EXECUTE FUNCTION trg_kanban_task_notify();
+
+-- ── Fix: agent_logs FK needs CASCADE to allow board deletion ──
+ALTER TABLE kanban_agent_logs DROP CONSTRAINT IF EXISTS kanban_agent_logs_board_id_fkey;
+ALTER TABLE kanban_agent_logs ADD CONSTRAINT kanban_agent_logs_board_id_fkey
+    FOREIGN KEY (board_id) REFERENCES kanban_boards(id) ON DELETE CASCADE;
