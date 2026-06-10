@@ -239,6 +239,10 @@ def make_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(dashboard_router)
 
+    # User management (kanban)
+    from app.core.users import router as users_router
+    app.include_router(users_router, prefix="/api")
+
     # Register WebSocket router
     from app.websocket import router as ws_router
     app.include_router(ws_router)

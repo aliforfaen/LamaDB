@@ -463,6 +463,21 @@ docker logs lamadb_api --tail 20
 - [x] Bugfix: `modules/hermes/routes.py` — `str(existing)` conversion for UUID→str in upsert `IngestResponse.doc_id`
 - [x] All 14 new tests pass (152s, in-process via httpx ASGITransport, no docker exec)
 
+### Phase 10: Kanban Module (LlamaBan backport) 🚧 (In Progress)
+
+#### 10A: Module Skeleton ✅ (2026-06-10)
+- [x] `migrations/014_kanban_core.sql` — users, boards, columns, tasks, agent_logs + api_keys.user_id link + NOTIFY triggers
+- [x] Seeded `users` with `ali` (human, admin), linked all existing admin api_keys
+- [x] Module metadata in `modules/kanban/__init__.py` + Pydantic models + MCP tool declarations
+- [x] Auto-registered in `app/main.py` module discovery
+
+#### 10B: User Management Backend ✅ (2026-06-10)
+- [x] `app/core/users.py` — 6 endpoints: list/create/get/update/rotate-key/deactivate
+- [x] Auto-generates `lamadb_user_<token>` API keys with bcrypt+salt+key_prefix
+- [x] Role assignment: human→admin, agent→agent with kanban/documents/events scopes
+- [x] Soft-delete via status='inactive' + api_keys.active=false
+- [x] AuthUser extended with optional `user_id` field (populated in `_authenticate` from api_keys.user_id)
+
 
 ### Phase 9: Platform Maturity ✅ (Completed 2026-06-08)
 
@@ -567,6 +582,8 @@ UPTIME_KUMA_API_KEY=...           # Uptime Kuma API key
 | `inbox_for` defaults to `to_agent` when not provided | In `send_message()`, `message.inbox_for or message.to_agent` ensures backward compatibility for old code that doesn't set inbox_for. |
 | `settings.json` overlay sits alongside `.env` — env vars take priority | `discover_module_configs()` checks `settings` (env) first, then `settings_overlay` (file), then `field["default"]`. Don't delete the file manually — use the API. |
 | WebSocket auth uses first-message pattern | `dashboard_websocket()` accepts the connection, then reads the first JSON message for `{"key": "..."}`. Invalid keys get code 4001. |
+| `AuthUser` has optional `user_id: str \| None` | Populated in `_authenticate()` from `api_keys.user_id` (added by migration 014). `None` for legacy keys not yet linked. Use for self-vs-other authorization checks. |
+| New `api_keys` inserts MUST populate `key_prefix` | O(1) auth (migration 013) won't find keys without it. Compute via `app.auth._hash_prefix(raw_key)` (SHA-256 of first 16 chars). |
 
 ## Important Notes
 

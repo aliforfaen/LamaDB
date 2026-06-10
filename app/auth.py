@@ -17,6 +17,7 @@ class AuthUser(BaseModel):
     name: str
     role: str
     scopes: list[str]
+    user_id: str | None = None  # Linked users.id (None for legacy unlinked keys)
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +79,7 @@ async def _authenticate(token: str) -> AuthUser:
         # Fast path: O(1) lookup by prefix hash.
         rows = await conn.fetch(
             """
-            SELECT id, name, key_hash, role, scopes
+            SELECT id, name, key_hash, role, scopes, user_id
             FROM api_keys
             WHERE key_prefix = $1 AND active = true
             """,
@@ -92,6 +93,7 @@ async def _authenticate(token: str) -> AuthUser:
                     name=row["name"],
                     role=row["role"],
                     scopes=list(row["scopes"]) if row["scopes"] else [],
+                    user_id=str(row["user_id"]) if row["user_id"] else None,
                 )
                 asyncio.create_task(_touch_last_used(user.key_id))
                 return user
@@ -114,7 +116,7 @@ async def _authenticate(token: str) -> AuthUser:
 
         rows = await conn.fetch(
             """
-            SELECT id, name, key_hash, role, scopes
+            SELECT id, name, key_hash, role, scopes, user_id
             FROM api_keys
             WHERE (key_prefix IS NULL OR key_prefix = '') AND active = true
             """,
@@ -132,6 +134,7 @@ async def _authenticate(token: str) -> AuthUser:
                     name=row["name"],
                     role=row["role"],
                     scopes=list(row["scopes"]) if row["scopes"] else [],
+                    user_id=str(row["user_id"]) if row["user_id"] else None,
                 )
                 asyncio.create_task(_touch_last_used(user.key_id))
                 return user
