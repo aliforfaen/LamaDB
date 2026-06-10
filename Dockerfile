@@ -12,6 +12,7 @@ COPY modules/ ./modules/
 COPY migrations/ ./migrations/
 COPY static/ ./static/
 COPY benchmarks/ ./benchmarks/
+COPY scripts/ ./scripts/
 COPY tests/ ./tests/
 COPY pytest.ini .
 

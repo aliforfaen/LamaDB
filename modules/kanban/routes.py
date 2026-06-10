@@ -195,6 +195,28 @@ async def get_board(
     }
 
 
+@router.get("/boards/{board_id}/logs")
+async def get_board_logs(
+    board_id: str, user: Annotated[AuthUser, Depends(get_current_user)],
+    limit: int = Query(default=20, ge=1, le=100),
+):
+    """Get recent agent activity for a board."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT l.*, u.name AS user_name
+            FROM kanban_agent_logs l
+            LEFT JOIN users u ON u.id = l.user_id
+            WHERE l.board_id = $1
+            ORDER BY l.created_at DESC LIMIT $2
+        """, board_id, limit)
+    return [
+        {"id": str(r["id"]), "user_name": r["user_name"], "action": r["action"],
+         "details": r["details"], "tool": r["tool"], "created_at": r["created_at"]}
+        for r in rows
+    ]
+
+
 @router.patch("/boards/{board_id}")
 async def update_board(
     board_id: str, body: KanbanBoardUpdate,
