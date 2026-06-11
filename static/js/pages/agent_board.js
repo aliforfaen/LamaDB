@@ -9,6 +9,30 @@
     loadAgentBoardInbox();
   };
 
+  window.switchAgentBoardTab = function(tab) {
+    // Toggle tab buttons
+    document.querySelectorAll('#page-agentboard .sub-tab-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.id === 'ab-tab-' + tab);
+    });
+    // Hide all containers first
+    ['ab-tasks-container', 'ab-messages-container', 'ab-inbox-container'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    // Show and load data for the active tab
+    if (tab === 'tasks') {
+      var tasksEl = document.getElementById('ab-tasks-container');
+      if (tasksEl) tasksEl.style.display = '';
+      loadAgentBoardTasks();
+    } else if (tab === 'messages') {
+      // Messages tab shows the mailboxes split-pane (inbox/sent/thread/read)
+      var inboxEl = document.getElementById('ab-inbox-container');
+      if (inboxEl) inboxEl.style.display = '';
+      loadAgentBoardInbox();
+      loadInboxUnreadCount();
+    }
+  };
+
   function loadInboxUnreadCount() {
     window.api('/api/agent_board/inbox/count').then(function(data) {
       var badge = document.getElementById('badge-inbox');

@@ -6,38 +6,54 @@
     var statusText = document.getElementById('freshrss-status-text');
     var cards = document.getElementById('freshrss-cards');
     var feeds = document.getElementById('freshrss-feeds');
-    var articles = document.getElementById('freshrss-articles');
+    var articlesEl = document.getElementById('freshrss-articles');
     try {
       var results = await Promise.all([
         window.api('/api/freshrss/status'),
-        window.api('/api/freshrss/feeds')
+        window.api('/api/freshrss/feeds'),
+        window.api('/api/freshrss/articles?limit=5')
       ]);
       var data = results[0];
       var feedList = results[1];
-      if (statusText) statusText.textContent = data.status || 'Unknown';
+      var articlesData = results[2];
+      var statusDisplay = data.configured ? (data.last_sync_title || 'Connected') : 'Disconnected';
+      if (statusText) statusText.textContent = statusDisplay;
       if (cards) {
         cards.innerHTML = '<div class="stat-grid" style="grid-template-columns:repeat(3,1fr);">' +
-          '<div class="stat-card"><span class="label">Status</span><span class="value" style="font-size:18px;">' + (data.status || '\u2014') + '</span></div>' +
-          '<div class="stat-card"><span class="label">Feeds</span><span class="value" style="font-size:18px;">' + (data.feeds || 0) + '</span></div>' +
-          '<div class="stat-card"><span class="label">Articles</span><span class="value" style="font-size:18px;">' + (data.articles || 0) + '</span></div>' +
+          '<div class="stat-card"><span class="label">Status</span><span class="value" style="font-size:18px;">' + window.escHtml(statusDisplay) + '</span></div>' +
+          '<div class="stat-card"><span class="label">Feeds</span><span class="value" style="font-size:18px;">' + (data.feeds_count || 0) + '</span></div>' +
+          '<div class="stat-card"><span class="label">Articles</span><span class="value" style="font-size:18px;">' + (data.article_count || 0) + '</span></div>' +
         '</div>';
+      }
+      if (feeds) {
+        var subs = feedList && feedList.subscriptions ? feedList.subscriptions : (Array.isArray(feedList) ? feedList : []);
+        var feedRows = subs.map(function(f) {
+          var cat = f.categories && f.categories.length ? f.categories[0].label : '';
+          return '<tr>' +
+            '<td>' + window.escHtml(f.title || '') + '</td>' +
+            '<td>' + window.escHtml(cat) + '</td>' +
+            '<td class="mono">\u2014</td>' +
+            '<td class="mono" style="font-size:12px;">\u2014</td>' +
+          '</tr>';
+        }).join('');
+        feeds.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Feed</th><th>Category</th><th>Articles</th><th>Last Updated</th></tr></thead><tbody>' +
+          (feedRows || '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">No feeds found</td></tr>') +
+        '</tbody></table></div>';
+      }
+      if (articlesEl) {
+        var articleRows = articlesData && articlesData.articles ? articlesData.articles.map(function(a) {
+          return '<tr>' +
+            '<td>' + window.escHtml(a.title || '') + '</td>' +
+            '<td style="font-size:12px;color:var(--muted);">' + window.relativeTime(a.created_at || '') + '</td>' +
+          '</tr>';
+        }).join('') : '';
+        articlesEl.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Title</th><th>Synced</th></tr></thead><tbody>' +
+          (articleRows || '<tr><td colspan="2" style="color:var(--muted);text-align:center;padding:20px;">No articles synced yet</td></tr>') +
+        '</tbody></table></div>';
       }
     } catch (e) {
       if (statusText) statusText.textContent = 'Error';
       if (cards) cards.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed to load FreshRSS status: ' + e.message + '</div>';
-    }
-    if (feeds) {
-      var feedRows = Array.isArray(feedList) ? feedList.map(function(f) {
-        return '<tr>' +
-          '<td>' + window.escHtml(f.title || f.name || '') + '</td>' +
-          '<td>' + window.escHtml(f.category || '') + '</td>' +
-          '<td class="mono">' + (f.articles || f.article_count || 0) + '</td>' +
-          '<td class="mono" style="font-size:12px;">' + window.relativeTime(f.last_updated || f['last refreshed'] || '') + '</td>' +
-        '</tr>';
-      }).join('') : '';
-      feeds.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Feed</th><th>Category</th><th>Articles</th><th>Last Updated</th></tr></thead><tbody>' +
-        feedRows +
-      '</tbody></table></div>';
     }
   };
 

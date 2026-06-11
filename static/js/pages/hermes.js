@@ -119,6 +119,17 @@
     }).join('');
   }
 
+  // Tab switcher exported to window for onclick handlers
+  window.switchHermesTab = function(tab) {
+    var panels = ['overview', 'costs', 'health'];
+    panels.forEach(function(p) {
+      var el = document.getElementById('hermes-panel-' + p);
+      if (el) el.style.display = p === tab ? '' : 'none';
+      var btn = document.getElementById('hermes-tab-' + p);
+      if (btn) btn.className = 'btn btn-sm' + (p === tab ? '' : ' btn-secondary');
+    });
+  };
+
   async function loadHermesHealth() {
     var badge = document.getElementById('hermes-health-badge');
     if (!badge) return;

@@ -80,7 +80,9 @@
       if (pageId && pageId.includes('-') && pageId.length > 20) {
         page = await window.api('/api/wiki/pages/' + pageId);
       } else {
-        page = await window.api('/api/wiki/pages/by-path?path=' + encodeURIComponent(pageId));
+        // Use /page/{path} endpoint (DB + filesystem fallback); encode each segment preserving slashes
+        var encodedPath = pageId.split('/').map(function(s) { return encodeURIComponent(s); }).join('/');
+        page = await window.api('/api/wiki/page/' + encodedPath);
       }
       var el = document.getElementById('wiki-page-list');
       if (!el) return;

@@ -393,6 +393,7 @@
     else if (pageId === 'notflix') window.loadNotflixPage && window.loadNotflixPage();
     else if (pageId === 'homeassistant') window.loadHomeAssistantPage && window.loadHomeAssistantPage();
     else if (pageId === 'settings') window.loadSettings && window.loadSettings();
+    else if (pageId === 'search') window.loadSearch && window.loadSearch();
     else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
     window.updateFooter && window.updateFooter();
   };

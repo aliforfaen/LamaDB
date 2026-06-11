@@ -126,7 +126,9 @@
           animation: 150,
           onEnd: function(evt) {
             var taskId = evt.item.dataset.taskId;
-            var newColId = evt.to.dataset.colId;
+            // Use closest .kanban-column from the dropped item for reliable column detection
+            var targetCol = evt.item.closest('.kanban-column');
+            var newColId = targetCol ? targetCol.dataset.colId : null;
             if (taskId && newColId) {
               window.api('/api/kanban/tasks/' + taskId + '/move', {
                 method: 'PATCH',
