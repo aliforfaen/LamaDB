@@ -230,16 +230,34 @@ async def get_logs(
         except json.JSONDecodeError:
             continue
 
-        # v10 log entry: {t, m: {level, message, time, ...}, l, s, c, ts, id}
+        # v10 log entry: {t, m: {level, message, time, ...} OR [list of messages], l, s, c, ts, id}
         msg_obj = data.get("m", {})
+        timestamp = data.get("ts", "")
+        # Convert millisecond timestamp to ISO format if present
+        if isinstance(timestamp, (int, float)) and timestamp > 0:
+            from datetime import datetime, timezone
+            timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc).isoformat()
+
+        # Dozzle v10 can return m as:
+        # - dict: {"level": "warn", "message": "..."}
+        # - list: [{"m": "line1"}, {"m": "line2"}] (grouped messages)
+        # - str: "plain message"
         if isinstance(msg_obj, dict):
             log_level = msg_obj.get("level", data.get("l", "info"))
             message = msg_obj.get("message", str(msg_obj))
-            timestamp = msg_obj.get("time", "")
+        elif isinstance(msg_obj, list):
+            # Grouped messages - extract and join
+            log_level = data.get("l", "info")
+            messages = []
+            for item in msg_obj:
+                if isinstance(item, dict) and "m" in item:
+                    messages.append(str(item["m"]))
+                else:
+                    messages.append(str(item))
+            message = "\n".join(messages)
         else:
             log_level = data.get("l", "info")
             message = str(msg_obj) if msg_obj else ""
-            timestamp = ""
 
         # Narrow to the user's requested level (v10 `levels` param passes all levels)
         if level and log_level != level:

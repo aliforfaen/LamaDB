@@ -48,9 +48,23 @@ def _parse_logs_sync(text: str) -> list[dict]:
             continue
 
         msg_obj = data.get("m", {})
+        # Dozzle v10 can return m as:
+        # - dict: {"level": "warn", "message": "..."}
+        # - list: [{"m": "line1"}, {"m": "line2"}] (grouped messages)
+        # - str: "plain message"
         if isinstance(msg_obj, dict):
             level = msg_obj.get("level", data.get("l", "info"))
             message = msg_obj.get("message", str(msg_obj))
+        elif isinstance(msg_obj, list):
+            # Grouped messages - extract and join
+            level = data.get("l", "info")
+            messages = []
+            for item in msg_obj:
+                if isinstance(item, dict) and "m" in item:
+                    messages.append(str(item["m"]))
+                else:
+                    messages.append(str(item))
+            message = "\n".join(messages)
         else:
             level = data.get("l", "info")
             message = str(msg_obj) if msg_obj else ""
