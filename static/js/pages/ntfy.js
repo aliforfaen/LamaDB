@@ -13,8 +13,14 @@
       document.querySelectorAll('#page-ntfy .filter-bar [id^="ntfy-since-"]').forEach(function(b) {
         if (b.classList.contains('active')) since = b.id.replace('ntfy-since-', '');
       });
-      var params = '?source=' + src + '&priority=' + pri + '&since=' + since;
-      var data = await window.api('/api/ntfy/messages' + params);
+      var data;
+      if (src === 'events') {
+        // Read from local events table (where the collector stores data)
+        data = await window.api('/api/ntfy/events?priority=' + pri + '&since=' + since);
+      } else {
+        // Poll live ntfy server directly
+        data = await window.api('/api/ntfy/messages?since=' + since);
+      }
       var messages = data.messages || data;
       renderNtfyMessages(messages, src === 'events');
     } catch (e) {

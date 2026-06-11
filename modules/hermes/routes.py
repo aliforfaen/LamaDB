@@ -27,12 +27,22 @@ def _require_auth(user: AuthUser = Depends(get_current_user)) -> AuthUser:
 
 
 async def _hermes_get(path: str) -> dict | list | None:
-    """GET from Hermes API, return None on error."""
+    """GET from Hermes API, return None on error.
+
+    Uses an aggressive timeout (3s connect, 5s read) because Hermes may be
+    unreachable from Docker (DNS resolves but port not forwarded). Without
+    a connect timeout, httpx blocks until the OS-level TCP timeout (~30s),
+    which causes frontend pages to hang.
+    """
     url = f"{settings.hermes_url.rstrip('/')}{path}"
     try:
         async with httpx.AsyncClient() as client:
             await _ensure_session_token(client)
-            resp = await client.get(url, headers=_get_headers(), timeout=10)
+            resp = await client.get(
+                url,
+                headers=_get_headers(),
+                timeout=httpx.Timeout(connect=3.0, read=5.0, write=5.0, pool=5.0),
+            )
             if resp.status_code == 200:
                 return resp.json()
             return None

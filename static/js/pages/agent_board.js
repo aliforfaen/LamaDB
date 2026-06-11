@@ -110,7 +110,7 @@
   }
 
   function renderAbTasks(tasks) {
-    var el = document.getElementById('ab-tasks');
+    var el = document.getElementById('ab-tasks-content');
     if (!el) return;
     if (!Array.isArray(tasks) || tasks.length === 0) {
       el.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center;">No tasks.</div>'; return;
@@ -139,7 +139,7 @@
   }
 
   function renderAbMessages(messages) {
-    var el = document.getElementById('ab-messages');
+    var el = document.getElementById('ab-messages-content');
     if (!el) return;
     if (!Array.isArray(messages) || messages.length === 0) {
       el.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center;">No messages.</div>'; return;

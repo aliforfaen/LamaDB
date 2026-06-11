@@ -2120,6 +2120,7 @@ table td.nowrap { white-space: nowrap; }
 }
 #modules-grid .module-card {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;

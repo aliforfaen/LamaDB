@@ -29,9 +29,35 @@
     return m + 'm';
   }
 
+  // Detect the graceful-error response from routes.py ({"error": "Hermes unreachable"}).
+  // Returns the error string when data is the error envelope, or null when data is real.
+  function _extractError(data) {
+    if (data && typeof data === 'object' && data.error && Object.keys(data).length <= 2) {
+      return data.error;
+    }
+    return null;
+  }
+
+  function _unreachableHtml(message) {
+    return '<div style="color:var(--muted);padding:14px;text-align:center;">' +
+      '<div style="font-size:24px;margin-bottom:6px;">\u26a0</div>' +
+      '<div>Hermes unreachable</div>' +
+      '<div style="font-size:12px;margin-top:4px;">' + window.escHtml(message || '') + '</div>' +
+      '</div>';
+  }
+
   function renderHermesSystem(data) {
     var cards = document.getElementById('hermes-sys-cards');
     if (!cards) return;
+    var err = _extractError(data);
+    if (err) {
+      cards.innerHTML = _unreachableHtml(err);
+      return;
+    }
+    if (!data || typeof data !== 'object') {
+      cards.innerHTML = _unreachableHtml('No data');
+      return;
+    }
     var memPct = data.memory ? data.memory.percent : data.memory_percent;
     var diskPct = data.disk ? data.disk.percent : data.disk_percent;
     cards.innerHTML = '<div class="two-col">' +
@@ -48,6 +74,10 @@
   function renderHermesStats(stats) {
     var el = document.getElementById('hermes-stats');
     if (!el) return;
+    if (!stats || typeof stats !== 'object' || _extractError(stats)) {
+      el.innerHTML = '';
+      return;
+    }
     var html = '<div class="two-col">' +
       '<div class="stat-card"><span class="label">Total Sessions</span><span class="value">' + (stats.total || 0) + '</span></div>' +
       '<div class="stat-card"><span class="label">Messages</span><span class="value">' + ((stats.messages || 0).toLocaleString()) + '</span></div>';
@@ -64,6 +94,10 @@
   function renderHermesSessions(raw) {
     var tbody = document.getElementById('hermes-sessions-tbody');
     if (!tbody) return;
+    if (!raw || _extractError(raw)) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">Sessions unavailable \u2014 Hermes unreachable</td></tr>';
+      return;
+    }
     // sessions endpoint returns {sessions: [...], total, limit, offset} or a bare array
     var list = Array.isArray(raw) ? raw : (raw && raw.sessions) || [];
     if (list.length === 0) {
@@ -90,7 +124,7 @@
     if (!badge) return;
     try {
       var health = await window.api('/api/hermes/health');
-      if (health.reachable) {
+      if (health && health.reachable) {
         var versionTag = health.version ? ' <span style="color:var(--muted);font-size:11px;">v' + health.version + '</span>' : '';
         badge.innerHTML = '<span class="sev-badge info">healthy</span>' + versionTag;
       } else {
@@ -101,3 +135,4 @@
     }
   }
 })();
+

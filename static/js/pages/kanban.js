@@ -28,9 +28,12 @@
     if (!el) return;
     el.innerHTML = _boards.map(function(b) {
       var active = b.id === _currentBoardId ? ' active' : '';
-      return '<button class="btn btn-sm tab-btn' + active + ' kanban-selector-btn" data-board-id="' + b.id + '" onclick="window.selectKanbanBoard(\'' + b.id + '\')">' +
-        window.escHtml(b.name) + ' <span class="kanban-selector-count">(' + b.task_count + ')</span>' +
-      '</button>';
+      return '<div class="kanban-selector-item">' +
+        '<button class="btn btn-sm tab-btn' + active + ' kanban-selector-btn" data-board-id="' + b.id + '" onclick="window.selectKanbanBoard(\'' + b.id + '\')">' +
+          window.escHtml(b.name) + ' <span class="kanban-selector-count">(' + b.task_count + ')</span>' +
+        '</button>' +
+        '<button class="btn btn-sm btn-ghost kanban-delete-btn" onclick="event.stopPropagation(); window.deleteKanbanBoard(\'' + b.id + '\', \'' + window.escAttr(b.name) + '\')" title="Delete board">\u2715</button>' +
+      '</div>';
     }).join('') +
     '<button class="btn btn-sm btn-primary kanban-btn-new" onclick="window.newKanbanBoard()">+ New Board</button>';
   }
@@ -282,6 +285,17 @@
       window.loadKanbanPage();
     } catch(e) {
       if (window.showToast) window.showToast('Failed: ' + e.message, 'error');
+    }
+  };
+
+  window.deleteKanbanBoard = async function(boardId, boardName) {
+    if (!confirm('Delete "' + boardName + '" and all its tasks?\nThis cannot be undone.')) return;
+    try {
+      await window.api('/api/kanban/boards/' + boardId, { method: 'DELETE' });
+      if (window.showToast) window.showToast('Deleted board: ' + boardName, 'success');
+      window.loadKanbanPage();
+    } catch(e) {
+      if (window.showToast) window.showToast('Failed to delete: ' + e.message, 'error');
     }
   };
 

@@ -34,13 +34,20 @@ def _get_headers() -> dict[str, str]:
 
 
 async def _ensure_session_token(client: httpx.AsyncClient) -> None:
-    """Extract session token from dashboard HTML if no token is configured."""
+    """Extract session token from dashboard HTML if no token is configured.
+
+    Uses a short connect timeout (3s) to avoid hanging when Hermes is
+    unreachable from Docker.
+    """
     global _session_token
     if _get_token():
         return
     url = f"{settings.hermes_url.rstrip('/')}/"
     try:
-        resp = await client.get(url, timeout=10)
+        resp = await client.get(
+            url,
+            timeout=httpx.Timeout(connect=3.0, read=5.0, write=5.0, pool=5.0),
+        )
         if resp.status_code == 200:
             import re
             m = re.search(r'__HERMES_SESSION_TOKEN__="([^"]+)"', resp.text)
@@ -52,10 +59,18 @@ async def _ensure_session_token(client: httpx.AsyncClient) -> None:
 
 
 async def _fetch_json(client: httpx.AsyncClient, path: str) -> dict | list | None:
-    """Fetch JSON from Hermes API, return None on error."""
+    """Fetch JSON from Hermes API, return None on error.
+
+    Uses a 5s connect timeout so unreachable hosts fail fast instead of
+    hanging the collector loop for ~30s on every cycle.
+    """
     url = f"{settings.hermes_url.rstrip('/')}{path}"
     try:
-        resp = await client.get(url, headers=_get_headers(), timeout=10)
+        resp = await client.get(
+            url,
+            headers=_get_headers(),
+            timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0),
+        )
         if resp.status_code == 200:
             return resp.json()
         logger.warning(f"Hermes {path}: HTTP {resp.status_code}")

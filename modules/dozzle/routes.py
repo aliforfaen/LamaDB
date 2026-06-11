@@ -69,8 +69,15 @@ async def _read_sse_event(
 
     Returns None if the stream closes without a match (shouldn't happen on a live stream).
     Callers wrap with asyncio.wait_for for timeout control.
+
+    Uses a 3s connect timeout to fail fast when Dozzle is unreachable from
+    Docker (DNS resolves but port not forwarded).
     """
-    async with client.stream("GET", url, timeout=httpx.Timeout(10.0, read=None)) as resp:
+    async with client.stream(
+        "GET",
+        url,
+        timeout=httpx.Timeout(connect=3.0, read=10.0, write=5.0, pool=3.0),
+    ) as resp:
         resp.raise_for_status()
         current_event: str | None = None
         async for line in resp.aiter_lines():
@@ -118,12 +125,15 @@ async def list_containers(
     request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
 ):
-    """Proxy to Dozzle v10 SSE events stream to list containers."""
+    """Proxy to Dozzle v10 SSE events stream to list containers.
+
+    Returns a bare array (matches Dozzle v10 wire format) on success, or an
+    empty array on unreachable hosts — the frontend handles empty arrays
+    gracefully with a "No containers found" message. Logging the error gives
+    operators visibility into Dozzle outages.
+    """
     if not settings.dozzle_url:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Dozzle not configured",
-        )
+        return []
 
     url = f"{settings.dozzle_url}/api/events/stream"
     async with httpx.AsyncClient() as client:
@@ -133,30 +143,26 @@ async def list_containers(
                 timeout=5.0,
             )
         except asyncio.TimeoutError:
-            raise HTTPException(
-                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                detail="No containers-changed event received from Dozzle within timeout",
+            import logging
+            logging.getLogger(__name__).warning(
+                "Dozzle /containers: unreachable (no containers-changed within timeout)"
             )
+            return []
         except httpx.HTTPError as e:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Dozzle API error: {e}",
-            )
+            import logging
+            logging.getLogger(__name__).warning(f"Dozzle /containers API error: {e}")
+            return []
 
     if data_raw is None:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="No containers-changed event received from Dozzle within timeout",
-        )
+        return []
 
     try:
         containers = json.loads(data_raw)
-        return containers
+        return containers if isinstance(containers, list) else []
     except json.JSONDecodeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Invalid JSON from Dozzle: {e}",
-        )
+        import logging
+        logging.getLogger(__name__).warning(f"Dozzle /containers invalid JSON: {e}")
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +204,11 @@ async def get_logs(
 
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(log_url, timeout=10.0, follow_redirects=True)
+            resp = await client.get(
+                log_url,
+                timeout=httpx.Timeout(connect=3.0, read=10.0, write=5.0, pool=3.0),
+                follow_redirects=True,
+            )
             resp.raise_for_status()
             raw = resp.text.strip()
     except httpx.HTTPError as e:

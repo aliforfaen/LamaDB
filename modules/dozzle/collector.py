@@ -186,35 +186,50 @@ async def _fetch_containers() -> list[dict]:
 
     Reads the first ``containers-changed`` event from the SSE stream, then
     disconnects. Returns all containers (running and stopped); caller filters.
-    Timeouts after 5 seconds if no event received.
+
+    Uses a 3s connect timeout so unreachable hosts fail fast — otherwise the
+    collector hangs for ~30s on the OS TCP timeout and blocks the poller
+    loop. The outer collect() already catches exceptions, but failing fast
+    also keeps the poller's error log informative.
     """
     url = f"{settings.dozzle_url}/api/events/stream"
     containers: list[dict] = []
-    async with httpx.AsyncClient() as client:
-        async with client.stream("GET", url, timeout=5.0) as response:
-            response.raise_for_status()
-            event_type = ""
-            event_data = ""
+    try:
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                "GET",
+                url,
+                timeout=httpx.Timeout(connect=3.0, read=5.0, write=5.0, pool=3.0),
+            ) as response:
+                response.raise_for_status()
+                event_type = ""
+                event_data = ""
 
-            async for line_bytes in response.aiter_lines():
-                line = line_bytes.strip()
+                async for line_bytes in response.aiter_lines():
+                    line = line_bytes.strip()
 
-                if line.startswith("event:"):
-                    # SSE spec allows "event:type" (no space) or "event: type"
-                    event_type = line[6:].lstrip()
-                elif line.startswith("data:"):
-                    event_data = line[5:].lstrip()
-                elif line == "":
-                    if event_type == "containers-changed" and event_data:
-                        try:
-                            containers = json.loads(event_data)
-                        except json.JSONDecodeError:
-                            logger.warning(
-                                "Dozzle collector: failed to parse containers-changed data"
-                            )
-                        break
-                    event_type = ""
-                    event_data = ""
+                    if line.startswith("event:"):
+                        # SSE spec allows "event:type" (no space) or "event: type"
+                        event_type = line[6:].lstrip()
+                    elif line.startswith("data:"):
+                        event_data = line[5:].lstrip()
+                    elif line == "":
+                        if event_type == "containers-changed" and event_data:
+                            try:
+                                containers = json.loads(event_data)
+                            except json.JSONDecodeError:
+                                logger.warning(
+                                    "Dozzle collector: failed to parse containers-changed data"
+                                )
+                            break
+                        event_type = ""
+                        event_data = ""
+    except (httpx.HTTPError, httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
+        logger.warning(f"Dozzle collector: container discovery failed: {e}")
+        return []
+    except Exception as e:
+        logger.warning(f"Dozzle collector: unexpected error in container discovery: {e}")
+        return []
 
     return containers
 
@@ -227,6 +242,9 @@ async def _fetch_container_logs(host: str, container_id: str) -> list[dict]:
     logs are voluminous and not actionable). Parsing is offloaded to a thread
     pool via asyncio.to_thread() to avoid blocking the event loop.
 
+    Uses a 3s connect timeout so unreachable hosts fail fast — callers
+    skip the container and continue scanning the rest of the fleet.
+
     Returns list of dicts with ``level`` and ``message`` keys, limited to
     first 500 lines per container.
     """
@@ -235,10 +253,20 @@ async def _fetch_container_logs(host: str, container_id: str) -> list[dict]:
         f"{container_id}/logs?stdout=1&stderr=1&levels=error&levels=warn"
     )
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, timeout=10.0)
-        response.raise_for_status()
-        text = response.text
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                url,
+                timeout=httpx.Timeout(connect=3.0, read=10.0, write=5.0, pool=3.0),
+            )
+            response.raise_for_status()
+            text = response.text
+    except (httpx.HTTPError, httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
+        logger.warning(f"Dozzle collector: log fetch timeout/error for {container_id[:12]}: {e}")
+        return []
+    except Exception as e:
+        logger.warning(f"Dozzle collector: log fetch error for {container_id[:12]}: {e}")
+        return []
 
     # Offload JSON parsing to thread pool to keep event loop responsive
     if not text.strip():
