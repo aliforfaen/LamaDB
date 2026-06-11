@@ -194,6 +194,7 @@
       { id: 'freshrss', label: 'FreshRSS', icon: 'rss' },
       { id: 'ntfy', label: 'Ntfy', icon: 'bell' },
       { id: 'notflix', label: 'Notflix', icon: 'film' },
+      { id: 'homeassistant', label: 'Home Assistant', icon: 'home' },
       { id: 'wiki', label: 'Wiki', icon: 'book' },
       { id: 'notifications', label: 'Notifications', icon: 'bell' },
       { id: 'settings', label: 'Settings', icon: 'settings' }
@@ -332,6 +333,7 @@
     'agentboard': document.getElementById('page-agentboard'),
     'kanban':     document.getElementById('page-kanban'),
     'notflix':    document.getElementById('page-notflix'),
+    'homeassistant': document.getElementById('page-homeassistant'),
     'hermes':     document.getElementById('page-hermes'),
     'settings':   document.getElementById('page-settings'),
     'notifications': document.getElementById('page-notifications')
@@ -349,6 +351,7 @@
     'agentboard': 'Agent Board',
     'kanban': 'Kanban',
     'notflix': 'Notflix',
+    'homeassistant': 'Home Assistant',
     'hermes': 'Hermes',
     'settings': 'Settings',
     'notifications': 'Notifications'
@@ -388,6 +391,7 @@
     else if (pageId === 'agentboard') window.loadAgentBoardPage && window.loadAgentBoardPage();
     else if (pageId === 'kanban') window.loadKanbanPage && window.loadKanbanPage();
     else if (pageId === 'notflix') window.loadNotflixPage && window.loadNotflixPage();
+    else if (pageId === 'homeassistant') window.loadHomeAssistantPage && window.loadHomeAssistantPage();
     else if (pageId === 'settings') window.loadSettings && window.loadSettings();
     else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
     window.updateFooter && window.updateFooter();
@@ -580,6 +584,7 @@
         'w': 'wiki',
         'n': 'notifications',
         'h': 'hermes',
+        'm': 'homeassistant',
         'a': 'agentboard',
         'k': 'kanban'
       };

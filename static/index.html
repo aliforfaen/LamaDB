@@ -166,6 +166,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             <span>Wiki</span>
           </button>
+          <button class="nav-item" data-page="homeassistant">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>Home Assistant</span>
+          </button>
         </div>
       </div>
 
@@ -1124,6 +1128,18 @@
       </section>
 
 
+      <!-- ════════════════════ HOME ASSISTANT PAGE ════════════════════ -->
+      <section id="page-homeassistant" class="page" aria-label="Home Assistant">
+        <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h2 style="font-size:15px;font-weight:600;color:var(--fg);margin:0;">Home Assistant</h2>
+          <span id="ha-status" style="font-size:12px;color:var(--muted);"></span>
+        </div>
+        <div id="ha-config" class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-bottom:16px;">
+          <p class="loading">Connecting…</p>
+        </div>
+        <div id="ha-entities"><p class="loading">Loading entity states…</p></div>
+      </section>
+
       <!-- ════════════════════ HERMES PAGE ════════════════════ -->
       <section id="page-hermes" class="page" aria-label="Hermes">
         <div class="filter-bar" style="margin-bottom:12px;">
@@ -1499,6 +1515,7 @@
   <script src="/js/pages/ntfy.js"></script>
   <script src="/js/pages/dozzle.js"></script>
   <script src="/js/pages/notflix.js"></script>
+  <script src="/js/pages/homeassistant.js"></script>
   <script src="/js/pages/wiki.js"></script>
   <script src="/js/pages/agent_board.js"></script>
   <script src="/js/pages/notifications.js"></script>

@@ -150,7 +150,7 @@ async def lifespan(app: FastAPI):
 
     # Start background poller tasks (skip in test mode)
     if not is_test:
-        for module_name, interval in [("freshrss", 900), ("ntfy", 300), ("dozzle", 300), ("notflix", 1800), ("hermes", 300)]:
+        for module_name, interval in [("freshrss", 900), ("ntfy", 300), ("dozzle", 300), ("notflix", 1800), ("hermes", 300), ("homeassistant", 300)]:
             try:
                 mod = __import__(f"modules.{module_name}", fromlist=["ENABLED", "collect"])
                 if getattr(mod, "ENABLED", False) and hasattr(mod, "collect"):

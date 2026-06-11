@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     hermes_api_key: str = ""
     hermes_dashboard_session_token: str = ""
 
+    # Home Assistant integration
+    homeassistant_url: str = ""
+    homeassistant_token: str = ""
+    homeassistant_highlight_entities: str = ""
+
 
     # OpenAI embeddings
     openai_api_key: str = ""
