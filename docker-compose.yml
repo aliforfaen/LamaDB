@@ -47,6 +47,8 @@ services:
       FRESHRSS_USERNAME: ${FRESHRSS_USERNAME:-}
       FRESHRSS_API_PASSWORD: ${FRESHRSS_API_PASSWORD:-}
       DOZZLE_URL: ${DOZZLE_URL:-}
+      HOMEASSISTANT_URL: ${HA_URL:-}
+      HOMEASSISTANT_TOKEN: ${HA_TOKEN:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       - ${WIKI_PATH:-/home/messhias/Basecamp/wiki}:/wiki:ro

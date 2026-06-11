@@ -1,6 +1,7 @@
 """Collector for polling Home Assistant entity states."""
 import json
 import logging
+import os
 from datetime import datetime, timezone
 
 import httpx
@@ -13,24 +14,26 @@ logger = logging.getLogger(__name__)
 
 async def collect() -> dict:
     """Fetch all HA entity states and store as a document snapshot."""
-    if not settings.homeassistant_url or not settings.homeassistant_token:
+    ha_url = settings.homeassistant_url or os.environ.get("HOMEASSISTANT_URL", "") or os.environ.get("HA_URL", "")
+    ha_token = settings.homeassistant_token or os.environ.get("HOMEASSISTANT_TOKEN", "") or os.environ.get("HA_TOKEN", "")
+    if not ha_url or not ha_token:
         logger.warning("Home Assistant not configured — skipping collect")
         return {"error": "Home Assistant not configured"}
 
     headers = {
-        "Authorization": f"Bearer {settings.homeassistant_token}",
+        "Authorization": f"Bearer {ha_token}",
         "Content-Type": "application/json",
     }
 
     async with httpx.AsyncClient(timeout=15) as client:
         # Fetch all states
-        resp = await client.get(f"{settings.homeassistant_url}/api/states", headers=headers)
+        resp = await client.get(f"{ha_url}/api/states", headers=headers)
         resp.raise_for_status()
         entities = resp.json()
 
         # Fetch config for metadata
         try:
-            config_resp = await client.get(f"{settings.homeassistant_url}/api/config", headers=headers)
+            config_resp = await client.get(f"{ha_url}/api/config", headers=headers)
             config_resp.raise_for_status()
             config = config_resp.json()
         except Exception:

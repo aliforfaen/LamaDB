@@ -24,7 +24,7 @@ def _ha_url() -> str:
     val = getattr(settings, "homeassistant_url", "") or ""
     if val:
         return val
-    return os.environ.get("HOMEASSISTANT_URL", "") or ""
+    return os.environ.get("HOMEASSISTANT_URL", "") or os.environ.get("HA_URL", "") or ""
 
 
 def _ha_token() -> str:
@@ -32,7 +32,7 @@ def _ha_token() -> str:
     val = getattr(settings, "homeassistant_token", "") or ""
     if val:
         return val
-    return os.environ.get("HOMEASSISTANT_TOKEN", "") or ""
+    return os.environ.get("HOMEASSISTANT_TOKEN", "") or os.environ.get("HA_TOKEN", "") or ""
 
 
 def _highlight_ids() -> list[str]:
