@@ -92,28 +92,93 @@
 
     var data = status.data;
     var ts = status.ts ? window.relativeTime(status.ts) : '';
-    var items = '';
+    var html = '';
 
-    // Render each key-value from the snapshot as stat cards
-    Object.keys(data).forEach(function(key) {
-      var val = data[key];
-      if (val === null || val === undefined) return;
-      items += '<div class="stat-card">' +
-        '<div class="label">' + window.escHtml(key.replace(/_/g, ' ')) + '</div>' +
-        '<div class="value" style="font-size:18px;">' + window.escHtml(String(val)) + '</div>' +
-      '</div>';
-    });
+    // Timestamp header
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">' +
+      '<span style="font-size:12px;color:var(--muted);">Last snapshot: ' + ts + '</span>' +
+    '</div>';
 
-    if (!items) {
+    // ── Sonarr ──
+    if (data.sonarr) {
+      var s = data.sonarr;
+      html += '<h4 style="margin:0 0 8px;font-size:14px;color:var(--accent-cyan);">Sonarr</h4>' +
+        '<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">' +
+          _statCard('Series', s.series_count) +
+          _statCard('Episodes Available', s.episodes_available) +
+          _statCard('Missing', s.missing_count, true) +
+          _statCard('Queue', s.queue_count) +
+          _statCard('Recent Grabs', s.recent_grabs) +
+          _statCard('Total Episodes', s.total_episodes) +
+        '</div>';
+    }
+
+    // ── Radarr ──
+    if (data.radarr) {
+      var r = data.radarr;
+      html += '<h4 style="margin:0 0 8px;font-size:14px;color:var(--accent);">Radarr</h4>' +
+        '<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px;">' +
+          _statCard('Movies', r.movie_count) +
+          _statCard('Available', r.movies_available) +
+          _statCard('Missing', r.missing_count, true) +
+          _statCard('Queue', r.queue_count) +
+          _statCard('Recent Grabs', r.recent_grabs) +
+        '</div>';
+    }
+
+    // ── Tautulli ──
+    if (data.tautulli) {
+      var t = data.tautulli;
+      var watchesHtml = '';
+      if (t.recent_watches && t.recent_watches.length > 0) {
+        var watches = t.recent_watches.slice(0, 5);
+        watchesHtml = watches.map(function(w) {
+          var watchTime = w.date ? window.relativeTime(new Date(w.date * 1000).toISOString()) : '';
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">' +
+            '<span style="color:var(--fg);">' + window.escHtml(w.title || '?') + '</span>' +
+            '<span style="color:var(--muted);white-space:nowrap;margin-left:8px;">' +
+              window.escHtml(w.user || '') +
+              (watchTime ? ' \u00b7 ' + watchTime : '') +
+            '</span>' +
+          '</div>';
+        }).join('');
+      } else {
+        watchesHtml = '<div style="color:var(--muted);font-size:12px;padding:6px 0;">No recent watches</div>';
+      }
+
+      html += '<h4 style="margin:0 0 8px;font-size:14px;color:var(--info);">Tautulli</h4>' +
+        '<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">' +
+          '<div class="stat-card" style="min-width:120px;flex:0 0 auto;">' +
+            '<div class="label">Active Streams</div>' +
+            '<div class="value" style="font-size:24px;">' + _fmtNum(t.active_streams) + '</div>' +
+          '</div>' +
+          '<div style="flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;">' +
+            '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">Recent Watches</div>' +
+            watchesHtml +
+          '</div>' +
+        '</div>';
+    }
+
+    if (!html) {
       el.innerHTML = '<div style="color:var(--muted);padding:10px;">Snapshot has no data.</div>';
       return;
     }
 
-    el.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
-      '<span style="font-size:12px;color:var(--muted);">Last snapshot: ' + ts + '</span>' +
-    '</div>' +
-    '<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));">' +
-      items +
+    el.innerHTML = html;
+  }
+
+  // ── Internal helper: stat card ──
+  function _statCard(label, value, isWarning) {
+    if (value === null || value === undefined) return '';
+    var valClass = isWarning && value > 0 ? ' style="font-size:20px;color:var(--danger);"' : '';
+    return '<div class="stat-card">' +
+      '<div class="label">' + window.escHtml(label) + '</div>' +
+      '<div class="value"' + valClass + '>' + _fmtNum(value) + '</div>' +
     '</div>';
+  }
+
+  function _fmtNum(n) {
+    if (n === null || n === undefined) return '\u2014';
+    return Number(n).toLocaleString();
   }
 })();
