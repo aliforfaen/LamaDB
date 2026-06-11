@@ -165,3 +165,8 @@ CREATE TRIGGER trg_kanban_task_delete AFTER DELETE ON kanban_tasks
 ALTER TABLE kanban_agent_logs DROP CONSTRAINT IF EXISTS kanban_agent_logs_board_id_fkey;
 ALTER TABLE kanban_agent_logs ADD CONSTRAINT kanban_agent_logs_board_id_fkey
     FOREIGN KEY (board_id) REFERENCES kanban_boards(id) ON DELETE CASCADE;
+
+-- ── Fix: prevent duplicate task_number per board under concurrent inserts ──
+ALTER TABLE kanban_tasks DROP CONSTRAINT IF EXISTS uq_kanban_tasks_board_number;
+ALTER TABLE kanban_tasks ADD CONSTRAINT uq_kanban_tasks_board_number
+    UNIQUE (board_id, task_number);

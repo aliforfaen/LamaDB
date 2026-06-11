@@ -1,0 +1,321 @@
+/* ============================================================
+   LamaDB Kanban Styles
+   Extracted from static/js/pages/kanban.js
+   ============================================================ */
+
+/* ============================================================
+   PRIORITY COLORS (augments dashboard.css variables)
+   ============================================================ */
+:root {
+  --success: #2ecc71;
+  --accent-yellow: #f1c40f;
+}
+[data-theme="light"] {
+  --success: #1a9e4e;
+  --accent-yellow: #c9a000;
+}
+
+/* ============================================================
+   BOARD SELECTOR
+   ============================================================ */
+#kanban-board-selector {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  align-items: center;
+}
+
+#kanban-columns {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  min-height: 300px;
+}
+
+.kanban-selector-btn {
+  border: 1px solid var(--border);
+}
+
+.kanban-selector-count {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.kanban-btn-new {
+  margin-left: 4px;
+}
+
+/* ============================================================
+   EMPTY / ERROR STATES
+   ============================================================ */
+.kanban-empty-state {
+  color: var(--muted);
+  padding: 40px;
+  text-align: center;
+}
+
+.kanban-error-state {
+  color: var(--danger);
+  padding: 20px;
+}
+
+.kanban-empty-columns {
+  color: var(--muted);
+  padding: 20px;
+}
+
+.kanban-empty-list {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 10px;
+  text-align: center;
+}
+
+/* ============================================================
+   COLUMNS
+   ============================================================ */
+.kanban-column {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 10px;
+  min-height: 100px;
+}
+
+.kanban-col-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.kanban-col-title {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.kanban-col-wip {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.kanban-col-count {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ============================================================
+   TASK LIST
+   ============================================================ */
+.kanban-task-list {
+  min-height: 40px;
+}
+
+.kanban-task-list-loading {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.kanban-add-btn {
+  width: 100%;
+  margin-top: 8px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+
+/* ============================================================
+   TASK CARDS
+   ============================================================ */
+.kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  margin-bottom: 6px;
+  cursor: grab;
+}
+
+.kanban-card-completed {
+  opacity: 0.5;
+}
+
+.kanban-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.kanban-card-title {
+  font-size: 13px;
+  color: var(--fg);
+  font-weight: 500;
+  flex: 1;
+}
+
+.kanban-card-prio-dot {
+  font-size: 16px;
+  line-height: 1;
+  margin-left: 4px;
+}
+
+.kanban-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.kanban-card-number {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.kanban-card-assignee {
+  font-size: 11px;
+  color: var(--fg-2);
+}
+
+.kanban-card-help {
+  color: var(--warn);
+}
+
+.kanban-card-subtask {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ============================================================
+   PRIORITY INDICATORS
+   ============================================================ */
+.kanban-prio-low { color: var(--success); }
+.kanban-prio-medium { color: var(--accent-yellow); }
+.kanban-prio-high { color: var(--warn); }
+.kanban-prio-critical { color: var(--danger); }
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.kanban-modal {
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  position: relative;
+}
+
+.kanban-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.kanban-modal-title {
+  margin: 0;
+}
+
+.kanban-modal-description {
+  color: var(--fg-2);
+  font-size: 13px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.kanban-modal-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.kanban-modal-section {
+  margin-bottom: 12px;
+}
+
+.kanban-modal-section-title {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.kanban-modal-subtask-item {
+  font-size: 12px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.kanban-modal-dependency-item {
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.kanban-dep-completed {
+  color: var(--success);
+}
+
+.kanban-dep-pending {
+  color: var(--muted);
+}
+
+.kanban-modal-comment {
+  background: var(--surface-2);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.kanban-modal-comment-author {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.kanban-modal-comment-ts {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.kanban-modal-input-row {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.kanban-modal-input {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+/* ============================================================
+   QUICK ADD
+   ============================================================ */
+.kanban-quick-add-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.kanban-quick-add-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  color: var(--fg);
+  font-size: 12px;
+}

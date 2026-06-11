@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timezone
 from typing import Annotated
 
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.auth import AuthUser, get_current_user
@@ -395,22 +396,37 @@ async def create_task(
             if not col_id:
                 raise HTTPException(status_code=400, detail="Board has no columns")
 
-        next_num = await conn.fetchval(
-            "SELECT COALESCE(MAX(task_number), 0) + 1 FROM kanban_tasks WHERE board_id = $1",
-            board_id,
-        )
-
         max_pos = await conn.fetchval(
             "SELECT COALESCE(MAX(position), -1) + 1 FROM kanban_tasks WHERE column_id = $1",
             col_id,
         )
 
-        task_id = await conn.fetchval("""
-            INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description,
-                                      priority, assignee_id, position, due_at, estimate)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
-        """, board_id, col_id, next_num, body.title, body.description,
-            body.priority, body.assignee_id, max_pos, body.due_at, body.estimate)
+        # Compute next_num and INSERT; retry once on unique-constraint conflict.
+        # The UNIQUE (board_id, task_number) constraint added in migration 014
+        # prevents duplicate task_numbers from concurrent inserts.
+        next_num = await conn.fetchval(
+            "SELECT COALESCE(MAX(task_number), 0) + 1 FROM kanban_tasks WHERE board_id = $1",
+            board_id,
+        )
+        try:
+            task_id = await conn.fetchval("""
+                INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description,
+                                          priority, assignee_id, position, due_at, estimate)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+            """, board_id, col_id, next_num, body.title, body.description,
+                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate)
+        except asyncpg.exceptions.UniqueViolationError:
+            # Lost a race — recompute and retry once.
+            next_num = await conn.fetchval(
+                "SELECT COALESCE(MAX(task_number), 0) + 1 FROM kanban_tasks WHERE board_id = $1",
+                board_id,
+            )
+            task_id = await conn.fetchval("""
+                INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description,
+                                          priority, assignee_id, position, due_at, estimate)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+            """, board_id, col_id, next_num, body.title, body.description,
+                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate)
 
     cache_manager.invalidate("kanban_tasks")
     return {"id": str(task_id), "task_number": next_num, "title": body.title}
@@ -695,6 +711,7 @@ async def add_dependency(
             "INSERT INTO kanban_task_dependencies (task_id, depends_on_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
             task_id, body.depends_on_id,
         )
+    cache_manager.invalidate("kanban_tasks")
     return {"status": "linked"}
 
 
@@ -710,6 +727,7 @@ async def remove_dependency(
             "DELETE FROM kanban_task_dependencies WHERE task_id = $1 AND depends_on_id = $2",
             task_id, depends_on_id,
         )
+    cache_manager.invalidate("kanban_tasks")
     return {"status": "unlinked"}
 
 
@@ -750,4 +768,5 @@ async def add_comment(
             "INSERT INTO kanban_agent_logs (user_id, task_id, action, details) VALUES ($1, $2, 'comment_added', $3)",
             user.user_id, task_id, body.body[:200],
         )
+    cache_manager.invalidate("kanban_tasks")
     return {"id": str(comment_id), "task_id": task_id, "body": body.body}

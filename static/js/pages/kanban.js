@@ -15,11 +15,11 @@
         await window.selectKanbanBoard(_boards[0].id);
       } else {
         document.getElementById('kanban-columns').innerHTML =
-          '<div style="color:var(--muted);padding:40px;text-align:center;">No boards yet. <a href="#" onclick="window.newKanbanBoard();return false;">Create one!</a></div>';
+          '<div class="kanban-empty-state">No boards yet. <a href="#" onclick="window.newKanbanBoard();return false;">Create one!</a></div>';
       }
     } catch(e) {
       document.getElementById('kanban-columns').innerHTML =
-        '<div style="color:var(--danger);padding:20px;">Failed to load boards: ' + e.message + '</div>';
+        '<div class="kanban-error-state">Failed to load boards: ' + e.message + '</div>';
     }
   };
 
@@ -28,11 +28,11 @@
     if (!el) return;
     el.innerHTML = _boards.map(function(b) {
       var active = b.id === _currentBoardId ? ' active' : '';
-      return '<button class="btn btn-sm tab-btn' + active + '" data-board-id="' + b.id + '" onclick="window.selectKanbanBoard(\'' + b.id + '\')" style="border:1px solid var(--border);">' +
-        window.escHtml(b.name) + ' <span style="color:var(--muted);font-size:11px;">(' + b.task_count + ')</span>' +
+      return '<button class="btn btn-sm tab-btn' + active + ' kanban-selector-btn" data-board-id="' + b.id + '" onclick="window.selectKanbanBoard(\'' + b.id + '\')">' +
+        window.escHtml(b.name) + ' <span class="kanban-selector-count">(' + b.task_count + ')</span>' +
       '</button>';
     }).join('') +
-    '<button class="btn btn-sm btn-primary" onclick="window.newKanbanBoard()" style="margin-left:4px;">+ New Board</button>';
+    '<button class="btn btn-sm btn-primary kanban-btn-new" onclick="window.newKanbanBoard()">+ New Board</button>';
   }
 
   window.selectKanbanBoard = async function(boardId) {
@@ -43,7 +43,7 @@
       renderBoard(board);
     } catch(e) {
       document.getElementById('kanban-columns').innerHTML =
-        '<div style="color:var(--danger);padding:20px;">Failed: ' + e.message + '</div>';
+        '<div class="kanban-error-state">Failed: ' + e.message + '</div>';
     }
   };
 
@@ -51,7 +51,7 @@
     var el = document.getElementById('kanban-columns');
     if (!el) return;
     if (!board.columns || board.columns.length === 0) {
-      el.innerHTML = '<div style="color:var(--muted);padding:20px;">No columns</div>';
+      el.innerHTML = '<div class="kanban-empty-columns">No columns</div>';
       return;
     }
 
@@ -60,17 +60,17 @@
     _sortables = {};
 
     el.innerHTML = board.columns.map(function(col) {
-      return '<div class="kanban-col" data-col-id="' + col.id + '" style="background:var(--surface-2);border-radius:var(--radius);padding:10px;min-height:100px;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-          '<h4 style="margin:0;font-size:13px;color:var(--fg);">' + window.escHtml(col.name) +
-            (col.wip_limit ? ' <span style="color:var(--muted);font-size:11px;">' + col.task_count + '/' + col.wip_limit + '</span>' : '') +
+      return '<div class="kanban-col kanban-column" data-col-id="' + col.id + '">' +
+        '<div class="kanban-col-header">' +
+          '<h4 class="kanban-col-title">' + window.escHtml(col.name) +
+            (col.wip_limit ? ' <span class="kanban-col-wip">' + col.task_count + '/' + col.wip_limit + '</span>' : '') +
           '</h4>' +
-          '<span style="font-size:11px;color:var(--muted);">' + col.task_count + '</span>' +
+          '<span class="kanban-col-count">' + col.task_count + '</span>' +
         '</div>' +
-        '<div class="kanban-task-list" data-col-id="' + col.id + '" style="min-height:40px;">' +
-          '<div class="loading" style="font-size:12px;color:var(--muted);">Loading\u2026</div>' +
+        '<div class="kanban-task-list" data-col-id="' + col.id + '">' +
+          '<div class="loading kanban-task-list-loading">Loading\u2026</div>' +
         '</div>' +
-        '<button class="btn btn-sm" style="width:100%;margin-top:8px;color:var(--muted);background:transparent;border:1px dashed var(--border);" onclick="window.quickAddTask(\'' + col.id + '\')">+ Add</button>' +
+        '<button class="btn btn-sm kanban-add-btn" onclick="window.quickAddTask(\'' + col.id + '\')">+ Add</button>' +
       '</div>';
     }).join('');
 
@@ -92,22 +92,22 @@
     var list = document.querySelector('.kanban-task-list[data-col-id="' + colId + '"]');
     if (!list) return;
     if (tasks.length === 0) {
-      list.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:10px;text-align:center;">Empty</div>';
+      list.innerHTML = '<div class="kanban-empty-list">Empty</div>';
       return;
     }
     list.innerHTML = tasks.map(function(t) {
-      var prioColor = {low:'var(--success)', medium:'var(--accent-yellow)', high:'var(--warn)', critical:'var(--danger)'}[t.priority] || 'var(--muted)';
-      var subProgress = t.subtask_count > 0 ? ' <span style="font-size:10px;color:var(--muted);">' + t.subtask_done + '/' + t.subtask_count + '</span>' : '';
-      return '<div class="kanban-card" data-task-id="' + t.id + '" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;margin-bottom:6px;cursor:grab;' + (t.completed_at ? 'opacity:0.5;' : '') + '" onclick="window.openTaskDetail(\'' + t.id + '\')">' +
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
-          '<span style="font-size:13px;color:var(--fg);font-weight:500;flex:1;">' + window.escHtml(t.title) + '</span>' +
-          '<span style="color:' + prioColor + ';font-size:16px;line-height:1;margin-left:4px;">●</span>' +
+      var subProgress = t.subtask_count > 0 ? ' <span class="kanban-card-subtask">' + t.subtask_done + '/' + t.subtask_count + '</span>' : '';
+      var completedCls = t.completed_at ? ' kanban-card-completed' : '';
+      return '<div class="kanban-card' + completedCls + '" data-task-id="' + t.id + '" onclick="window.openTaskDetail(\'' + t.id + '\')">' +
+        '<div class="kanban-card-header">' +
+          '<span class="kanban-card-title">' + window.escHtml(t.title) + '</span>' +
+          '<span class="kanban-card-prio-dot kanban-prio-' + (t.priority || 'low') + '">●</span>' +
         '</div>' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">' +
-          '<span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);">#' + t.task_number + '</span>' +
-          '<span style="font-size:11px;color:var(--fg-2);">' +
+        '<div class="kanban-card-footer">' +
+          '<span class="kanban-card-number">#' + t.task_number + '</span>' +
+          '<span class="kanban-card-assignee">' +
             (t.assignee_name || '') +
-            (t.help_wanted ? ' <span style="color:var(--warn);">⚠</span>' : '') +
+            (t.help_wanted ? ' <span class="kanban-card-help">⚠</span>' : '') +
           '</span>' +
           subProgress +
         '</div>' +
@@ -151,44 +151,44 @@
 
     var modal = document.createElement('div');
     modal.className = 'modal-overlay';
-    modal.innerHTML = '<div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-        '<h3 style="margin:0;">#' + task.task_number + ' ' + window.escHtml(task.title) + '</h3>' +
+    modal.innerHTML = '<div class="modal kanban-modal">' +
+      '<div class="kanban-modal-header">' +
+        '<h3 class="kanban-modal-title">#' + task.task_number + ' ' + window.escHtml(task.title) + '</h3>' +
         '<button class="btn btn-sm btn-secondary" onclick="this.closest(\'.modal-overlay\').remove()">×</button>' +
       '</div>' +
-      (task.description ? '<div style="color:var(--fg-2);font-size:13px;margin-bottom:12px;line-height:1.5;">' + window.escHtml(task.description) + '</div>' : '') +
-      '<div style="display:flex;gap:12px;font-size:12px;color:var(--muted);margin-bottom:12px;flex-wrap:wrap;">' +
+      (task.description ? '<div class="kanban-modal-description">' + window.escHtml(task.description) + '</div>' : '') +
+      '<div class="kanban-modal-meta">' +
         '<span>Priority: <strong>' + task.priority + '</strong></span>' +
         '<span>Assignee: <strong>' + (task.assignee_name || 'unassigned') + '</strong></span>' +
         (task.estimate ? '<span>Estimate: <strong>' + task.estimate + '</strong></span>' : '') +
         (task.due_at ? '<span>Due: <strong>' + new Date(task.due_at).toLocaleDateString() + '</strong></span>' : '') +
       '</div>' +
-      (task.subtasks.length > 0 ? '<div style="margin-bottom:12px;"><h4 style="font-size:12px;color:var(--muted);margin-bottom:4px;">Subtasks (' + task.subtask_done + '/' + task.subtask_count + ')</h4>' +
+      (task.subtasks.length > 0 ? '<div class="kanban-modal-section"><h4 class="kanban-modal-section-title">Subtasks (' + task.subtask_done + '/' + task.subtask_count + ')</h4>' +
         task.subtasks.map(function(s) {
-          return '<div style="font-size:12px;padding:4px 0;cursor:pointer;" onclick="window.toggleSubtask(\'' + s.id + '\', ' + !s.completed + ', \'' + task.id + '\')">' +
+          return '<div class="kanban-modal-subtask-item" onclick="window.toggleSubtask(\'' + s.id + '\', ' + !s.completed + ', \'' + task.id + '\')">' +
             (s.completed ? '✅ ' : '⬜ ') + window.escHtml(s.title) +
           '</div>';
         }).join('') +
       '</div>' : '') +
-      (task.dependencies.length > 0 ? '<div style="margin-bottom:12px;"><h4 style="font-size:12px;color:var(--muted);margin-bottom:4px;">Dependencies</h4>' +
+      (task.dependencies.length > 0 ? '<div class="kanban-modal-section"><h4 class="kanban-modal-section-title">Dependencies</h4>' +
         task.dependencies.map(function(d) {
-          return '<div style="font-size:12px;padding:2px 0;color:' + (d.depends_on_completed ? 'var(--success)' : 'var(--muted)') + ';">' +
+          return '<div class="kanban-modal-dependency-item ' + (d.depends_on_completed ? 'kanban-dep-completed' : 'kanban-dep-pending') + '">' +
             (d.depends_on_completed ? '✅ ' : '⏳ ') + window.escHtml(d.depends_on_title) +
           '</div>';
         }).join('') +
       '</div>' : '') +
-      (task.comments.length > 0 ? '<div style="margin-bottom:12px;"><h4 style="font-size:12px;color:var(--muted);margin-bottom:4px;">Comments</h4>' +
+      (task.comments.length > 0 ? '<div class="kanban-modal-section"><h4 class="kanban-modal-section-title">Comments</h4>' +
         task.comments.map(function(c) {
           var ts = c.created_at ? window.relativeTime(c.created_at) : '';
-          return '<div style="background:var(--surface-2);padding:8px;border-radius:var(--radius-sm);margin-bottom:4px;font-size:12px;">' +
-            '<span style="color:var(--accent);font-weight:500;">' + window.escHtml(c.user_name || 'unknown') + '</span> ' +
-            '<span style="color:var(--muted);font-size:10px;">' + ts + '</span><br>' +
+          return '<div class="kanban-modal-comment">' +
+            '<span class="kanban-modal-comment-author">' + window.escHtml(c.user_name || 'unknown') + '</span> ' +
+            '<span class="kanban-modal-comment-ts">' + ts + '</span><br>' +
             window.escHtml(c.body) +
           '</div>';
         }).join('') +
       '</div>' : '') +
-      '<div style="display:flex;gap:8px;border-top:1px solid var(--border);padding-top:12px;">' +
-        '<input type="text" id="kanban-comment-input" placeholder="Add comment…" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--fg);font-size:13px;" />' +
+      '<div class="kanban-modal-input-row">' +
+        '<input type="text" id="kanban-comment-input" placeholder="Add comment…" class="kanban-modal-input" />' +
         '<button class="btn btn-sm btn-primary" onclick="window.addKanbanComment(\'' + task.id + '\')">Post</button>' +
       '</div>' +
     '</div>';
@@ -240,8 +240,8 @@
 
     var input = document.createElement('div');
     input.id = 'quick-add-' + colId;
-    input.style.cssText = 'display:flex;gap:4px;margin-top:4px;';
-    input.innerHTML = '<input type="text" id="quick-add-input-' + colId + '" placeholder="Task title…" style="flex:1;background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:5px 8px;color:var(--fg);font-size:12px;" />' +
+    input.className = 'kanban-quick-add-row';
+    input.innerHTML = '<input type="text" id="quick-add-input-' + colId + '" placeholder="Task title…" class="kanban-quick-add-input" />' +
       '<button class="btn btn-sm btn-primary" onclick="window.submitQuickTask(\'' + colId + '\')">Add</button>';
     list.parentNode.insertBefore(input, list.nextSibling);
 

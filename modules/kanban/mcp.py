@@ -1,5 +1,8 @@
 """MCP tools for the Kanban module — agent-first task orchestration."""
 import json
+
+import asyncpg
+from app.cache import cache_manager
 from app.db import get_pool
 
 
@@ -132,6 +135,17 @@ async def kanban_complete_task(user_id: str, task_id: str, summary: str | None =
             now, task_id,
         )
 
+        # Move to Done column
+        done_col = await conn.fetchval(
+            "SELECT id FROM kanban_columns WHERE board_id = $1 AND status = 'done' ORDER BY position LIMIT 1",
+            task["board_id"],
+        )
+        if done_col:
+            await conn.execute(
+                "UPDATE kanban_tasks SET column_id = $1, updated_at = now() WHERE id = $2",
+                done_col, task_id,
+            )
+
         dependents = await conn.fetch(
             "SELECT d.task_id, t.board_id FROM kanban_task_dependencies d JOIN kanban_tasks t ON t.id = d.task_id WHERE d.depends_on_id = $1",
             task_id,
@@ -156,6 +170,7 @@ async def kanban_complete_task(user_id: str, task_id: str, summary: str | None =
 
         await _log_action(user_id, task_id, task["board_id"], "task_completed", summary, "kanban_complete_task")
 
+    cache_manager.invalidate("kanban_tasks")
     return {"status": "completed", "task_id": task_id}
 
 
@@ -174,15 +189,30 @@ async def kanban_create_task(user_id: str, board_id: str, title: str,
                 board_id,
             )
 
+        # Compute next_num and INSERT; retry once on unique-constraint conflict.
+        # The UNIQUE (board_id, task_number) constraint added in migration 014
+        # prevents duplicate task_numbers from concurrent inserts.
         next_num = await conn.fetchval(
             "SELECT COALESCE(MAX(task_number), 0) + 1 FROM kanban_tasks WHERE board_id = $1",
             board_id,
         )
-        task_id = await conn.fetchval(
-            """INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description, priority)
-               VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
-            board_id, col_id, next_num, title, description, priority,
-        )
+        try:
+            task_id = await conn.fetchval(
+                """INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description, priority)
+                   VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
+                board_id, col_id, next_num, title, description, priority,
+            )
+        except asyncpg.exceptions.UniqueViolationError:
+            # Lost a race — recompute and retry once.
+            next_num = await conn.fetchval(
+                "SELECT COALESCE(MAX(task_number), 0) + 1 FROM kanban_tasks WHERE board_id = $1",
+                board_id,
+            )
+            task_id = await conn.fetchval(
+                """INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description, priority)
+                   VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
+                board_id, col_id, next_num, title, description, priority,
+            )
         await _log_action(user_id, task_id, board_id, "task_created", tool="kanban_create_task")
 
     return {"status": "created", "task_id": str(task_id), "task_number": next_num}
