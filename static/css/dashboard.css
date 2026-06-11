@@ -2293,3 +2293,53 @@ table td.nowrap { white-space: nowrap; }
   .modules-grid { grid-template-columns: repeat(2, 1fr); }
   .activity-feed { max-height: 200px; }
 }
+
+/* ─── Module card force-poll button ─── */
+#modules-grid .module-poll-btn {
+  margin-top: 6px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  font-family: var(--font-display);
+}
+#modules-grid .module-poll-btn:hover {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+}
+#modules-grid .module-poll-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Module card error list ─── */
+#modules-grid .module-error-list {
+  width: 100%;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+#modules-grid .module-error-item {
+  font-size: 0.7rem;
+  color: var(--danger);
+  padding: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#modules-grid .module-error-more {
+  font-size: 0.65rem;
+  color: var(--muted);
+  padding-top: 2px;
+}
+
+/* ─── Sidebar category badge: warn variant ─── */
+.sidebar-category-header .cat-badge.warn {
+  background: var(--warn);
+  color: #000;
+}

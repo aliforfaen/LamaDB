@@ -745,6 +745,56 @@ async def poll_uptime_kuma(
 
 
 # ---------------------------------------------------------------------------
+# POST /api/dashboard/poll/{module_name} — generic force-poll
+# ---------------------------------------------------------------------------
+
+FORCE_POLL_REGISTRY: dict[str, tuple[str, str]] = {
+    "freshrss": ("modules.freshrss.collector", "collect"),
+    "hermes":   ("modules.hermes.collector",   "collect"),
+    "ntfy":     ("modules.ntfy.collector",     "collect"),
+    "dozzle":   ("modules.dozzle.collector",   "collect"),
+    "notflix":  ("modules.notflix.collector",  "collect"),
+    "uptime":   ("modules.uptime.poller",      "poll_kuma_registry"),
+}
+
+
+@router.post("/poll/{module_name}")
+async def force_poll_module(
+    module_name: str,
+    user: AuthUser = Depends(require_admin),
+):
+    """Manually trigger a module's data collector immediately.
+
+    Supports: freshrss, hermes, ntfy, dozzle, notflix, uptime.
+    Returns collector stats or 404 if the module has no poller.
+    """
+    entry = FORCE_POLL_REGISTRY.get(module_name)
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No force-poll available for module '{module_name}'. Supported: {', '.join(sorted(FORCE_POLL_REGISTRY.keys()))}",
+        )
+
+    mod_path, fn_name = entry
+    try:
+        mod = importlib.import_module(mod_path)
+        fn = getattr(mod, fn_name)
+        stats = await fn()
+        # Collectors may return non-dicts; wrap raw values to avoid serialization errors
+        return {
+            "success": True,
+            "module": module_name,
+            "stats": stats if isinstance(stats, dict) else {"raw": str(stats)},
+            "message": f"Polled {module_name} successfully",
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Poll failed for {module_name}: {str(e)}",
+        )
+
+
+# ---------------------------------------------------------------------------
 # GET /api/dashboard/module-settings
 # ---------------------------------------------------------------------------
 

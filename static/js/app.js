@@ -86,6 +86,37 @@
         }
       } catch(ex) {}
     });
+    _sseSource.addEventListener('document_created', function(e) {
+      try {
+        var data = JSON.parse(e.data);
+        if (window.showToast) {
+          if (data.action === 'deleted') {
+            window.showToast('Document deleted: ' + (data.title || 'Untitled'), 'warning');
+          } else if (data.action === 'updated') {
+            window.showToast('Document updated: ' + (data.title || 'Untitled'), 'info');
+          } else {
+            window.showToast('New document: ' + (data.title || 'Untitled'), 'info');
+          }
+        }
+        if (typeof window._currentPage !== 'undefined' && window._currentPage === 'documents' && window.loadDocuments) {
+          window.loadDocuments();
+        }
+      } catch(ex) {}
+    });
+    _sseSource.addEventListener('monitor_status', function(e) {
+      try {
+        var data = JSON.parse(e.data);
+        if (window.showToast && data.status === 0) {
+          window.showToast(data.monitor_name + ' is DOWN', 'error');
+        }
+        if (typeof window._currentPage !== 'undefined' && window._currentPage === 'uptime' && window.loadUptime) {
+          window.loadUptime();
+        }
+        if (typeof window.updateSidebarBadges === 'function') {
+          window.updateSidebarBadges();
+        }
+      } catch(ex) {}
+    });
     _sseSource.addEventListener('message', function(e) {
       try {
         var data = JSON.parse(e.data);
@@ -342,6 +373,7 @@
     var titleEl = document.getElementById('page-title');
     if (titleEl) titleEl.textContent = titles[pageId] || pageId;
     currentPage = pageId;
+    window._currentPage = pageId;
     // Route to page loader
     if (pageId === 'overview') window.loadOverview && window.loadOverview();
     else if (pageId === 'feeds') window.loadFeeds && window.loadFeeds();
@@ -449,21 +481,48 @@
     localStorage.setItem('sidebar_cat_' + cat, isNowCollapsed ? 'collapsed' : 'open');
   };
 
+  function setBadge(id, text, cssClass) {
+    var badge = document.getElementById(id);
+    if (!badge) return;
+    badge.textContent = text;
+    if (cssClass) {
+      badge.className = 'cat-badge has-items ' + cssClass;
+    } else {
+      badge.className = 'cat-badge';
+    }
+  }
+
   function updateSidebarBadges() {
+    // Monitoring: count of DOWN services
     api('/api/uptime/status').then(function(status) {
-        var down = (status || []).filter(function(m) { return m.status === 0; }).length;
-        var badge = document.getElementById('badge-monitoring');
-        if (badge) {
-          if (down > 0) {
-            badge.textContent = down + ' down';
-            badge.className = 'cat-badge has-items alert';
-          } else {
-            badge.textContent = '';
-            badge.className = 'cat-badge';
-          }
-        }
-      })
-      .catch(function() {});
+      var down = (status || []).filter(function(m) { return m.status === 0; }).length;
+      setBadge('badge-monitoring', down > 0 ? down + ' down' : '', down > 0 ? 'alert' : '');
+    }).catch(function() {});
+
+    // Core: count of error events in the last hour
+    api('/api/events?severity=error&limit=50').then(function(events) {
+      var errors = (events || []).filter(function(e) {
+        var ts = new Date(e.ts);
+        var hourAgo = new Date(Date.now() - 3600000);
+        return ts > hourAgo;
+      }).length;
+      setBadge('badge-core', errors > 0 ? errors + ' err' : '', errors > 0 ? 'alert' : '');
+    }).catch(function() {});
+
+    // Data Sources: aggregated warnings from collector modules
+    api('/api/dashboard/module-health').then(function(health) {
+      var modules = health.modules || [];
+      var warnCount = modules.filter(function(m) {
+        return m.status === 'red' || m.status === 'yellow';
+      }).length;
+      setBadge('badge-datasources', warnCount > 0 ? warnCount + ' issue' + (warnCount > 1 ? 's' : '') : '', warnCount > 0 ? 'alert' : '');
+    }).catch(function() {});
+
+    // Admin: count of stale API keys (no usage in 30 days)
+    api('/api/dashboard/api-keys/stats').then(function(stats) {
+      var stale = stats.stale || 0;
+      setBadge('badge-admin', stale > 0 ? stale + ' stale' : '', stale > 0 ? 'alert' : '');
+    }).catch(function() {});
   }
 
   // ─── Shortcut help ──────────────────────────────────────────────────────────

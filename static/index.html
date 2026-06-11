@@ -707,6 +707,7 @@
           <span id="doc-bulk-count" style="font-size:13px;font-weight:500;color:var(--accent);">0 selected</span>
           <button class="btn btn-sm btn-secondary" onclick="window.docBulkTag()" style="font-size:12px;">Tag selected</button>
           <button class="btn btn-sm btn-danger" onclick="window.docBulkDelete()" style="font-size:12px;">Delete selected</button>
+          <button class="btn btn-sm btn-secondary" onclick="window.docBulkChangeSourceType()" style="font-size:12px;">Change Source</button>
           <span style="flex:1;"></span>
           <button class="btn btn-sm btn-secondary" onclick="window.docBulkClear()" style="font-size:12px;">Clear selection</button>
         </div>
@@ -1432,6 +1433,7 @@
       <div id="doc-detail-meta" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;"></div>
       <div id="doc-detail-date" style="font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-bottom:12px;"></div>
       <div id="doc-detail-content" class="detail-content"></div>
+      <button id="doc-detail-edit-btn" class="btn btn-sm" style="margin-top:8px;" onclick="window.docEditContent(window._openDocId)">Edit Content</button>
       <div style="margin-top:14px;">
         <div class="section-header"><h3>Metadata</h3></div>
         <div id="doc-detail-json" class="detail-meta-json"></div>

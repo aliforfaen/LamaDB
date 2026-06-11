@@ -107,6 +107,21 @@
 
   // ─── Module Cards ─────────────────────────────────────────
 
+  window.forcePollModule = async function(moduleName, btn) {
+    var origText = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+    try {
+      await window.api('/api/dashboard/poll/' + moduleName, { method: 'POST' });
+      if (window.showToast) window.showToast('Polled ' + moduleName + ': OK', 'success');
+    } catch (e) {
+      if (window.showToast) window.showToast('Poll failed: ' + e.message, 'error');
+    }
+    btn.textContent = origText;
+    btn.disabled = false;
+    setTimeout(function() { loadModuleCards(); }, 2000);
+  };
+
   async function loadModuleCards() {
     var grid = document.getElementById('modules-grid');
     if (!grid) return;
@@ -139,6 +154,20 @@
 
         var freshness = m.last_event ? window.relativeTime(m.last_event) : 'never';
         var errorCount = (m.recent_errors || []).length;
+        var isPollable = ['uptime', 'freshrss', 'hermes', 'ntfy', 'dozzle', 'notflix'].indexOf(m.name) !== -1;
+
+        var errorListHtml = '';
+        if (errorCount > 0) {
+          var errors = m.recent_errors || [];
+          var errorItems = errors.slice(0, 3).map(function(err) {
+            return '<div class="module-error-item" title="' + window.escHtml(err.title || '') + '">' +
+              window.escHtml(err.title || '').substring(0, 60) +
+            '</div>';
+          }).join('');
+          errorListHtml = '<div class="module-error-list">' + errorItems +
+            (errors.length > 3 ? '<div class="module-error-more">+' + (errors.length - 3) + ' more</div>' : '') +
+            '</div>';
+        }
 
         var card = document.createElement('div');
         card.className = 'module-card';
@@ -160,11 +189,16 @@
           '<div class="module-card-body">' +
             '<span class="module-card-name">' + (m.label || m.name) + '</span>' +
             '<span class="module-card-stats">' +
+              (m.documents !== undefined ? m.documents.toLocaleString() + ' docs &middot; ' : '') +
               (m.events ? m.events.toLocaleString() + ' events &middot; ' : '') +
               freshness +
             '</span>' +
           '</div>' +
-          (errorCount > 0 ? '<span class="module-card-errors">' + errorCount + '</span>' : '');
+          (errorCount > 0 ? '<span class="module-card-errors">' + errorCount + '</span>' : '') +
+          errorListHtml +
+          (isPollable
+            ? '<button class="module-poll-btn" onclick="event.stopPropagation(); window.forcePollModule(\'' + m.name + '\', this)" title="Force poll ' + m.name + '">\u21bb Poll</button>'
+            : '');
         grid.appendChild(card);
       });
 

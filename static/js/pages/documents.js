@@ -182,6 +182,27 @@
     });
   };
 
+  window.docBulkChangeSourceType = function() {
+    var ids = Object.keys(_docSelected).filter(function(id) { return _docSelected[id]; });
+    if (ids.length === 0) return alert('No documents selected.');
+    if (!confirm('Change source_type for ' + ids.length + ' document(s)?\nThis will update the source_type field for all selected documents.')) return;
+    var newType = prompt('Enter new source_type:');
+    if (!newType || !newType.trim()) return;
+    newType = newType.trim();
+    var promises = ids.map(function(id) {
+      return window.api('/api/documents/' + id, {
+        method: 'PUT',
+        body: JSON.stringify({ source_type: newType })
+      });
+    });
+    Promise.all(promises).then(function() {
+      window.loadDocuments();
+      window.showToast('Source type changed for ' + ids.length + ' document(s)', 'success');
+    }).catch(function(e) {
+      window.showError('Bulk source_type update failed: ' + e.message);
+    });
+  };
+
   window.docBulkTag = function() {
     var ids = [];
     for (var k in _docSelected) { if (_docSelected.hasOwnProperty(k)) ids.push(k); }
@@ -299,6 +320,69 @@
     });
   };
 
+  window.docEditContent = function(docId) {
+    var contentEl = document.getElementById('doc-detail-content');
+    if (!contentEl) return;
+    var current = contentEl.textContent;
+    var textarea = document.createElement('textarea');
+    textarea.value = current || '';
+    textarea.className = 'doc-content-editor';
+    textarea.style.width = '100%';
+    textarea.style.minHeight = '150px';
+    textarea.style.padding = '8px';
+    textarea.style.fontSize = '0.85rem';
+    textarea.style.background = 'var(--surface)';
+    textarea.style.color = 'var(--fg)';
+    textarea.style.border = '1px solid var(--border)';
+    textarea.style.borderRadius = '4px';
+    textarea.style.resize = 'vertical';
+    contentEl.parentElement.replaceChild(textarea, contentEl);
+    textarea.focus();
+
+    var editBtn = document.getElementById('doc-detail-edit-btn');
+    if (editBtn) editBtn.style.display = 'none';
+
+    var saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save';
+    saveBtn.className = 'btn btn-primary btn-sm';
+    saveBtn.style.marginLeft = '8px';
+    saveBtn.onclick = function() {
+      var val = textarea.value;
+      var indicator = document.createElement('span');
+      indicator.textContent = 'saving\u2026';
+      indicator.style.marginLeft = '8px';
+      textarea.parentElement.appendChild(indicator);
+      window.api('/api/documents/' + docId, { method: 'PUT', body: JSON.stringify({ content: val }) }).then(function() {
+        indicator.textContent = '\u2713';
+        var newContent = document.createElement('div');
+        newContent.id = 'doc-detail-content';
+        newContent.textContent = val;
+        textarea.parentElement.replaceChild(newContent, textarea);
+        if (editBtn) editBtn.style.display = '';
+        indicator.remove();
+        saveBtn.remove();
+        cancelBtn && cancelBtn.remove();
+      }).catch(function(e) {
+        indicator.textContent = '\u2717 ' + e.message;
+      });
+    };
+    var cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'btn btn-sm';
+    cancelBtn.style.marginLeft = '4px';
+    cancelBtn.onclick = function() {
+      var newContent = document.createElement('div');
+      newContent.id = 'doc-detail-content';
+      newContent.textContent = current;
+      textarea.parentElement.replaceChild(newContent, textarea);
+      if (editBtn) editBtn.style.display = '';
+      saveBtn.remove();
+      cancelBtn.remove();
+    };
+    textarea.parentElement.appendChild(saveBtn);
+    textarea.parentElement.appendChild(cancelBtn);
+  };
+
   window.docDragStart = function(e) {
     var row = e.target.closest('.doc-row');
     if (!row) return;
@@ -396,6 +480,7 @@
       ]);
       document.getElementById('doc-detail-title').textContent = doc.title || 'Untitled';
       document.getElementById('doc-detail-content').textContent = doc.content || '';
+      window._openDocId = doc.id;
       var ts = doc.created_at ? new Date(doc.created_at).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
       var updated = doc.updated_at ? new Date(doc.updated_at).toLocaleString() : '';
       document.getElementById('doc-detail-date').innerHTML = 'Created: ' + ts + (updated ? ' &middot; Updated: ' + updated : '');
