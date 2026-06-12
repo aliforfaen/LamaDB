@@ -19,19 +19,18 @@
   };
 
   window.loadOverview = async function() {
-    loadHealthBar();
-    loadModuleCards();
-    loadActivityFeed();
-    loadRSSHeadlines();
-    loadAgentStatus();
+    // Fire all widget loaders in parallel — each handles its own errors
+    await Promise.all([
+      loadHealthBar(),
+      loadModuleCards(),
+      loadActivityFeed(),
+      loadRSSHeadlines(),
+      loadAgentStatus(),
+      loadTicker()
+    ]);
 
     if (window.updateFooter) window.updateFooter();
-
-    // Initialize header LEDs with real data on page load
     if (window.updateHeader) window.updateHeader();
-
-    // Fetch recent important events for the scrolling ticker
-    loadTicker();
   };
 
   // ─── Ticker ────────────────────────────────────────────
