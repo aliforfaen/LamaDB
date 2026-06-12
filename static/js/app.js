@@ -591,7 +591,8 @@
         'h': 'hermes',
         'm': 'homeassistant',
         'a': 'agentboard',
-        'k': 'kanban'
+        'k': 'kanban',
+        'q': 'search'
       };
       var target = pageMap[e.key];
       if (target) {
