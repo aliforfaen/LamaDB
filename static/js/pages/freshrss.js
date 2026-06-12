@@ -83,43 +83,6 @@
     track.style.animation = '';
   }
 
-  // ─── Header LED update ─────────────────────────────────────────────────────
-  function updateHeader() {
-    // Fetch overview data + events + monitors for header LEDs
-    var upCount = 0, downCount = 0;
-    window.api('/api/uptime/status').then(function(status) {
-      upCount = (status || []).filter(function(m) { return m.status === 1; }).length;
-      downCount = (status || []).filter(function(m) { return m.status === 0; }).length;
-      var svcEl = document.getElementById('led-services');
-      if (svcEl) {
-        svcEl.innerHTML = upCount + '/' + (upCount + downCount);
-        var dot = svcEl.closest('.header-led') ? svcEl.closest('.header-led').querySelector('.led-dot') : null;
-        if (dot) { dot.className = 'led-dot ' + (downCount > 0 ? 'led-red' : 'led-green'); }
-      }
-    }).catch(function() {});
-    window.api('/api/dashboard/overview').then(function(data) {
-      var notifEl = document.getElementById('led-notifications');
-      if (notifEl) notifEl.textContent = data.events.today || 0;
-      var agentEl = document.getElementById('led-agents');
-      if (agentEl) agentEl.textContent = (data.agent_tasks || 0) + ' pending';
-    }).catch(function() {});
-    window.api('/api/dozzle/stats').then(function(stats) {
-      var dozzleEl = document.getElementById('led-dozzle');
-      if (dozzleEl) dozzleEl.textContent = (stats.errors || 0) + ' err \u00b7 ' + (stats.warnings || 0) + ' warn';
-    }).catch(function() {});
-    // Uptime clock
-    try {
-      var start = document.querySelector('meta[name="app-start"]');
-      if (start && start.content) {
-        var uptimeMs = Date.now() - new Date(start.content).getTime();
-        var days = Math.floor(uptimeMs / 86400000);
-        var hours = Math.floor((uptimeMs % 86400000) / 3600000);
-        var uptimeEl = document.getElementById('header-uptime');
-        if (uptimeEl) uptimeEl.textContent = days + 'd ' + hours + 'h';
-      }
-    } catch(e) {}
-  }
-
   window.updateFooter = async function() {
     try {
       var status = await window.api('/api/uptime/status');
@@ -155,7 +118,6 @@
     });
   };
 
-  // Export ticker and header LED updater so other modules (overview, SSE) can call them
+  // Export ticker so other modules (overview, SSE) can call it
   window.renderTicker = renderTicker;
-  window.updateHeader = updateHeader;
 })();

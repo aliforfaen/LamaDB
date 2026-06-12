@@ -115,6 +115,7 @@
         if (typeof window.updateSidebarBadges === 'function') {
           window.updateSidebarBadges();
         }
+        if (window.updateHeader) window.updateHeader();
       } catch(ex) {}
     });
     _sseSource.addEventListener('message', function(e) {

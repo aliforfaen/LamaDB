@@ -55,6 +55,53 @@
     }
   }
 
+  // ─── Header LEDs ──────────────────────────────────────────────────────
+  window.updateHeader = function() {
+    // Fetch uptime status, error events, and pending agent tasks in parallel
+    Promise.all([
+      window.api('/api/uptime/status').catch(function() { return []; }),
+      window.api('/api/events?severity=error&limit=50').catch(function() { return []; }),
+      window.api('/api/agent_board/inbox/count?agent=all').catch(function() { return { count: 0 }; })
+    ]).then(function(results) {
+      var uptime = results[0] || [];
+      var errors = results[1] || [];
+      var inbox = results[2] || { count: 0 };
+
+      // Services LED: up/total
+      var up = uptime.filter(function(m) { return m.status === 1; }).length;
+      var down = uptime.length - up;
+      var svcEl = document.getElementById('led-services');
+      if (svcEl) {
+        svcEl.textContent = up + '/' + uptime.length;
+        var dot = svcEl.closest('.header-led') ? svcEl.closest('.header-led').querySelector('.led-dot') : null;
+        if (dot) dot.className = 'led-dot ' + (down > 0 ? 'led-red' : 'led-green');
+      }
+
+      // Notifications LED: recent error count
+      var notifEl = document.getElementById('led-notifications');
+      if (notifEl) notifEl.textContent = errors.length;
+
+      // Agents LED: pending count
+      var agentEl = document.getElementById('led-agents');
+      if (agentEl) agentEl.textContent = (inbox.count || 0) + ' pending';
+
+      // Uptime indicator: ALL UP or X DOWN
+      var uptimeEl = document.getElementById('header-uptime');
+      if (uptimeEl) {
+        if (uptime.length === 0) {
+          uptimeEl.textContent = '\u2014';
+          uptimeEl.className = 'header-glow';
+        } else if (down > 0) {
+          uptimeEl.textContent = down + ' DOWN';
+          uptimeEl.className = 'header-glow led-red';
+        } else {
+          uptimeEl.textContent = 'ALL UP';
+          uptimeEl.className = 'header-glow led-green';
+        }
+      }
+    }).catch(function() {});
+  };
+
   // ─── Health Bar ───────────────────────────────────────────
 
   async function loadHealthBar() {
