@@ -177,10 +177,15 @@ async def update_group(
             f"RETURNING id, name, description, created_by, created_at, updated_at",
             *args,
         )
+        member_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM user_group_memberships WHERE group_id = $1",
+            group_id,
+        )
         return {
             "id": str(row["id"]),
             "name": row["name"],
             "description": row["description"],
+            "member_count": member_count,
             "created_by": str(row["created_by"]) if row["created_by"] else None,
             "created_at": str(row["created_at"]),
             "updated_at": str(row["updated_at"]),
@@ -224,6 +229,12 @@ async def add_member(
         if user.role != "admin" and str(existing["created_by"]) != user.user_id and not is_owner:
             raise HTTPException(status_code=403, detail="Only admins or group owners can add members")
 
+        user_exists = await conn.fetchval(
+            "SELECT 1 FROM users WHERE id = $1", body.user_id
+        )
+        if not user_exists:
+            raise HTTPException(status_code=400, detail="User not found")
+
         await conn.execute(
             """
             INSERT INTO user_group_memberships (user_id, group_id, role)
@@ -252,6 +263,13 @@ async def remove_member(
         is_owner = await _is_group_owner(conn, group_id, user.user_id) if user.user_id else False
         if user.role != "admin" and str(existing["created_by"]) != user.user_id and not is_owner:
             raise HTTPException(status_code=403, detail="Only admins or group owners can remove members")
+
+        member_exists = await conn.fetchrow(
+            "SELECT 1 FROM user_group_memberships WHERE group_id = $1 AND user_id = $2",
+            group_id, user_id,
+        )
+        if not member_exists:
+            raise HTTPException(status_code=404, detail="Member not found in group")
 
         await conn.execute(
             "DELETE FROM user_group_memberships WHERE group_id = $1 AND user_id = $2",
