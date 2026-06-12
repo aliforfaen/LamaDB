@@ -1,5 +1,7 @@
 """User management endpoints — identity profiles for agents and humans."""
 import asyncio
+import json
+import re
 import secrets
 from typing import Annotated
 
@@ -12,6 +14,8 @@ from app.db import get_pool
 from app.config import settings
 
 router = APIRouter(tags=["users"])
+
+DEFAULT_THEME = {"scheme": "dark", "accent": "#6366f1"}
 
 USER_KEY_PREFIX = "lamadb_user_"
 
@@ -241,3 +245,54 @@ async def deactivate_user(
             user_id,
         )
     return {"status": "deactivated"}
+
+
+@router.get("/users/me/theme")
+async def get_my_theme(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
+    """Get the authenticated user's theme preferences."""
+    if not user.user_id:
+        return DEFAULT_THEME
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT theme FROM users WHERE id = $1", user.user_id)
+
+    if not row or not row["theme"]:
+        return DEFAULT_THEME
+
+    theme = row["theme"]
+    if isinstance(theme, str):
+        theme = json.loads(theme)
+
+    return theme
+
+
+@router.put("/users/me/theme")
+async def update_my_theme(
+    body: dict,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
+    """Update the authenticated user's theme preferences."""
+    if not user.user_id:
+        raise HTTPException(status_code=403, detail="No user identity on this API key")
+
+    scheme = body.get("scheme", DEFAULT_THEME["scheme"])
+    accent = body.get("accent", DEFAULT_THEME["accent"])
+
+    if scheme not in ("dark", "light"):
+        raise HTTPException(status_code=422, detail="scheme must be 'dark' or 'light'")
+
+    if not re.match(r'^#[0-9a-fA-F]{6}$', accent):
+        raise HTTPException(status_code=422, detail="accent must be a hex color like '#6366f1'")
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET theme = $1, updated_at = now() WHERE id = $2",
+            json.dumps({"scheme": scheme, "accent": accent}),
+            user.user_id,
+        )
+
+    return {"scheme": scheme, "accent": accent}
