@@ -17,6 +17,11 @@
     }
   };
 
+  function stripAnsi(str) {
+    if (!str) return '';
+    return str.replace(/\x1b\[[0-9;]*m/g, '').replace(/\[\[[0-9;]*m/g, '');
+  }
+
   function renderEventsTable(events) {
     var tbody = document.getElementById('events-tbody');
     if (!tbody) return;
@@ -37,8 +42,8 @@
         '<td class="nowrap">' + (ev.source || '') + '</td>' +
         '<td class="mono nowrap">' + (ev.type || '') + '</td>' +
         '<td><span class="sev-badge ' + sevClass + '">' + sev + '</span></td>' +
-        '<td class="truncate-cell" title="' + (ev.title || '') + '">' + (ev.title || '') + '</td>' +
-        '<td class="truncate-cell" title="' + bodyPreview + '">' + bodyPreview + '</td>' +
+        '<td class="truncate-cell" title="' + stripAnsi(ev.title || '') + '">' + stripAnsi(ev.title || '') + '</td>' +
+        '<td class="truncate-cell" title="' + stripAnsi(bodyPreview) + '">' + stripAnsi(bodyPreview) + '</td>' +
         '<td><input type="checkbox" ' + done + ' onclick="event.stopPropagation();" /></td>' +
       '</tr>' +
       '<tr class="row-detail">' +

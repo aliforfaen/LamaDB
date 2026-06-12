@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 
 import httpx
 
@@ -14,10 +15,14 @@ logger = logging.getLogger(__name__)
 # Maximum events to insert per container per cycle to limit CPU/DB load
 MAX_EVENTS_PER_CONTAINER = 50
 
+_ANSI_RE = re.compile(r'\x1b\[[0-9;]*m')
+
 
 def _sanitize(text: str) -> str:
-    """Strip null bytes and replace non-UTF8 sequences so Postgres accepts the text."""
-    return text.replace("\x00", "").encode("utf-8", errors="replace").decode("utf-8")
+    """Strip ANSI escape codes, null bytes, and replace non-UTF8 sequences."""
+    text = _ANSI_RE.sub('', text)
+    text = text.replace("\x00", "")
+    return text.encode("utf-8", errors="replace").decode("utf-8")
 
 
 def _event_dedup_key(container_id: str, level: str, message: str) -> str:
