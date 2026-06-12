@@ -59,6 +59,7 @@
       await api('/api/dashboard/overview');
       hideAuthModal();
       connectSSE();
+      fetchAndApplyTheme();
       navigateTo(currentPage || 'overview');
     } catch (e) {
       document.getElementById('api-key-error').textContent = 'Invalid API key — access denied.';
@@ -159,6 +160,9 @@
   function initTheme() {
     var theme = getPreferredTheme();
     applyTheme(theme);
+    // Apply stored accent on init
+    var storedAccent = localStorage.getItem('lamadb_accent');
+    if (storedAccent) applyAccent(storedAccent);
     if (window.matchMedia) {
       window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
         var stored = localStorage.getItem('lamadb_theme');
@@ -169,10 +173,39 @@
     }
   }
 
+  function applyAccent(accent) {
+    document.documentElement.style.setProperty('--accent', accent);
+    document.documentElement.style.setProperty('--accent-dim', accent + '20');
+    document.documentElement.style.setProperty('--accent-glow', accent + '40');
+  }
+  window.applyAccent = applyAccent;
+
+  async function fetchAndApplyTheme() {
+    try {
+      var theme = await api('/api/users/me/theme');
+      if (theme && theme.scheme) {
+        applyTheme(theme.scheme);
+        localStorage.setItem('lamadb_theme', theme.scheme);
+      }
+      if (theme && theme.accent) {
+        applyAccent(theme.accent);
+        localStorage.setItem('lamadb_accent', theme.accent);
+      }
+    } catch (e) {
+      var storedAccent = localStorage.getItem('lamadb_accent');
+      if (storedAccent) applyAccent(storedAccent);
+    }
+  }
+
   window.toggleTheme = function() {
     var newTheme = _currentTheme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('lamadb_theme', newTheme);
     applyTheme(newTheme);
+    var accent = localStorage.getItem('lamadb_accent') || '#6366f1';
+    api('/api/users/me/theme', {
+      method: 'PUT',
+      body: JSON.stringify({ scheme: newTheme, accent: accent })
+    }).catch(function() {});
   };
 
   // ─── Command Palette ────────────────────────────────────────────────────────
@@ -720,6 +753,7 @@
       api('/api/dashboard/overview').then(function() {
         if (window.loadOverview) window.loadOverview();
         connectSSE();
+        fetchAndApplyTheme();
       }).catch(function() {
         showAuthModal();
       });

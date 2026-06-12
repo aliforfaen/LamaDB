@@ -13,6 +13,7 @@
     loadApiKeys();
     loadHealth();
     loadCacheStats();
+    loadAppearance();
   };
 
   // ─── Module Management ─────────────────────────────────────────────────────
@@ -304,6 +305,58 @@
         }).catch(function() {});
       }).catch(function() {});
     } catch (e) {}
+  };
+
+  // ─── Appearance (Accent Picker) ───────────────────────────────────────────
+  function loadAppearance() {
+    var container = document.getElementById('appearance-section');
+    if (!container) return;
+
+    var accents = [
+      { name: 'Indigo', hex: '#6366f1' },
+      { name: 'Emerald', hex: '#10b981' },
+      { name: 'Rose', hex: '#f43f5e' },
+      { name: 'Amber', hex: '#f59e0b' },
+      { name: 'Cyan', hex: '#06b6d4' },
+      { name: 'Violet', hex: '#8b5cf6' },
+    ];
+
+    var currentAccent = localStorage.getItem('lamadb_accent') || '#6366f1';
+    var currentScheme = localStorage.getItem('lamadb_theme') || 'dark';
+
+    container.innerHTML =
+      '<h4>Appearance</h4>' +
+      '<div style="margin-bottom:16px;">' +
+        '<label style="display:block;margin-bottom:8px;color:var(--fg-2);font-size:13px;">Color Scheme</label>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button class="btn btn-sm ' + (currentScheme === 'dark' ? 'btn-primary' : 'btn-ghost') + '" onclick="window.toggleTheme(); loadAppearance();">Dark</button>' +
+          '<button class="btn btn-sm ' + (currentScheme === 'light' ? 'btn-primary' : 'btn-ghost') + '" onclick="window.toggleTheme(); loadAppearance();">Light</button>' +
+        '</div>' +
+      '</div>' +
+      '<div>' +
+        '<label style="display:block;margin-bottom:8px;color:var(--fg-2);font-size:13px;">Accent Color</label>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+          accents.map(function(a) {
+            var isActive = a.hex === currentAccent;
+            return '<button class="accent-swatch' + (isActive ? ' active' : '') + '" ' +
+              'onclick="setAccent(\'' + a.hex + '\')" ' +
+              'title="' + a.name + '" ' +
+              'style="width:32px;height:32px;border-radius:50%;background:' + a.hex + ';border:3px solid ' + (isActive ? 'var(--fg)' : 'transparent') + ';cursor:pointer;transition:border-color 0.2s;">' +
+            '</button>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+  }
+
+  window.setAccent = function(hex) {
+    localStorage.setItem('lamadb_accent', hex);
+    if (window.applyAccent) window.applyAccent(hex);
+    var scheme = localStorage.getItem('lamadb_theme') || 'dark';
+    window.api('/api/users/me/theme', {
+      method: 'PUT',
+      body: JSON.stringify({ scheme: scheme, accent: hex })
+    }).catch(function() {});
+    loadAppearance();
   };
 
   // ─── Module Config ─────────────────────────────────────────────────────────
