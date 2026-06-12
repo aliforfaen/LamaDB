@@ -90,7 +90,8 @@
       return;
     }
 
-    var data = status.data;
+    // Handle both {data: {sonarr: ...}} and {sonarr: ...} shapes
+    var data = status.data || status;
     var ts = status.ts ? window.relativeTime(status.ts) : '';
     var html = '';
 
