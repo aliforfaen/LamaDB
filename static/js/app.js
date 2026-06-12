@@ -398,6 +398,7 @@
     else if (pageId === 'settings') window.loadSettings && window.loadSettings();
     else if (pageId === 'search') window.loadSearch && window.loadSearch();
     else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
+    window.updateSidebarBadges && window.updateSidebarBadges();
     window.updateFooter && window.updateFooter();
   };
 
