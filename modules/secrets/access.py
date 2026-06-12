@@ -13,8 +13,15 @@ async def can_reveal(secret: dict, auth_user: AuthUser) -> bool:
         return True
 
     owner_group_id = secret.get("owner_group_id")
-    if owner_group_id and owner_group_id in (auth_user.groups or []):
-        return True
+    if owner_group_id and user_id:
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT 1 FROM user_group_memberships WHERE group_id = $1 AND user_id = $2",
+                owner_group_id, user_id,
+            )
+            if row:
+                return True
 
     if user_id:
         pool = get_pool()

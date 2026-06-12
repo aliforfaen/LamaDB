@@ -96,6 +96,8 @@ async def list_secrets(
 
 @router.get("/requests")
 async def list_access_requests(user: AuthUser = Depends(get_current_user), status_filter: Optional[str] = Query(None, alias="status")):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
     pool = get_pool()
     conditions = []; args = []; idx = 1
     if status_filter: conditions.append(f"sar.status = ${idx}"); args.append(status_filter); idx += 1
