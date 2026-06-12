@@ -19,6 +19,7 @@
   --border-light: #2e3033;
   --accent: #00ff88;
   --accent-dim: rgba(0, 255, 136, 0.12);
+  --accent-glow: rgba(0, 255, 136, 0.4);
   --accent-cyan: #00d4ff;
   --accent-cyan-dim: rgba(0, 212, 255, 0.12);
   --warn: #ffaa00;
@@ -55,6 +56,7 @@
   --success: #008850;
   --accent: #008850;
   --accent-dim: rgba(0, 136, 80, 0.10);
+  --accent-glow: rgba(0, 136, 80, 0.15);
   --accent-cyan: #0088aa;
   --accent-cyan-dim: rgba(0, 136, 170, 0.10);
   --warn: #b8860b;
@@ -1491,7 +1493,7 @@ table td.nowrap { white-space: nowrap; }
 }
 .header-glow {
   color: var(--accent);
-  text-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
+  text-shadow: 0 0 6px var(--accent-glow);
 }
 
 /* ─── TICKER MARQUEE ─── */
