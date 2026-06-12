@@ -55,6 +55,7 @@
         '<div class="mon-url monitor-url">' + (m.monitor_url || '\u2014') + '</div>' +
         '<div class="mon-status ' + statusCls + '">' + statusLabel + '</div>' +
         '<div class="mon-meta"><span>\u2665 ' + ts + '</span><span>\u21bb ' + dur + '</span></div>' +
+        '<div class="sparkline-container" data-monitor-id="' + m.monitor_id + '"></div>' +
       '</div>';
     }).join('');
   }
@@ -82,14 +83,12 @@
   }
 
   function renderSparklines(monitors) {
-    var cards = document.querySelectorAll('#page-uptime .monitor-card');
-    cards.forEach(function(card) {
-      var mid = card.dataset.monitorId;
+    var containers = document.querySelectorAll('#page-uptime .sparkline-container');
+    containers.forEach(function(container) {
+      var mid = container.dataset.monitorId;
       if (!mid || !monitors || !monitors[mid]) return;
-      var prev = card.querySelector('.sparkline');
-      if (prev) prev.remove();
       var svg = buildSparkline(monitors[mid]);
-      card.insertAdjacentHTML('beforeend', svg);
+      container.innerHTML = svg;
     });
   }
 
