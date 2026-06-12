@@ -76,10 +76,16 @@ CREATE INDEX IF NOT EXISTS idx_secret_audit_created ON secret_audit_log(created_
 -- ─── Master encryption key (server-side, never leaves PostgreSQL) ──────
 
 DO $$
+DECLARE
+    _key TEXT;
 BEGIN
-    IF current_setting('secrets.encryption_key', true) IS NULL THEN
-        PERFORM set_config('secrets.encryption_key',
-            encode(gen_random_bytes(32), 'hex'), false);
+    _key := current_setting('secrets.encryption_key', true);
+    IF _key IS NULL THEN
+        _key := encode(gen_random_bytes(32), 'hex');
+        EXECUTE format('ALTER SYSTEM SET secrets.encryption_key = %L', _key);
+        PERFORM pg_reload_conf();
+        -- Also set for the current session so reveal_secret_value() works immediately
+        PERFORM set_config('secrets.encryption_key', _key, false);
     END IF;
 END $$;
 
