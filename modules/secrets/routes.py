@@ -171,8 +171,8 @@ async def delete_secret(secret_id: str, request: Request, user: AuthUser = Depen
         secret_data = _secret_row_to_response(existing)
         if not await can_manage(secret_data, user):
             raise HTTPException(status_code=403, detail="You do not have permission to delete this secret")
+        await log_audit(secret_id, user.user_id, "delete", "Deleted secret", _get_client_ip(request))
         await conn.execute("DELETE FROM secrets WHERE id = $1", secret_id)
-    await log_audit(secret_id, user.user_id, "delete", "Deleted secret", _get_client_ip(request))
 
 
 @router.get("/{secret_id}/reveal")
@@ -212,8 +212,8 @@ async def list_access_grants(secret_id: str, user: AuthUser = Depends(get_curren
         if not existing: raise HTTPException(status_code=404, detail="Secret not found")
         rows = await conn.fetch(
             """SELECT sa.*, CASE WHEN sa.grantee_type = 'user' THEN u.name WHEN sa.grantee_type = 'group' THEN g.name END AS grantee_name
-            FROM secret_access sa LEFT JOIN users u ON sa.grantee_type = 'user' AND sa.grantee_id = u.id::text
-            LEFT JOIN groups g ON sa.grantee_type = 'group' AND sa.grantee_id = g.id::text
+            FROM secret_access sa LEFT JOIN users u ON sa.grantee_type = 'user' AND sa.grantee_id = u.id
+            LEFT JOIN groups g ON sa.grantee_type = 'group' AND sa.grantee_id = g.id
             WHERE sa.secret_id = $1 ORDER BY sa.granted_at DESC""", secret_id)
         return [{"id": r["id"], "secret_id": str(r["secret_id"]), "grantee_type": r["grantee_type"], "grantee_id": r["grantee_id"], "grantee_name": r["grantee_name"] or "", "access_level": r["access_level"], "granted_by": str(r["granted_by"]) if r["granted_by"] else None, "granted_at": str(r["granted_at"])} for r in rows]
 
