@@ -8,6 +8,10 @@ services:
       POSTGRES_USER: lamadb
       POSTGRES_PASSWORD: lamadb_secret
       POSTGRES_DB: lamadb
+    command: >
+      postgres
+      -c shared_preload_libraries='pg_cron'
+      -c cron.database_name=lamadb
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
