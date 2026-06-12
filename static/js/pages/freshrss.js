@@ -52,6 +52,7 @@
         '</tbody></table></div>';
       }
     } catch (e) {
+      console.error('[LamaDB] FreshRSS error:', e);
       if (statusText) statusText.textContent = 'Error';
       if (cards) cards.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed to load FreshRSS status: ' + e.message + '</div>';
     }
@@ -98,6 +99,7 @@
         footer.classList.remove('has-issues');
       }
     } catch (e) {
+      console.error('[LamaDB] Sidebar status error:', e);
       var footer = document.querySelector('.sidebar-footer');
       if (footer) {
         footer.innerHTML = '<div><span class="status-dot" style="background:var(--muted);"></span>Status unavailable</div><span>Self-hosted \u00b7 PostgreSQL \u00b7 FastAPI</span>';
@@ -113,6 +115,7 @@
       window.loadFreshrssPage();
       if (btn) { btn.disabled = false; btn.textContent = '\u21bb Sync Now'; }
     }).catch(function(e) {
+      console.error('[LamaDB] Freshrss sync error:', e);
       window.showToast('Sync failed: ' + e.message, null, null, 3000);
       if (btn) { btn.disabled = false; btn.textContent = '\u21bb Sync Now'; }
     });

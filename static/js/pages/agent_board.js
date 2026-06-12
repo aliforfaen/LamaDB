@@ -128,6 +128,7 @@
     window.api('/api/agent_board/tasks').then(function(tasks) {
       renderAbTasks(tasks);
     }).catch(function(e) {
+      console.error('[LamaDB] Agent board tasks error:', e);
       var el = document.getElementById('ab-tasks');
       if (el) el.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
     });
@@ -157,6 +158,7 @@
     window.api('/api/agent_board/messages').then(function(messages) {
       renderAbMessages(messages);
     }).catch(function(e) {
+      console.error('[LamaDB] Agent board messages error:', e);
       var el = document.getElementById('ab-messages');
       if (el) el.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
     });

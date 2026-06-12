@@ -50,6 +50,7 @@
         window.renderTicker(items);
       }
     } catch (e) {
+      console.error('[LamaDB] Ticker error:', e);
       // Ticker not essential — silently ignore failures
     }
   }
@@ -158,6 +159,7 @@
       if (el5) el5.textContent = 'connected';
       if (dot5) dot5.className = 'health-dot health-dot-up';
     } catch (e) {
+      console.error('[LamaDB] Health bar error:', e);
       var bar = document.getElementById('health-bar');
       if (bar) bar.classList.add('health-bar-error');
     }
@@ -175,6 +177,7 @@
       await window.api('/api/dashboard/poll/' + moduleName, { method: 'POST' });
       if (window.showToast) window.showToast('Polled ' + moduleName + ': OK', 'success');
     } catch (e) {
+      console.error('[LamaDB] Poll error:', e);
       if (window.showToast) window.showToast('Poll failed: ' + e.message, 'error');
     }
     btn.textContent = origText;
@@ -306,6 +309,7 @@
         '</div>';
       }).join('');
     } catch (e) {
+      console.error('[LamaDB] Activity feed error:', e);
       feed.innerHTML = '<div class="activity-line error">Activity feed unavailable</div>';
     }
 
@@ -334,6 +338,7 @@
         '</div>';
       }).join('');
     } catch (e) {
+      console.error('[LamaDB] RSS headlines error:', e);
       list.innerHTML = '<div class="rss-item error">RSS unavailable</div>';
     }
 
@@ -373,6 +378,7 @@
         '<span class="agent-info">' + (inboxCount.unread || 0) + ' unread</span>';
       list.appendChild(boardItem);
     } catch (e) {
+      console.error('[LamaDB] Agent status error:', e);
       list.innerHTML = '<div class="agent-item error">Agent API unreachable</div>';
     }
 
@@ -401,6 +407,7 @@
       input.value = '';
       if (window.showToast) window.showToast('Saved to scratchpad', 'success');
     } catch (e) {
+      console.error('[LamaDB] Scratchpad error:', e);
       if (window.showToast) window.showToast('Failed to save', 'error');
     }
     btn.disabled = false;

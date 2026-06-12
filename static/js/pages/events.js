@@ -13,6 +13,7 @@
       var data = await window.api('/api/events?' + params.toString());
       renderEventsTable(data);
     } catch (e) {
+      console.error('[LamaDB] Events error:', e);
       window.showError('Failed to load events: ' + e.message);
     }
   };

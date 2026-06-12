@@ -14,6 +14,7 @@
       renderHermesStats(results[1]);
       renderHermesSessions(results[2]);
     } catch (e) {
+      console.error('[LamaDB] Hermes error:', e);
       var cards = document.getElementById('hermes-sys-cards');
       if (cards) cards.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
     }
@@ -142,6 +143,7 @@
         badge.innerHTML = '<span class="sev-badge critical">unreachable</span>';
       }
     } catch (e) {
+      console.error('[LamaDB] Hermes health error:', e);
       badge.innerHTML = '<span class="sev-badge critical">unreachable</span>';
     }
   }

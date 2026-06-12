@@ -78,6 +78,7 @@
       updateContainerCount(result.count || 0);
 
     } catch (e) {
+      console.error('[LamaDB] Dozzle error:', e);
       var container = document.getElementById('dozzle-content');
       if (container) container.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load logs: ' + window.escHtml(e.message) + '</div>';
     }

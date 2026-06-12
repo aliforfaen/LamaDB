@@ -9,15 +9,15 @@
       var status = await window.api('/api/uptime/status');
       renderMonitorGrid(status);
       updateSummaryBar(status);
-    } catch (e) { window.showError('Failed to load uptime status: ' + e.message); }
+    } catch (e) { console.error('[LamaDB] Uptime status error:', e); window.showError('Failed to load uptime status: ' + e.message); }
     try {
       var history = await window.api('/api/uptime/history?limit=50');
       renderStatusHistory(history);
-    } catch (e) {}
+    } catch (e) { console.error('[LamaDB] Uptime history error:', e); }
     try {
       var recentData = await window.api('/api/uptime/history/recent?limit=30');
       renderSparklines(recentData.monitors);
-    } catch (e) {}
+    } catch (e) { console.error('[LamaDB] Uptime sparklines error:', e); }
   };
 
   function updateSummaryBar(status) {
@@ -142,6 +142,7 @@
       var data = await window.api('/api/uptime/topology');
       renderTopology(data);
     } catch (e) {
+      console.error('[LamaDB] Topology error:', e);
       tc.innerHTML = '<div style="padding:20px;color:var(--danger);">Failed to load topology: ' + window.escHtml(e.message) + '</div>';
     }
   }
@@ -159,6 +160,7 @@
       result.innerHTML = '<div style="color:var(--accent);padding:8px;background:var(--accent-dim);border-radius:4px;">' +
         '\u2713 ' + data.message + '</div>';
     } catch (e) {
+      console.error('[LamaDB] Poll uptime error:', e);
       result.style.display = 'block';
       result.innerHTML = '<div style="color:var(--danger);padding:8px;background:var(--danger-dim);border-radius:4px;">' +
         '\u2717 Poll failed: ' + e.message + '</div>';

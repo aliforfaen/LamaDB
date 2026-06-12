@@ -16,6 +16,7 @@
       var statusEl = document.getElementById('notflix-status');
       if (statusEl) statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
     } catch (e) {
+      console.error('[LamaDB] Notflix error:', e);
       var statsEl = document.getElementById('notflix-stats');
       if (statsEl) statsEl.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
     }

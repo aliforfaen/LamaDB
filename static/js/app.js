@@ -431,6 +431,7 @@
 
   // ─── Error banner ───────────────────────────────────────────────────────────
   window.showError = function(message) {
+    console.error('[LamaDB]', message);
     var existing = document.querySelector('.error-banner');
     if (existing) existing.remove();
     var banner = document.createElement('div');
