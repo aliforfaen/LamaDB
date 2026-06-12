@@ -18,6 +18,7 @@ class AuthUser(BaseModel):
     role: str
     scopes: list[str]
     user_id: str | None = None  # Linked users.id (None for legacy unlinked keys)
+    groups: list[str] = []  # Group names this user belongs to (empty if no user_id or no memberships)
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +78,28 @@ async def _touch_last_active(user_id: str):
         pass  # Never fail a request because of tracking
 
 
+async def _fetch_user_groups(user_id: str) -> list[str]:
+    """Fetch group names for a user. Returns empty list if no groups or no user_id."""
+    if not user_id:
+        return []
+    try:
+        from app.db import get_pool
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT g.name FROM groups g
+                JOIN user_group_memberships ugm ON g.id = ugm.group_id
+                WHERE ugm.user_id = $1
+                ORDER BY g.name
+                """,
+                user_id,
+            )
+            return [r["name"] for r in rows]
+    except Exception:
+        return []
+
+
 async def _authenticate(token: str) -> AuthUser:
     """Core auth logic: O(1) prefix lookup with O(N) fallback.
 
@@ -112,6 +135,7 @@ async def _authenticate(token: str) -> AuthUser:
                 asyncio.create_task(_touch_last_used(user.key_id))
                 if user.user_id:
                     asyncio.create_task(_touch_last_active(user.user_id))
+                user.groups = await _fetch_user_groups(user.user_id)
                 return user
 
         # Fallback for legacy keys without key_prefix populated.
@@ -155,6 +179,7 @@ async def _authenticate(token: str) -> AuthUser:
                 asyncio.create_task(_touch_last_used(user.key_id))
                 if user.user_id:
                     asyncio.create_task(_touch_last_active(user.user_id))
+                user.groups = await _fetch_user_groups(user.user_id)
                 return user
 
     raise HTTPException(

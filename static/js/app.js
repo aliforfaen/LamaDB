@@ -127,6 +127,16 @@
         }
       } catch(ex) {}
     });
+    _sseSource.addEventListener('secret_updated', function(e) {
+      try {
+        if (window._currentPage === 'secrets' && window.loadSecrets) window.loadSecrets();
+      } catch(ex) {}
+    });
+    _sseSource.addEventListener('secret_request_updated', function(e) {
+      try {
+        if (window._currentPage === 'access-requests' && window.loadAccessRequests) window.loadAccessRequests();
+      } catch(ex) {}
+    });
     _sseSource.onerror = function() {
       if (_sseSource && _sseSource.readyState === EventSource.CLOSED) {
         _sseSource = null;
@@ -371,7 +381,10 @@
     'hermes':     document.getElementById('page-hermes'),
     'settings':   document.getElementById('page-settings'),
     'notifications': document.getElementById('page-notifications'),
-    'search':     document.getElementById('page-search')
+    'search':     document.getElementById('page-search'),
+    'secrets':    document.getElementById('page-secrets'),
+    'access-requests': document.getElementById('page-access-requests'),
+    'groups':     document.getElementById('page-groups')
   };
   var titles = {
     'overview': 'Overview',
@@ -390,7 +403,10 @@
     'hermes': 'Hermes',
     'settings': 'Settings',
     'notifications': 'Notifications',
-    'search': 'Search'
+    'search': 'Search',
+    'secrets': 'Secrets',
+    'access-requests': 'Access Requests',
+    'groups': 'Groups'
   };
   var currentPage = 'overview';
 
@@ -431,6 +447,9 @@
     else if (pageId === 'settings') window.loadSettings && window.loadSettings();
     else if (pageId === 'search') window.loadSearch && window.loadSearch();
     else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
+    else if (pageId === 'secrets') window.loadSecrets && window.loadSecrets();
+    else if (pageId === 'access-requests') window.loadAccessRequestsPage && window.loadAccessRequestsPage();
+    else if (pageId === 'groups') window.loadGroups && window.loadGroups();
     window.updateSidebarBadges && window.updateSidebarBadges();
     window.updateFooter && window.updateFooter();
   };
@@ -499,7 +518,7 @@
 
   // ─── Sidebar categories ────────────────────────────────────────────────────
   function initSidebarCategories() {
-    var cats = ['core', 'monitoring', 'datasources', 'admin'];
+    var cats = ['core', 'monitoring', 'datasources', 'admin', 'security'];
     cats.forEach(function(cat) {
       var stored = localStorage.getItem('sidebar_cat_' + cat);
       var items = document.getElementById('items-' + cat);

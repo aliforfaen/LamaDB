@@ -195,6 +195,29 @@
           </button>
         </div>
       </div>
+
+      <!-- ─── Security ─── -->
+      <div class="sidebar-category" data-category="security">
+        <button class="sidebar-category-header" onclick="window.toggleSidebarCategory('security')">
+          <span class="chevron" id="chevron-security">&#9654;</span>
+          Security
+          <span class="cat-badge" id="badge-security"></span>
+        </button>
+        <div class="sidebar-category-items" id="items-security">
+          <button class="nav-item" data-page="secrets">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Secrets</span>
+          </button>
+          <button class="nav-item" data-page="access-requests">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            <span>Access Requests</span>
+          </button>
+          <button class="nav-item" data-page="groups">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Groups</span>
+          </button>
+        </div>
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -1301,6 +1324,76 @@
 
       </section>
 
+      <!-- ════════════════════ GROUPS PAGE ════════════════════ -->
+      <section id="page-groups" class="page" aria-label="Groups">
+        <div class="page-header">
+          <h2>Groups</h2>
+          <p class="page-subtitle">Manage user groups for access control</p>
+        </div>
+        <div class="card">
+          <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+            <input type="text" id="new-group-name" placeholder="Group name" class="form-input" style="flex:1">
+            <input type="text" id="new-group-desc" placeholder="Description" class="form-input" style="flex:2">
+            <button class="btn btn-primary" onclick="window.createGroup()">Create Group</button>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
+            <table class="table">
+              <thead><tr><th>Name</th><th>Description</th><th>Members</th><th>Created</th></tr></thead>
+              <tbody id="groups-table-body"></tbody>
+            </table>
+            <div id="groups-detail" class="card" style="background:var(--surface-2)"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════ SECRETS PAGE ════════════════════ -->
+      <section id="page-secrets" class="page" aria-label="Secrets">
+        <div class="page-header">
+          <h2>Secrets</h2>
+          <p class="page-subtitle">Encrypted credentials, API keys, and logins</p>
+        </div>
+        <div class="card">
+          <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="window.showNewSecretForm()">+ New Secret</button>
+            <input type="text" id="secret-filter-service" placeholder="Filter service..." class="form-input" style="width:150px" onchange="window.loadSecrets({service: this.value})">
+            <select id="secret-filter-type" class="form-input" style="width:120px" onchange="window.loadSecrets({type: this.value})">
+              <option value="">All types</option>
+              <option value="api_key">API Key</option>
+              <option value="oauth">OAuth</option>
+              <option value="login">Login</option>
+              <option value="token">Token</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
+            <table class="table">
+              <thead><tr><th>Name</th><th>Service</th><th>Type</th><th>Priority</th><th>Tags</th><th>Expires</th><th>Last Used</th></tr></thead>
+              <tbody id="secrets-table-body"></tbody>
+            </table>
+            <div id="secrets-detail" class="card" style="background:var(--surface-2)"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════ ACCESS REQUESTS PAGE ════════════════════ -->
+      <section id="page-access-requests" class="page" aria-label="Access Requests">
+        <div class="page-header">
+          <h2>Access Requests</h2>
+          <p class="page-subtitle">Review and manage secret access requests</p>
+        </div>
+        <div class="card">
+          <div id="requests-filter-bar" style="display:flex;gap:0.5rem;margin-bottom:1rem">
+            <button class="btn btn-sm filter-tab active" data-status="pending" onclick="window.loadAccessRequests('pending')">Pending</button>
+            <button class="btn btn-sm filter-tab" data-status="approved" onclick="window.loadAccessRequests('approved')">Approved</button>
+            <button class="btn btn-sm filter-tab" data-status="rejected" onclick="window.loadAccessRequests('rejected')">Rejected</button>
+          </div>
+          <table class="table">
+            <thead><tr><th>Requester</th><th>Secret</th><th>Reason</th><th>Requested</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="requests-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
     </div><!-- /main-body -->
   </div><!-- /main -->
 </div><!-- /app-shell -->
@@ -1524,6 +1617,9 @@
   <script src="/js/pages/settings.js"></script>
   <script src="/js/pages/users.js"></script>
   <script src="/js/pages/kanban.js"></script>
+  <script src="/js/pages/groups.js"></script>
+  <script src="/js/pages/secrets.js"></script>
+  <script src="/js/pages/access_requests.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <script src="/js/lib/dragdrop.js"></script>
 
