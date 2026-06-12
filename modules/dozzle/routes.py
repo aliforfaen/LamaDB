@@ -174,13 +174,40 @@ async def list_containers(
 async def get_logs(
     request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
-    container_id: str = Query(..., description="Container ID"),
+    container_id: str | None = Query(default=None, description="Container ID (omit for recent events from DB)"),
     host: str | None = Query(default=None, description="Dozzle host UUID (auto-discovered if omitted)"),
     level: str = Query(default="error", description="Log level filter (error, warn, info, debug)"),
     limit: int = Query(default=50, ge=1, le=200),
     since: str = Query(default="30m", description="Time window (e.g., 5m, 30m, 1h, 1d) — client-side filter"),
 ):
-    """Query recent log entries from Dozzle v10 host-based logs endpoint."""
+    """Query recent log entries from Dozzle v10 host-based logs endpoint.
+
+    If container_id is omitted, returns recent Dozzle events from the database
+    rather than live logs (useful when Dozzle is unreachable).
+    """
+    if not container_id:
+        # Return recent events from the database
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT source, type, severity, title, body, metadata, ts
+                   FROM events WHERE source = 'dozzle'
+                   ORDER BY ts DESC LIMIT $1""",
+                limit,
+            )
+        entries = []
+        for row in rows:
+            meta = row["metadata"]
+            if isinstance(meta, str):
+                meta = json.loads(meta)
+            entries.append(LogEntry(
+                container_name=meta.get("container", "unknown"),
+                level=row["severity"],
+                message=row["title"] or row["body"] or "",
+                timestamp=row["ts"].isoformat() if row["ts"] else "",
+            ))
+        return {"logs": entries, "count": len(entries)}
+
     if not settings.dozzle_url:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

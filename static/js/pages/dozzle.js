@@ -54,6 +54,15 @@
         return;
       }
 
+      // Defensive guard: do not fetch logs without a selected container_id
+      if (!_selectedContainerId) {
+        var contentElGuard = document.getElementById('dozzle-content');
+        if (contentElGuard) {
+          contentElGuard.innerHTML = '<div style="color:var(--muted);text-align:center;padding:30px;">Select a container to view logs.</div>';
+        }
+        return;
+      }
+
       // Step 3: Fetch logs for the selected container with current filters
       var level = getActiveLevel();
       var since = getActiveSince();
