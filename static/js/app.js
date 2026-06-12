@@ -337,7 +337,8 @@
     'homeassistant': document.getElementById('page-homeassistant'),
     'hermes':     document.getElementById('page-hermes'),
     'settings':   document.getElementById('page-settings'),
-    'notifications': document.getElementById('page-notifications')
+    'notifications': document.getElementById('page-notifications'),
+    'search':     document.getElementById('page-search')
   };
   var titles = {
     'overview': 'Overview',
@@ -355,7 +356,8 @@
     'homeassistant': 'Home Assistant',
     'hermes': 'Hermes',
     'settings': 'Settings',
-    'notifications': 'Notifications'
+    'notifications': 'Notifications',
+    'search': 'Search'
   };
   var currentPage = 'overview';
 
