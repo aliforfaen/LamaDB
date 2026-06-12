@@ -57,19 +57,21 @@
 
   // ─── Header LEDs ──────────────────────────────────────────────────────
   window.updateHeader = function() {
-    // Fetch uptime status, error events, and pending agent tasks in parallel
+    // Fetch uptime status, error events, dozzle errors, and pending agent tasks in parallel
     Promise.all([
       window.api('/api/uptime/status').catch(function() { return []; }),
       window.api('/api/events?severity=error&limit=50').catch(function() { return []; }),
-      window.api('/api/agent_board/inbox/count?agent=all').catch(function() { return { count: 0 }; })
+      window.api('/api/agent_board/inbox/count?agent=all').catch(function() { return { unread: 0 }; }),
+      window.api('/api/dozzle/errors?limit=50').catch(function() { return []; })
     ]).then(function(results) {
       var uptime = results[0] || [];
       var errors = results[1] || [];
-      var inbox = results[2] || { count: 0 };
+      var inbox = results[2] || { unread: 0 };
+      var dozzleLogs = results[3] || [];
 
       // Services LED: up/total
       var up = uptime.filter(function(m) { return m.status === 1; }).length;
-      var down = uptime.length - up;
+      var down = uptime.filter(function(m) { return m.status === 0; }).length;
       var svcEl = document.getElementById('led-services');
       if (svcEl) {
         svcEl.textContent = up + '/' + uptime.length;
@@ -77,13 +79,25 @@
         if (dot) dot.className = 'led-dot ' + (down > 0 ? 'led-red' : 'led-green');
       }
 
-      // Notifications LED: recent error count
+      // Notifications LED: recent error count (last hour)
+      var hourAgo = new Date(Date.now() - 3600000);
+      var recentErrors = (errors || []).filter(function(e) {
+        return new Date(e.ts) > hourAgo;
+      }).length;
       var notifEl = document.getElementById('led-notifications');
-      if (notifEl) notifEl.textContent = errors.length;
+      if (notifEl) notifEl.textContent = recentErrors;
+
+      // Dozzle LED: error/warn counts
+      var dozzleEl = document.getElementById('led-dozzle');
+      if (dozzleEl) {
+        var errCount = (dozzleLogs || []).filter(function(l) { return l.level === 'error' || l.level === 'fatal'; }).length;
+        var warnCount = (dozzleLogs || []).filter(function(l) { return l.level === 'warn' || l.level === 'warning'; }).length;
+        dozzleEl.textContent = errCount + ' err \u00b7 ' + warnCount + ' warn';
+      }
 
       // Agents LED: pending count
       var agentEl = document.getElementById('led-agents');
-      if (agentEl) agentEl.textContent = (inbox.count || 0) + ' pending';
+      if (agentEl) agentEl.textContent = (inbox.unread || 0) + ' pending';
 
       // Uptime indicator: ALL UP or X DOWN
       var uptimeEl = document.getElementById('header-uptime');
@@ -336,7 +350,7 @@
     try {
       var [stats, inboxCount] = await Promise.all([
         window.api('/api/hermes/sessions/stats').catch(function() { return null; }),
-        window.api('/api/agent_board/inbox/count?agent=all').catch(function() { return { count: 0 }; })
+        window.api('/api/agent_board/inbox/count?agent=all').catch(function() { return { unread: 0 }; })
       ]);
 
       list.innerHTML = '';
@@ -357,7 +371,7 @@
       boardItem.innerHTML =
         '<span class="status-dot-sm dot-up"></span>' +
         '<span class="agent-name">Agent Board</span>' +
-        '<span class="agent-info">' + (inboxCount.count || 0) + ' unread</span>';
+        '<span class="agent-info">' + (inboxCount.unread || 0) + ' unread</span>';
       list.appendChild(boardItem);
     } catch (e) {
       list.innerHTML = '<div class="agent-item error">Agent API unreachable</div>';

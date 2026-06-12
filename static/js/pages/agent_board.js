@@ -36,7 +36,7 @@
   function loadInboxUnreadCount() {
     window.api('/api/agent_board/inbox/count').then(function(data) {
       var badge = document.getElementById('badge-inbox');
-      var count = data.count || 0;
+      var count = data.unread || 0;
       if (badge) {
         badge.textContent = count > 0 ? count : '';
         badge.style.display = count > 0 ? 'inline' : 'none';
