@@ -354,6 +354,55 @@ async def health_detail(user: AuthUser = Depends(require_admin)):
 
 
 # ---------------------------------------------------------------------------
+# GET /api/dashboard/maintenance/status
+# ---------------------------------------------------------------------------
+
+@router.get("/maintenance/status")
+async def maintenance_status(
+    user: AuthUser = Depends(require_admin),
+):
+    """Get the last maintenance run info."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT ts, body, metadata
+               FROM events
+               WHERE source = 'lamadb' AND type = 'maintenance'
+               ORDER BY ts DESC LIMIT 1"""
+        )
+
+    if not row:
+        return {"last_run": None, "message": "No maintenance runs yet"}
+
+    meta = row["metadata"]
+    if isinstance(meta, str):
+        import json
+        meta = json.loads(meta)
+
+    return {
+        "last_run": row["ts"].isoformat() if row["ts"] else None,
+        "message": row["body"],
+        "stats": meta,
+    }
+
+
+# ---------------------------------------------------------------------------
+# POST /api/dashboard/maintenance/run
+# ---------------------------------------------------------------------------
+
+@router.post("/maintenance/run")
+async def trigger_maintenance(
+    user: AuthUser = Depends(require_admin),
+):
+    """Manually trigger a maintenance run."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("SELECT run_maintenance()")
+
+    return {"status": "ok", "message": "Maintenance run completed"}
+
+
+# ---------------------------------------------------------------------------
 # GET /api/dashboard/module-health
 # ---------------------------------------------------------------------------
 

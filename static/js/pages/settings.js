@@ -14,6 +14,7 @@
     loadHealth();
     loadCacheStats();
     loadAppearance();
+    loadMaintenance();
   };
 
   // ─── Module Management ─────────────────────────────────────────────────────
@@ -286,6 +287,38 @@
         '<div style="margin-top:12px;">' + extHtml + '</div></div>' +
       '<div class="health-card"><h4>Tables</h4>' + tableHtml + '</div>';
   }
+
+  // ─── Maintenance ──────────────────────────────────────────────────────────
+  function loadMaintenance() {
+    var container = document.getElementById('maintenance-section');
+    if (!container) return;
+
+    window.api('/api/dashboard/maintenance/status').then(function(data) {
+      var lastRun = data.last_run ? window.relativeTime(data.last_run) : 'Never';
+      var stats = data.stats || {};
+      container.innerHTML =
+        '<h4>Database Maintenance</h4>' +
+        '<div class="health-item"><span class="label">Last Run</span><span class="value">' + lastRun + '</span></div>' +
+        '<div class="health-item"><span class="label">Events Pruned</span><span class="value">' + (stats.events_deleted || 0) + '</span></div>' +
+        '<div class="health-item"><span class="label">Dozzle Dupes Removed</span><span class="value">' + (stats.dozzle_deleted || 0) + '</span></div>' +
+        '<div class="health-item"><span class="label">Monitor Rows Pruned</span><span class="value">' + (stats.monitor_deleted || 0) + '</span></div>' +
+        '<div style="margin-top:12px;"><button class="btn btn-sm btn-ghost" onclick="triggerMaintenance()">Run Now</button></div>';
+    }).catch(function(e) {
+      container.innerHTML = '<h4>Database Maintenance</h4><div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
+    });
+  }
+
+  window.triggerMaintenance = function() {
+    var btn = document.querySelector('#maintenance-section .btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Running...'; }
+    window.api('/api/dashboard/maintenance/run', { method: 'POST' }).then(function() {
+      window.showToast('Maintenance run completed', null, null, 3000);
+      loadMaintenance();
+    }).catch(function(e) {
+      window.showToast('Failed: ' + e.message, null, null, 5000);
+      if (btn) { btn.disabled = false; btn.textContent = 'Run Now'; }
+    });
+  };
 
   window.loadCacheStats = function() {
     try {
