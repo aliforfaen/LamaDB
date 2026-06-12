@@ -183,6 +183,27 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Notification seed failed (non-fatal): {e}")
 
+        # Daily maintenance — prune old events, dedup dozzle, trim monitor_status
+        async def maintenance_loop():
+            """Run database maintenance once per day (every 24 hours)."""
+            # Wait 60s after startup so the app is fully ready
+            await asyncio.sleep(60)
+            while True:
+                try:
+                    pool = get_pool()
+                    async with pool.acquire() as conn:
+                        await conn.execute("SELECT run_maintenance()")
+                    logger.info("Maintenance run completed")
+                except Exception as e:
+                    logger.warning(f"Maintenance run failed (non-fatal): {e}")
+                # Run every 24 hours
+                await asyncio.sleep(86400)
+
+        task = asyncio.create_task(maintenance_loop())
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
+        logger.info("Started daily maintenance loop (every 24h)")
+
         # Start SSE pg_listener for real-time dashboard updates
         listener_task = asyncio.create_task(
             pg_listener(

@@ -1,8 +1,6 @@
 -- 016_dedup_cron.sql
--- pg_cron extension for automated event pruning and deduplication
-
--- Install pg_cron extension
-CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- SQL functions for automated event pruning and deduplication
+-- Scheduled by FastAPI background task (not pg_cron)
 
 -- Severity-based event retention
 CREATE OR REPLACE FUNCTION prune_events_by_severity() RETURNS INTEGER AS $$
@@ -96,6 +94,3 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql;
-
--- Schedule daily at 3 AM UTC
-SELECT cron.schedule('lamadb-maintenance', '0 3 * * *', 'SELECT run_maintenance()');
