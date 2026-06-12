@@ -94,5 +94,6 @@ def _tool_to_module(tool_name: str) -> str:
         "send_agent_message": "agent_board",
         "wiki_search": "wiki",
         "scratchpad_capture": "wiki",
+        "lamadb_docs": "",  # Universal — no scope required
     }
     return mapping.get(tool_name, "")

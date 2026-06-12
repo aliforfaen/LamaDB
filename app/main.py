@@ -256,6 +256,7 @@ def make_app() -> FastAPI:
     from app.core.mcp import (
         search_documents, get_document, create_document,
         update_document, create_event, get_events,
+        lamadb_docs,
     )
 
     register_tool(
@@ -334,6 +335,17 @@ def make_app() -> FastAPI:
             },
         },
         get_events,
+    )
+    register_tool(
+        "lamadb_docs",
+        "Read LamaDB documentation. topic='api' for the full agent API reference.",
+        {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string", "default": "api"},
+            },
+        },
+        lamadb_docs,
     )
 
     # Discover module MCP tools (uptime, agent_board, wiki)

@@ -335,3 +335,19 @@ async def get_events(source: str = None, type_: str = None, severity: str = None
         })
 
     return {"events": events, "count": len(events)}
+
+
+async def lamadb_docs(topic: str = "api") -> dict:
+    """Read LamaDB documentation. Use topic='api' for the full agent API reference."""
+    from pathlib import Path
+
+    docs = {
+        "api": Path(__file__).parent.parent.parent / "AGENTS_API.md",
+    }
+
+    path = docs.get(topic)
+    if not path or not path.exists():
+        return {"error": f"Documentation topic '{topic}' not found", "available": list(docs.keys())}
+
+    content = await asyncio.to_thread(path.read_text)
+    return {"topic": topic, "content": content}

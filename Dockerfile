@@ -14,6 +14,7 @@ COPY static/ ./static/
 COPY benchmarks/ ./benchmarks/
 COPY scripts/ ./scripts/
 COPY tests/ ./tests/
+COPY AGENTS.md AGENTS_API.md ./
 COPY pytest.ini .
 
 EXPOSE 8000
