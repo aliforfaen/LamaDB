@@ -85,6 +85,36 @@ async def clean_notif_tables(db_pool):
 
 
 # ─────────────────────────────────────────────────────────────────
+# Helper for tests that need a fully-working admin key (Phase 12)
+# ─────────────────────────────────────────────────────────────────
+
+async def _make_working_admin_headers(db_pool):
+    """Create a fresh admin API key with all required fields (incl. key_prefix).
+
+    The shared `admin_headers` fixture above omits key_prefix, which causes the
+    O(1) auth lookup (migration 013) to fall back to a full table scan — fine
+    for small test sets, but it can time out against a busy DB. This helper
+    builds a key the way the production code path does.
+    """
+    import bcrypt
+    import hashlib
+    key_plain = "test-unread-admin-" + uuid4().hex[:16]
+    key_hash = bcrypt.hashpw(
+        (settings.api_key_salt + key_plain).encode(),
+        bcrypt.gensalt()
+    ).decode()
+    key_prefix = hashlib.sha256(key_plain[:16].encode()).hexdigest()
+    name = "test-unread-admin-" + uuid4().hex[:8]
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            """INSERT INTO api_keys (name, key_hash, key_prefix, role, scopes, active)
+               VALUES ($1, $2, $3, 'admin', ARRAY['notifications'], true)""",
+            name, key_hash, key_prefix,
+        )
+    return {"Authorization": f"Bearer {key_plain}"}, name
+
+
+# ─────────────────────────────────────────────────────────────────
 # 1. test_create_rule — POST /rules → 201
 # ─────────────────────────────────────────────────────────────────
 
@@ -644,3 +674,166 @@ async def test_rule_priority_order(client, admin_headers, clean_notif_tables):
     assert data["rules_matched"] == 3
     # All three should have fired
     assert data["notifications_sent"] == 3
+
+
+# ─────────────────────────────────────────────────────────────────
+# /unread — actionable notification list for Overview page
+# ─────────────────────────────────────────────────────────────────
+
+
+@container_required
+@pytest.mark.asyncio
+async def test_unread_returns_only_unprocessed_warn_error_critical(
+    client, db_pool
+):
+    """GET /unread returns unprocessed warn/error/critical events, ordered by ts DESC."""
+    headers, key_name = await _make_working_admin_headers(db_pool)
+    try:
+        # Seed a known mix of events
+        async with db_pool.acquire() as conn:
+            # Fresh events (unprocessed, actionable)
+            await conn.execute(
+                """INSERT INTO events (source, type, severity, title, processed)
+                   VALUES ('unread_test', 't', 'warn',     'fresh warn', false)"""
+            )
+            await conn.execute(
+                """INSERT INTO events (source, type, severity, title, processed)
+                   VALUES ('unread_test', 't', 'error',    'fresh error', false)"""
+            )
+            await conn.execute(
+                """INSERT INTO events (source, type, severity, title, processed)
+                   VALUES ('unread_test', 't', 'critical', 'fresh crit', false)"""
+            )
+            # Info event — should be excluded
+            await conn.execute(
+                """INSERT INTO events (source, type, severity, title, processed)
+                   VALUES ('unread_test', 't', 'info',     'fresh info', false)"""
+            )
+            # Already-processed warn — should be excluded
+            await conn.execute(
+                """INSERT INTO events (source, type, severity, title, processed)
+                   VALUES ('unread_test', 't', 'warn',     'processed warn', true)"""
+            )
+
+        resp = await client.get(
+            "/api/notifications/unread?limit=100",
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+
+        # All unread_test items present
+        test_items = [it for it in data["items"] if it["source"] == "unread_test"]
+        test_titles = {it["title"] for it in test_items}
+        assert "fresh warn" in test_titles
+        assert "fresh error" in test_titles
+        assert "fresh crit" in test_titles
+        # Info and processed ones excluded
+        assert "fresh info" not in test_titles
+        assert "processed warn" not in test_titles
+
+        # Response shape
+        assert "items" in data
+        assert "count" in data
+        assert "total_unread" in data
+        assert isinstance(data["total_unread"], int)
+        assert data["count"] == len(data["items"])
+        # Item shape
+        sample = data["items"][0]
+        for field in ("id", "ts", "source", "type", "severity", "title", "body", "tags", "metadata"):
+            assert field in sample
+    finally:
+        async with db_pool.acquire() as conn:
+            await conn.execute("DELETE FROM events WHERE source = 'unread_test'")
+            await conn.execute("DELETE FROM api_keys WHERE name = $1", key_name)
+
+
+@container_required
+@pytest.mark.asyncio
+async def test_unread_respects_limit(client, db_pool):
+    """GET /unread?limit=N returns at most N items."""
+    headers, key_name = await _make_working_admin_headers(db_pool)
+    try:
+        resp = await client.get(
+            "/api/notifications/unread?limit=3",
+            headers=headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] <= 3
+        assert len(data["items"]) <= 3
+    finally:
+        async with db_pool.acquire() as conn:
+            await conn.execute("DELETE FROM api_keys WHERE name = $1", key_name)
+
+
+@container_required
+@pytest.mark.asyncio
+async def test_unread_validates_limit(client, db_pool):
+    """GET /unread rejects out-of-range limits (ge=1, le=100)."""
+    headers, key_name = await _make_working_admin_headers(db_pool)
+    try:
+        resp_low = await client.get("/api/notifications/unread?limit=0", headers=headers)
+        assert resp_low.status_code == 422
+        resp_high = await client.get("/api/notifications/unread?limit=500", headers=headers)
+        assert resp_high.status_code == 422
+    finally:
+        async with db_pool.acquire() as conn:
+            await conn.execute("DELETE FROM api_keys WHERE name = $1", key_name)
+
+
+@container_required
+@pytest.mark.asyncio
+async def test_unread_requires_auth(client):
+    """GET /unread returns 401 without auth."""
+    resp = await client.get("/api/notifications/unread")
+    assert resp.status_code == 401
+
+
+@container_required
+@pytest.mark.asyncio
+async def test_unread_dismissable_via_patch(client, db_pool):
+    """After PATCH /api/events/{id} {processed: true}, the event is excluded from /unread."""
+    headers, key_name = await _make_working_admin_headers(db_pool)
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                """INSERT INTO events (source, type, severity, title, processed)
+                   VALUES ('unread_test', 't', 'warn', 'dismiss me', false)"""
+            )
+            row = await conn.fetchrow(
+                "SELECT id FROM events WHERE source='unread_test' AND title='dismiss me' ORDER BY id DESC LIMIT 1"
+            )
+            event_id = row["id"]
+
+        # Confirm it's in /unread
+        resp_before = await client.get(
+            "/api/notifications/unread?limit=100", headers=headers
+        )
+        assert resp_before.status_code == 200
+        ids_before = {it["id"] for it in resp_before.json()["items"]}
+        assert event_id in ids_before
+
+        # Dismiss it
+        patch = await client.patch(
+            f"/api/events/{event_id}",
+            json={"processed": True},
+            headers=headers,
+        )
+        assert patch.status_code == 200
+
+        # Confirm it's gone
+        resp_after = await client.get(
+            "/api/notifications/unread?limit=100", headers=headers
+        )
+        assert resp_after.status_code == 200
+        ids_after = {it["id"] for it in resp_after.json()["items"]}
+        assert event_id not in ids_after
+
+        # Cleanup
+        async with db_pool.acquire() as conn:
+            await conn.execute("DELETE FROM events WHERE id = $1", event_id)
+    finally:
+        async with db_pool.acquire() as conn:
+            await conn.execute("DELETE FROM events WHERE source = 'unread_test'")
+            await conn.execute("DELETE FROM api_keys WHERE name = $1", key_name)

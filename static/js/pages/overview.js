@@ -23,6 +23,7 @@
     await Promise.all([
       loadHealthBar(),
       loadModuleCards(),
+      loadNotificationsList(),
       loadActivityFeed(),
       loadRSSHeadlines(),
       loadAgentStatus(),
@@ -41,8 +42,10 @@
       var events = await window.api('/api/events?limit=10');
       if (window.renderTicker && events && events.length > 0) {
         var items = events.map(function(e) {
+        var title = typeof e.title === 'string' ? e.title : (e.title ? JSON.stringify(e.title) : '');
+        var body = typeof e.body === 'string' ? e.body : (e.body ? JSON.stringify(e.body) : '');
           return {
-            text: (e.source ? e.source + ': ' : '') + (e.title || e.body || ''),
+            text: (e.source ? e.source + ': ' : '') + (title || body || '(no details)'),
             severity: e.severity,
             type: e.severity === 'critical' ? 'break' : e.severity
           };
@@ -279,6 +282,94 @@
 
     _setPoll(loadModuleCards, POLL_INTERVALS.modules);
   }
+
+  // ─── Notifications List (unread warn/error/critical) ─────────
+
+  async function loadNotificationsList() {
+    var list = document.getElementById('notifications-list');
+    if (!list) return;
+
+    try {
+      var data = await window.api('/api/notifications/unread?limit=20');
+      var items = (data && data.items) || [];
+      var total = (data && data.total_unread) || 0;
+      var countEl = document.getElementById('notifications-count');
+      var footer = document.getElementById('notifications-footer');
+
+      if (countEl) {
+        countEl.textContent = total > 0 ? total + ' unread' : 'all clear';
+        countEl.className = 'widget-badge' + (total > 0 ? ' has-unread' : '');
+      }
+      if (footer) footer.style.display = total > 0 ? '' : 'none';
+
+      if (items.length === 0) {
+        list.innerHTML = '<div class="notification-item empty">No actionable notifications</div>';
+        return;
+      }
+
+      list.innerHTML = items.map(function(n) {
+        var sev = (n.severity || 'warn').toLowerCase();
+        var sevClass = 'notification-sev-' + sev;
+        var icon = sev === 'critical' ? '!' : sev === 'error' ? 'x' : '!';
+        var time = n.ts ? window.relativeTime(n.ts) : '';
+        var source = n.source || 'unknown';
+        var title = window.escHtml(n.title || n.body || '(no details)');
+        return '<div class="notification-item" data-id="' + n.id + '">' +
+          '<span class="notification-sev ' + sevClass + '">' + icon + '</span>' +
+          '<div class="notification-body">' +
+            '<span class="notification-title">' + title + '</span>' +
+            '<span class="notification-meta">' +
+              '<span class="notification-source">' + window.escHtml(source) + '</span>' +
+              '<span class="notification-time">' + time + '</span>' +
+            '</span>' +
+          '</div>' +
+          '<div class="notification-actions">' +
+            '<button class="notification-dismiss" ' +
+              'onclick="event.stopPropagation(); window.dismissNotification(' + n.id + ', this)">dismiss</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    } catch (e) {
+      console.error('[LamaDB] Notifications list error:', e);
+      list.innerHTML = '<div class="notification-item empty">Notifications unavailable</div>';
+    }
+
+    // Refresh every 60s
+    _setPoll(loadNotificationsList, 60000);
+  }
+
+  window.dismissNotification = async function(eventId, btn) {
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+      await window.api('/api/events/' + eventId, {
+        method: 'PATCH',
+        body: JSON.stringify({ processed: true })
+      });
+      // Remove the item from the list
+      var item = btn.closest('.notification-item');
+      if (item) {
+        item.style.opacity = '0.3';
+        setTimeout(function() {
+          item.remove();
+          // Update the badge
+          var list = document.getElementById('notifications-list');
+          if (list && list.children.length === 0) {
+            list.innerHTML = '<div class="notification-item empty">No actionable notifications</div>';
+            var footer = document.getElementById('notifications-footer');
+            if (footer) footer.style.display = 'none';
+            var countEl = document.getElementById('notifications-count');
+            if (countEl) countEl.textContent = 'all clear';
+          }
+        }, 200);
+      }
+    } catch (e) {
+      console.error('[LamaDB] Dismiss notification error:', e);
+      btn.disabled = false;
+      btn.textContent = 'dismiss';
+      if (window.showToast) window.showToast('Failed to dismiss: ' + e.message, 'error');
+    }
+  };
 
   // ─── Activity Feed ────────────────────────────────────────
 

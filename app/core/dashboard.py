@@ -411,8 +411,20 @@ async def trigger_maintenance(
 async def module_health(user: AuthUser = Depends(require_admin)):
     """Return health status for each module: freshness, doc/event counts, recent errors.
 
-    Optimized: was 44 sequential roundtrips (11 modules x 4 queries), now 2 batched
-    queries (stats rollup + latest error per module) regardless of module count.
+    Status logic (driven by error state, not just staleness):
+      - disabled                              -> grey
+      - has error in last 1h                  -> red     (something is broken right now)
+      - last activity in last 12h             -> green   (collector alive, no recent errors)
+      - last activity 12-48h ago              -> yellow  (slow or quiet but reachable)
+      - last activity > 48h OR no activity    -> red     (stale)
+      - never emitted, no errors              -> yellow  (just hasn't run, or only emits on input)
+
+    Passive modules (ntfy, freshrss, wiki) only emit events on external input, so a
+    quiet period is normal — not a sign of breakage. The old 1h/2h freshness threshold
+    incorrectly flagged these as red.
+
+    Optimized: 2 batched queries (stats rollup + per-source error counts) regardless
+    of module count.
     """
     modules_dir = Path(__file__).parent.parent.parent / "modules"
     pool = get_pool()
@@ -477,26 +489,53 @@ async def module_health(user: AuthUser = Depends(require_admin)):
                 "body": (r["body"] or "")[:200],
             })
 
-    # Assemble response from the two batched lookups
+        # ── Batched latest error timestamp per source (for status derivation) ──
+        latest_error_rows = await conn.fetch(
+            """
+            SELECT source, max(ts) AS latest_error_ts
+            FROM events
+            WHERE source = ANY($1) AND severity = 'error'
+            GROUP BY source
+            """,
+            module_names,
+        )
+        latest_error_by_source: dict[str, object] = {r["source"]: r["latest_error_ts"] for r in latest_error_rows}
+
+    # Thresholds (seconds)
+    RECENT_ERROR_WINDOW = 3600        # 1h — anything newer = red
+    GREEN_FRESHNESS = 12 * 3600       # 12h — recent enough for green
+    YELLOW_FRESHNESS = 48 * 3600      # 48h — older = red (stale)
+
+    # Assemble response from the batched lookups
     now = datetime.now(timezone.utc)
     for name in module_names:
         stats = stats_by_source.get(name)
         doc_count = stats["doc_count"] if stats else 0
         event_count = stats["event_count"] if stats else 0
         latest_event_ts = stats["latest_event"] if stats else None
+        latest_error_ts = latest_error_by_source.get(name)
 
         enabled = enabled_map.get(name, False)
         status_color = "grey"  # disabled
         if enabled:
-            if latest_event_ts:
+            recent_error_age = None
+            if latest_error_ts is not None:
+                recent_error_age = (now - latest_error_ts).total_seconds()
+
+            # Recent error in the last hour -> red regardless of freshness
+            if recent_error_age is not None and recent_error_age < RECENT_ERROR_WINDOW:
+                status_color = "red"
+            elif latest_event_ts is not None:
                 age = (now - latest_event_ts).total_seconds()
-                if age < 3600:
+                if age < GREEN_FRESHNESS:
                     status_color = "green"
-                elif age < 7200:
+                elif age < YELLOW_FRESHNESS:
                     status_color = "yellow"
                 else:
                     status_color = "red"
             else:
+                # Enabled but never emitted an event — could be passive (waits for input)
+                # or could be misconfigured. Yellow is the safe neutral state.
                 status_color = "yellow"
 
         result.append({
@@ -1014,3 +1053,39 @@ async def save_user_layout(
         )
 
     return {"user_id": user.name, "page": page, "layout": {"module_order": module_order}}
+
+
+
+# ---------------------------------------------------------------------------
+# GET /api/dashboard/migrations — migration history
+# ---------------------------------------------------------------------------
+
+@router.get("/migrations")
+async def list_migrations(user: AuthUser = Depends(require_admin)):
+    """Return full migration history."""
+    pool = get_pool()
+    rows = await pool.fetch(
+        "SELECT filename, applied_at, checksum, execution_ms FROM migration_history ORDER BY applied_at DESC"
+    )
+    return {"migrations": [dict(r) for r in rows]}
+
+
+# ---------------------------------------------------------------------------
+# GET /api/dashboard/migrations/status — applied vs pending
+# ---------------------------------------------------------------------------
+
+
+@router.get("/migrations/status")
+async def migration_status(user: AuthUser = Depends(require_admin)):
+    """Return applied count and list of pending migration files."""
+    MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "migrations"
+    all_files = sorted(f.name for f in MIGRATIONS_DIR.glob("*.sql"))
+    pool = get_pool()
+    rows = await pool.fetch("SELECT filename FROM migration_history")
+    applied = {row["filename"] for row in rows}
+    return {
+        "total": len(all_files),
+        "applied": len(applied),
+        "pending": [f for f in all_files if f not in applied],
+        "files": all_files
+    }

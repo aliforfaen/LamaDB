@@ -291,6 +291,20 @@
               <div class="widget-footer"><small>Drag cards to reorder — layout saved automatically</small></div>
             </div>
 
+            <!-- Actionable Notifications (unread warn/error/critical events) -->
+            <div id="widget-notifications" class="widget">
+              <div class="widget-header">
+                <h3>Notifications</h3>
+                <span class="widget-badge" id="notifications-count">--</span>
+              </div>
+              <div id="notifications-list" class="notifications-list">
+                <div class="notification-item skeleton">Loading...</div>
+              </div>
+              <div class="widget-footer" id="notifications-footer" style="display:none;">
+                <small><a href="#" id="notifications-view-all" onclick="event.preventDefault(); window.navigateTo('events');">View all events &rarr;</a></small>
+              </div>
+            </div>
+
             <!-- Recent Activity Feed -->
             <div id="widget-activity" class="widget">
               <div class="widget-header">
@@ -1269,6 +1283,7 @@
                 </tr>
               </tbody>
             </table>
+          <div id="apikey-pagination" style="margin-top:10px;"></div>
           </div>
         </div>
         </div>

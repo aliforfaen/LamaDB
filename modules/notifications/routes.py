@@ -247,6 +247,81 @@ async def get_log(
     }
 
 
+# ---------------------------------------------------------------------------
+# GET /api/notifications/unread
+# ---------------------------------------------------------------------------
+
+@router.get("/unread")
+async def get_unread(
+    user: Annotated[AuthUser, Depends(_require_auth)],
+    limit: int = Query(default=20, ge=1, le=100),
+):
+    """Get top N actionable (unprocessed, warning/error/critical) events.
+
+    Designed for the Overview page: a middle ground between 0 (all caught up) and
+    the full /api/events stream (hundreds of rows). Returns events that are likely
+    worth a human's attention — anything at warn/error/critical that hasn't been
+    marked as processed yet.
+
+    NOTE on severity names: the spec called for `('warning', 'error')` but the
+    codebase uses the shorter forms `('warn', 'error', 'critical')` (see
+    modules/ntfy/collector.py _priority_to_severity, modules/hermes/collector.py,
+    modules/dozzle/collector.py). Using the actual values here so we don't miss
+    events.
+    """
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, ts, source, type, severity, title, body, tags, metadata
+            FROM events
+            WHERE processed = false
+              AND severity IN ('warn', 'error', 'critical')
+            ORDER BY ts DESC
+            LIMIT $1
+            """,
+            limit,
+        )
+
+        total_row = await conn.fetchrow(
+            """
+            SELECT count(*) AS cnt
+            FROM events
+            WHERE processed = false
+              AND severity IN ('warn', 'error', 'critical')
+            """
+        )
+
+    items = []
+    for r in rows:
+        meta = r["metadata"]
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except (ValueError, TypeError):
+                meta = {}
+        if not isinstance(meta, dict):
+            meta = {}
+
+        items.append({
+            "id": r["id"],
+            "ts": r["ts"].isoformat() if r["ts"] else None,
+            "source": r["source"],
+            "type": r["type"],
+            "severity": r["severity"],
+            "title": r["title"] or "",
+            "body": r["body"] or "",
+            "tags": list(r["tags"]) if r["tags"] else [],
+            "metadata": meta,
+        })
+
+    return {
+        "items": items,
+        "count": len(items),
+        "total_unread": total_row["cnt"] if total_row else 0,
+    }
+
+
 @router.get("/channels")
 async def channel_status(user: Annotated[AuthUser, Depends(_require_auth)]):
     """Check which channels are configured and reachable."""

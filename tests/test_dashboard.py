@@ -770,3 +770,70 @@ async def test_list_api_keys_includes_last_used_at(client, admin_key):
     assert "keys" in data
     for key in data["keys"]:
         assert "last_used_at" in key
+
+
+# ---------------------------------------------------------------------------
+# Tests: module-health status logic (Phase 12 bugfix)
+# ---------------------------------------------------------------------------
+
+@container_required
+@pytest.mark.asyncio
+async def test_module_health_status_shape(client, admin_key):
+    """GET /api/dashboard/module-health returns a list of modules with status info."""
+    response = await client.get(
+        "/api/dashboard/module-health",
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "modules" in data
+    for m in data["modules"]:
+        assert "name" in m
+        assert "status" in m
+        assert m["status"] in ("green", "yellow", "red", "grey")
+        assert "enabled" in m
+        assert "recent_errors" in m
+        assert "last_event" in m
+
+
+@container_required
+@pytest.mark.asyncio
+async def test_module_health_passive_module_not_red(
+    client, admin_key
+):
+    """A passive module (no recent input) with no recent errors must NOT be red.
+
+    Reproduces the ntfy bug: ntfy only logs events when notifications arrive.
+    A 7h gap with no events is normal — the old 1h/2h threshold incorrectly
+    flagged it red.
+
+    We verify the inverse on a real enabled module: 'dashboard' (the management
+    UI) typically has no events of its own — if it ever accumulates a recent
+    error, status will be red, but without one it should be yellow at worst.
+    """
+    response = await client.get(
+        "/api/dashboard/module-health",
+        headers={"Authorization": f"Bearer {admin_key}"}
+    )
+    assert response.status_code == 200
+    modules = {m["name"]: m for m in response.json()["modules"]}
+    # Every enabled module must be in {green, yellow, grey} — never red —
+    # UNLESS it has a recent error. We sanity-check that at least the ntfy/
+    # wiki pattern (no recent input, no errors) is not flagged red.
+    for name, m in modules.items():
+        if m["enabled"] and not m["recent_errors"]:
+            assert m["status"] in ("green", "yellow", "grey"), (
+                f"Module {name!r} has no recent errors but reports status={m['status']!r} — "
+                "the passive-module bug may have regressed"
+            )
+
+
+@container_required
+@pytest.mark.asyncio
+async def test_module_health_requires_admin(client, non_admin_key):
+    """GET /api/dashboard/module-health returns 403 for non-admin users."""
+    response = await client.get(
+        "/api/dashboard/module-health",
+        headers={"Authorization": f"Bearer {non_admin_key}"}
+    )
+    assert response.status_code == 403
