@@ -100,11 +100,21 @@ async def get_session_stats(
     request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
 ):
-    """Return aggregate session + message counts from Hermes."""
-    stats = await _hermes_get("/api/sessions/stats")
-    if not stats:
+    """Return aggregate session + message counts from Hermes.
+
+    Combines /api/sessions/stats (active profile session/message counts)
+    with /api/profiles/sessions (cross-profile totals) so the dashboard
+    sees both the live active profile AND the all-profiles breakdown.
+    """
+    stats = await _hermes_get("/api/sessions/stats") or {}
+    profiles = await _hermes_get("/api/profiles/sessions?limit=1") or {}
+    if not stats and not profiles:
         return {"error": "Hermes unreachable"}
-    return stats
+    out = dict(stats) if isinstance(stats, dict) else {}
+    if isinstance(profiles, dict):
+        out["profile_totals"] = profiles.get("profile_totals", {})
+        out["all_profile_total"] = profiles.get("total", 0)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -117,9 +127,19 @@ async def get_sessions(
     request: Request,
     user: Annotated[AuthUser, Depends(_require_auth)],
     limit: int = Query(default=20, ge=1, le=100),
+    profile: str | None = Query(default=None, description="Filter by profile name (e.g. 'muninn', 'kark'). Uses /api/profiles/sessions for cross-profile data."),
 ):
-    """Return recent Hermes sessions with token and cost data."""
-    data = await _hermes_get(f"/api/sessions?limit={limit}")
+    """Return recent Hermes sessions with token and cost data.
+
+    When `profile` is set, calls /api/profiles/sessions?profile=... which
+    returns cross-profile data with per-session profile attribution. When
+    omitted, still uses /api/profiles/sessions (all profiles, recent first)
+    rather than /api/sessions (active profile only).
+    """
+    qs = f"limit={limit}"
+    if profile:
+        qs += f"&profile={profile}"
+    data = await _hermes_get(f"/api/profiles/sessions?{qs}")
     if not data:
         return {"error": "Hermes unreachable"}
     return data
@@ -200,6 +220,29 @@ async def get_profiles(
     if not profiles:
         return {"error": "Hermes unreachable"}
     return profiles
+
+
+# ---------------------------------------------------------------------------
+# GET /api/hermes/profiles/active — currently active profile
+# ---------------------------------------------------------------------------
+
+@router.get("/profiles/active")
+@cached(ttl_seconds=30, invalidate_tags=["hermes"], key_prefix="hermes_profiles_active")
+async def get_active_profile(
+    request: Request,
+    user: Annotated[AuthUser, Depends(_require_auth)],
+):
+    """Return the currently active Hermes profile.
+
+    Hermes returns `{"active": "muninn", "current": "muninn"}` — `active`
+    is the profile whose data /api/sessions serves, `current` is the
+    profile whose gateway is running. They can differ briefly during
+    handoff.
+    """
+    info = await _hermes_get("/api/profiles/active")
+    if not info:
+        return {"error": "Hermes unreachable"}
+    return info
 
 
 # ---------------------------------------------------------------------------

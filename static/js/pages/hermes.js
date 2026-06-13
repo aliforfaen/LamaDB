@@ -4,21 +4,65 @@
 
   window.loadHermesPage = async function() {
     loadHermesHealth();
+    loadHermesProfileSelector();
     try {
+      var profile = _selectedProfile();
+      var sessionsUrl = '/api/hermes/sessions?limit=20';
+      if (profile) sessionsUrl += '&profile=' + encodeURIComponent(profile);
       var results = await Promise.all([
         window.api('/api/hermes/system'),
         window.api('/api/hermes/sessions/stats'),
-        window.api('/api/hermes/sessions')
+        window.api(sessionsUrl),
+        window.api('/api/hermes/profiles/active'),
       ]);
       renderHermesSystem(results[0]);
       renderHermesStats(results[1]);
       renderHermesSessions(results[2]);
+      renderHermesActiveProfile(results[3]);
     } catch (e) {
       console.error('[LamaDB] Hermes error:', e);
       var cards = document.getElementById('hermes-sys-cards');
       if (cards) cards.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
     }
   };
+
+  function _selectedProfile() {
+    var sel = document.getElementById('hermes-profile-select');
+    return sel ? sel.value : '';
+  }
+
+  async function loadHermesProfileSelector() {
+    var sel = document.getElementById('hermes-profile-select');
+    if (!sel) return;
+    // Populate only once — preserve user's current selection across refreshes.
+    if (sel.options.length > 1) return;
+    try {
+      var data = await window.api('/api/hermes/profiles');
+      if (!data || !Array.isArray(data.profiles)) return;
+      data.profiles.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.name;
+        var label = p.name + ' (' + (p.skill_count || 0) + ' skills';
+        if (p.gateway_running) label += ', gateway up';
+        label += ')';
+        opt.textContent = label;
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      console.error('[LamaDB] Hermes profiles error:', e);
+    }
+  }
+
+  function renderHermesActiveProfile(info) {
+    var el = document.getElementById('hermes-active-profile');
+    if (!el) return;
+    if (!info || _extractError(info) || !info.active) {
+      el.textContent = '';
+      return;
+    }
+    el.textContent = 'active: ' + info.active;
+    el.title = 'Profile whose data /api/sessions serves on Hermes';
+  }
 
   function formatUptime(seconds) {
     if (seconds == null) return '\u2014';
@@ -96,13 +140,13 @@
     var tbody = document.getElementById('hermes-sessions-tbody');
     if (!tbody) return;
     if (!raw || _extractError(raw)) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">Sessions unavailable \u2014 Hermes unreachable</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px;">Sessions unavailable \u2014 Hermes unreachable</td></tr>';
       return;
     }
     // sessions endpoint returns {sessions: [...], total, limit, offset} or a bare array
     var list = Array.isArray(raw) ? raw : (raw && raw.sessions) || [];
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">No sessions found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px;">No sessions found</td></tr>';
       return;
     }
     tbody.innerHTML = list.map(function(s) {
@@ -110,8 +154,10 @@
       var cost = s.estimated_cost_usd != null ? '$' + parseFloat(s.estimated_cost_usd).toFixed(4) : '\u2014';
       var tokens = (s.input_tokens || 0) + (s.output_tokens || 0);
       var tokensStr = tokens ? tokens.toLocaleString() : '\u2014';
+      var profile = s.profile || '\u2014';
       return '<tr>' +
         '<td class="mono" style="font-size:12px;">' + (s.id ? s.id.substring(0, 8) : '') + '</td>' +
+        '<td class="mono" style="font-size:11px;color:var(--accent);">' + window.escHtml(profile) + '</td>' +
         '<td>' + (s.model || '\u2014') + '</td>' +
         '<td class="mono">' + tokensStr + '</td>' +
         '<td class="mono">' + cost + '</td>' +

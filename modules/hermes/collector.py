@@ -100,7 +100,11 @@ async def collect() -> dict:
 
         session_stats = await _fetch_json(client, "/api/sessions/stats") or {}
         system_stats = await _fetch_json(client, "/api/system/stats") or {}
-        sessions = await _fetch_json(client, "/api/sessions?limit=10") or {}
+        # /api/profiles/sessions returns sessions ACROSS ALL profiles with
+        # per-session "profile" attribution and a "profile_totals" summary.
+        # /api/sessions only returns the active profile (no attribution).
+        sessions = await _fetch_json(client, "/api/profiles/sessions?limit=50") or {}
+        active_profile = await _fetch_json(client, "/api/profiles/active") or {}
 
     gateway_state = status.get("gateway_state", "unknown")
     platforms = status.get("gateway_platforms", {})
@@ -197,6 +201,7 @@ async def collect() -> dict:
                 + s.get("reasoning_tokens", 0)
             )
             title = s.get("title") or s.get("preview", "")[:80] or f"Hermes session {sid}"
+            profile = s.get("profile") or "default"
 
             await conn.execute(
                 """
@@ -210,6 +215,7 @@ async def collect() -> dict:
                     "hermes_session_id": sid,
                     "source": s.get("source"),
                     "model": s.get("model"),
+                    "profile": profile,
                     "message_count": s.get("message_count", 0),
                     "tool_call_count": s.get("tool_call_count", 0),
                     "input_tokens": s.get("input_tokens", 0),
@@ -223,16 +229,37 @@ async def collect() -> dict:
                     "ended_at": s.get("ended_at"),
                     "end_reason": s.get("end_reason"),
                 }),
-                ["hermes", s.get("source", "unknown")],
+                ["hermes", profile, s.get("source", "unknown")],
             )
             docs_created += 1
+
+        # --- Active profile event (for visibility into what's being polled) ---
+        active_name = active_profile.get("active") or "unknown"
+        await conn.execute(
+            """
+            INSERT INTO events (source, type, severity, title, body, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            """,
+            "hermes",
+            "hermes.active_profile",
+            "info",
+            f"Hermes active profile: {active_name}",
+            f"Profile totals: {json.dumps(sessions.get('profile_totals', {}))}",
+            _jsonb({
+                "active_profile": active_name,
+                "profile_totals": sessions.get("profile_totals", {}),
+            }),
+        )
+        new_events += 1
 
     return {
         "status": "ok",
         "version": status.get("version"),
         "gateway_state": gateway_state,
+        "active_profile": active_profile.get("active", "unknown"),
         "total_sessions": session_stats.get("total", 0),
         "total_messages": session_stats.get("messages", 0),
+        "profile_totals": sessions.get("profile_totals", {}) if isinstance(sessions, dict) else {},
         "new_events": new_events,
         "new_docs": docs_created,
     }
