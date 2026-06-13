@@ -5,6 +5,7 @@ from pydantic import BaseModel
 class NtfyMessage(BaseModel):
     id: str
     time: int
+    topic: str = ""
     title: str | None = None
     message: str
     priority: int = 3

@@ -15,8 +15,17 @@
 
   // ─── Relative time helper ──────────────────────────────────────────────────
   window.relativeTime = function(isoStr) {
-    if (!isoStr) return '<span style="color:var(--muted);">Never</span>';
-    var date = new Date(isoStr);
+    if (isoStr == null || isoStr === '') return '<span style="color:var(--muted);">Never</span>';
+    var date;
+    if (typeof isoStr === 'number') {
+      // Unix timestamp: detect seconds vs milliseconds
+      date = new Date(isoStr < 1e12 ? isoStr * 1000 : isoStr);
+    } else {
+      date = new Date(isoStr);
+    }
+    if (isNaN(date.getTime())) return '<span style="color:var(--muted);">\u2014</span>';
+    // Guard against epoch dates that produce "57y ago" — reject dates before 2000
+    if (date.getTime() < Date.UTC(2000, 0, 1)) return '<span style="color:var(--muted);">\u2014</span>';
     var now = new Date();
     var diffMs = now - date;
     var diffSec = Math.floor(diffMs / 1000);

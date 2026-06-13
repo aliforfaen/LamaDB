@@ -3114,6 +3114,128 @@ table td.nowrap { white-space: nowrap; }
   }
 }
 
+/* ─── Ntfy Topic Dashboard ─── */
+.ntfy-topic-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ntfy-topic-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  border-left: 3px solid var(--muted);
+  transition: border-color var(--transition), background var(--transition);
+}
+.ntfy-topic-card:hover {
+  background: var(--surface-2);
+  border-color: var(--border-light);
+}
+.ntfy-topic-card.sev-critical { border-left-color: var(--danger); }
+.ntfy-topic-card.sev-warn     { border-left-color: var(--warn); }
+.ntfy-topic-card.sev-info     { border-left-color: var(--muted); }
+.ntfy-topic-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+.ntfy-topic-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+  font-family: var(--font-mono);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ntfy-topic-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ntfy-topic-latest {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ntfy-topic-body {
+  padding: 6px 0;
+}
+.ntfy-msg-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+  transition: background var(--transition);
+}
+.ntfy-msg-row:last-child { border-bottom: none; }
+.ntfy-msg-row:hover { background: var(--surface-3); }
+.ntfy-msg-row .sev-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+}
+.ntfy-msg-title {
+  color: var(--fg);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ntfy-msg-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ntfy-msg-body {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--fg-2);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ntfy-msg-tags {
+  grid-column: 2 / -1;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.ntfy-msg-tags .tag-pill {
+  font-size: 10px;
+  padding: 1px 5px;
+}
+.ntfy-msg-more {
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  border-top: 1px solid var(--border-light);
+}
+.ntfy-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 /* ─── Home Assistant action buttons ─── */
 .ha-btn {
   padding: 3px 8px;
