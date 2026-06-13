@@ -1,4 +1,4 @@
-// Page: Home Assistant
+// Page: Home Assistant — Smart Home Control Panel
 (function() {
   'use strict';
 
@@ -17,7 +17,7 @@
       if (statusEl) statusEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
     } catch (e) {
       var el = document.getElementById('ha-entities');
-      if (el) el.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
+      if (el) el.innerHTML = '<div class="ha-error">Failed: ' + window.escHtml(e.message) + '</div>';
     }
 
     // Auto-refresh every 60s
@@ -31,11 +31,56 @@
     var el = document.getElementById('ha-config');
     if (!el) return;
     if (!config || !config.connected) {
-      el.innerHTML = '<div class="stat-card"><div class="label">Home Assistant</div><div class="value" style="color:var(--danger);">Disconnected</div><div style="font-size:11px;color:var(--muted);">' + (config && config.reason ? window.escHtml(config.reason) : 'Not configured') + '</div></div>';
+      el.innerHTML =
+        '<div class="ha-config-card disconnected">' +
+          '<div class="ha-config-status-row">' +
+            '<span class="ha-config-dot"></span>' +
+            '<span class="ha-config-label">Home&nbsp;Assistant</span>' +
+            '<span class="ha-config-status">Disconnected</span>' +
+          '</div>' +
+          (config && config.reason ? '<div class="ha-config-reason">' + window.escHtml(config.reason) + '</div>' : '') +
+        '</div>';
       return;
     }
-    el.innerHTML = '<div class="stat-card"><div class="label">Home Assistant</div><div class="value" style="color:var(--success);">Connected</div><div style="font-size:11px;color:var(--muted);">' + window.escHtml(config.version) + ' \u00b7 ' + window.escHtml(config.location) + '</div></div>';
+    el.innerHTML =
+      '<div class="ha-config-card connected">' +
+        '<div class="ha-config-status-row">' +
+          '<span class="ha-config-dot"></span>' +
+          '<span class="ha-config-label">Home&nbsp;Assistant</span>' +
+          '<span class="ha-config-status">v' + window.escHtml(config.version) + '</span>' +
+        '</div>' +
+        '<div class="ha-config-reason">' + window.escHtml(config.location) + '</div>' +
+      '</div>';
   }
+
+  // ─── Domain icons (inline SVG — clean, scalable) ────────────────────
+
+  var DOMAIN_ICONS = {
+    light:           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0018 8 6 6 0 006 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 008.91 14"/></svg>',
+    switch:          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="6"/><circle cx="8" cy="12" r="2.5"/></svg>',
+    scene:           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+    sensor:          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/><path d="M12 8v4l2 2"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="19" y1="12" x2="21" y2="12"/></svg>',
+    binary_sensor:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+    climate:         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M8 7l4-4 4 4"/><path d="M8 17l4 4 4-4"/></svg>',
+    lock:            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/><circle cx="12" cy="16" r="1"/></svg>',
+    cover:           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="12" y1="9" x2="12" y2="21"/></svg>',
+    fan:             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.5"/><path d="M12 6a6 6 0 016 6"/><path d="M12 18a6 6 0 01-6-6" opacity=".4"/></svg>',
+    media_player:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>',
+    default:         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>'
+  };
+
+  var DOMAIN_COLORS = {
+    light:           '--warn',
+    switch:          '--accent',
+    scene:           '--accent-cyan',
+    sensor:          '--info',
+    binary_sensor:   '--accent-cyan',
+    climate:         '--warn',
+    lock:            '--danger',
+    cover:           '--accent',
+    fan:             '--info',
+    media_player:    '--accent'
+  };
 
   // ─── Entity Cards ───────────────────────────────────────────────────
 
@@ -43,7 +88,7 @@
     var el = document.getElementById('ha-entities');
     if (!el) return;
     if (!status || status.status === 'no_data' || !status.entities || status.entities.length === 0) {
-      el.innerHTML = '<div style="color:var(--muted);padding:10px;">No entity data yet. Configure Home Assistant URL and token.</div>';
+      el.innerHTML = '<div class="ha-empty">No entity data yet. Configure Home&nbsp;Assistant URL and token in Settings.</div>';
       return;
     }
 
@@ -73,58 +118,89 @@
       groups[domain].push(e);
     });
 
-    var html = '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Last snapshot: ' + ts + ' \u00b7 ' + entities.length + ' entities</div>';
+    // Snapshot bar
+    var html = '<div class="ha-snapshot-bar">' +
+      '<span class="ha-snapshot-dot"></span>' +
+      'Snapshot ' + ts + ' &middot; ' + entities.length + ' entities' +
+      '</div>';
 
-    Object.keys(groups).sort().forEach(function(domain) {
+    // Preferred display order for domains
+    var domainOrder = ['light', 'switch', 'scene', 'sensor', 'binary_sensor', 'climate', 'lock', 'cover', 'fan', 'media_player'];
+    var sortedDomains = Object.keys(groups).sort(function(a, b) {
+      var ia = domainOrder.indexOf(a);
+      var ib = domainOrder.indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+
+    sortedDomains.forEach(function(domain) {
       var groupEntities = groups[domain];
-      html += '<div style="margin-bottom:16px;">';
-      html += '<div style="font-size:13px;font-weight:600;color:var(--fg-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">' + window.escHtml(domain) + '</div>';
-      html += '<div class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));">';
+      var colorVar = DOMAIN_COLORS[domain] || '--muted';
+      var iconSvg = DOMAIN_ICONS[domain] || DOMAIN_ICONS.default;
+
+      html += '<div class="ha-domain-group">';
+      html += '<div class="ha-domain-header" style="--ha-domain-color:var(' + colorVar + ');">' +
+        '<span class="ha-domain-icon">' + iconSvg + '</span>' +
+        '<span class="ha-domain-name">' + window.escHtml(domain.replace('_', ' ')) + '</span>' +
+        '<span class="ha-domain-count">' + groupEntities.length + '</span>' +
+        '</div>';
+      html += '<div class="ha-grid">';
 
       groupEntities.forEach(function(e) {
         var name = e.attributes.friendly_name || e.entity_id;
         var unit = e.attributes.unit_of_measurement || '';
-        var stateDisplay = e.state;
-        if (unit) stateDisplay += ' ' + unit;
+        var d = e.entity_id.split('.')[0];
 
-        // Determine if entity has a toggle action
-        var isToggleable = ['light', 'switch', 'fan', 'lock', 'cover', 'media_player'].indexOf(domain) !== -1;
-        var isScene = domain === 'scene';
+        // Determine entity capabilities and state (hoisted before use)
+        var isToggleable = ['light', 'switch', 'fan', 'lock', 'cover', 'media_player'].indexOf(d) !== -1;
+        var isScene = d === 'scene';
         var isOn = e.state === 'on' || e.state === 'playing' || e.state === 'open' || e.state === 'unlocked';
-        var stateClass = isOn ? 'color:var(--success);' : 'color:var(--muted);';
+        var isUnavailable = e.state === 'unavailable' || e.state === 'unknown';
 
-        // Determine entity color based on domain
-        var domainColors = {
-          sensor: '--accent-cyan', binary_sensor: '--info', light: '--accent-yellow',
-          switch: '--accent', climate: '--warn', scene: '--accent-purple',
-          lock: '--danger', cover: '--accent-green', fan: '--info', media_player: '--accent'
-        };
-        var badgeColor = domainColors[domain] || '--muted';
+        // Format state display
+        var stateDisplay;
+        if (isScene) {
+          stateDisplay = window.relativeTime(e.state);
+        } else {
+          stateDisplay = window.escHtml(e.state);
+          if (unit) stateDisplay += ' <span class="ha-unit">' + window.escHtml(unit) + '</span>';
+        }
 
-        html += '<div class="stat-card" style="position:relative;">' +
-          '<div class="label" style="display:flex;align-items:center;gap:6px;">' +
-            '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(' + badgeColor + ');"></span>' +
-            window.escHtml(name) +
-          '</div>' +
-          '<div class="value" style="font-size:16px;' + stateClass + '">' + window.escHtml(stateDisplay) + '</div>';
+        var stateClass = isUnavailable ? 'unavailable' : (isOn ? 'on' : 'off');
+        var lastChanged = e.last_changed ? window.relativeTime(e.last_changed) : '';
+
+        html += '<div class="ha-card ' + stateClass + '" style="--ha-domain-color:var(' + (DOMAIN_COLORS[d] || '--muted') + ');">';
+
+        // Top row: icon + name
+        html += '<div class="ha-card-top">' +
+          '<span class="ha-icon">' + iconSvg + '</span>' +
+          '<span class="ha-name">' + window.escHtml(name) + '</span>' +
+          '</div>';
+
+        // State value
+        html += '<div class="ha-state">' + stateDisplay + '</div>';
+
+        // Last changed relative time
+        if (lastChanged) {
+          html += '<div class="ha-last-change" title="' + window.escAttr(e.last_changed) + '">' + lastChanged + '</div>';
+        }
 
         // Action buttons
         if (isToggleable) {
-          html += '<div style="margin-top:6px;display:flex;gap:4px;">' +
-            '<button class="ha-btn ha-btn-on" onclick="event.stopPropagation();window.haCallService(\'' + domain + '\', \'turn_on\', \'' + e.entity_id + '\')">On</button>' +
-            '<button class="ha-btn ha-btn-off" onclick="event.stopPropagation();window.haCallService(\'' + domain + '\', \'turn_off\', \'' + e.entity_id + '\')">Off</button>' +
-          '</div>';
+          html += '<div class="ha-actions">' +
+            '<button class="ha-btn ha-btn-on" onclick="event.stopPropagation();window.haCallService(\'' + d + '\', \'turn_on\', \'' + e.entity_id + '\')">On</button>' +
+            '<button class="ha-btn ha-btn-off" onclick="event.stopPropagation();window.haCallService(\'' + d + '\', \'turn_off\', \'' + e.entity_id + '\')">Off</button>' +
+            '</div>';
         }
         if (isScene) {
-          html += '<div style="margin-top:6px;">' +
+          html += '<div class="ha-actions">' +
             '<button class="ha-btn ha-btn-scene" onclick="event.stopPropagation();window.haCallService(\'scene\', \'turn_on\', \'' + e.entity_id + '\')">Activate</button>' +
-          '</div>';
+            '</div>';
         }
 
-        html += '</div>';
+        html += '</div>';  // .ha-card
       });
 
-      html += '</div></div>';
+      html += '</div></div>';  // .ha-grid, .ha-domain-group
     });
 
     el.innerHTML = html;
