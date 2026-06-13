@@ -314,6 +314,43 @@
   padding-top: 12px;
 }
 
+/* ─── Kanban Tabs ─────────────────────────────────────────── */
+.kanban-modal-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.kanban-tab-btn {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--fg-2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.kanban-tab-btn:hover {
+  color: var(--fg);
+}
+
+.kanban-tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.kanban-tab-content {
+  display: none;
+}
+
+.kanban-tab-content.active {
+  display: block;
+}
+
 .kanban-modal-input {
   flex: 1;
   background: var(--surface-2);
@@ -322,6 +359,105 @@
   padding: 6px 10px;
   color: var(--fg);
   font-size: 13px;
+}
+
+/* ─── Task Type Badge on Cards ──────────────────────────── */
+.kanban-card-type {
+  font-size: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* ─── Modal Editable Fields ─────────────────────────────── */
+.kanban-modal-editable {
+  margin-bottom: 12px;
+}
+
+.kanban-modal-label {
+  font-size: 11px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kanban-modal-meta-field {
+  margin-bottom: 8px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.kanban-modal-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kanban-modal-select {
+  flex: 1;
+}
+
+/* ─── Modal Header Actions ──────────────────────────────── */
+.kanban-modal-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ─── Subtask Tab ───────────────────────────────────────── */
+.kanban-subtask-checkbox {
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.kanban-subtask-title.completed {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.kanban-modal-subtask-list {
+  margin-bottom: 8px;
+}
+
+/* ─── Status Log Tab ────────────────────────────────────── */
+.kanban-modal-log-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  align-items: center;
+}
+
+.kanban-modal-log-action {
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: capitalize;
+}
+
+.kanban-modal-log-details {
+  color: var(--fg-2);
+  flex: 1;
+}
+
+.kanban-modal-log-ts {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.kanban-modal-log-user {
+  color: var(--muted);
+  font-size: 10px;
 }
 
 /* ============================================================

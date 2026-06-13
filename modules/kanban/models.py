@@ -104,6 +104,7 @@ class KanbanTaskCreate(BaseModel):
     assignee_id: Optional[str] = None
     due_at: Optional[datetime] = None
     estimate: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 class KanbanTaskUpdate(BaseModel):
@@ -115,6 +116,7 @@ class KanbanTaskUpdate(BaseModel):
     estimate: Optional[str] = None
     help_wanted: Optional[bool] = None
     help_wanted_message: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 class KanbanTaskMove(BaseModel):
@@ -146,6 +148,7 @@ class KanbanTask(BaseModel):
     help_wanted: bool = False
     help_wanted_message: Optional[str] = None
     estimate: Optional[str] = None
+    metadata: Optional[dict] = None
     completed_at: Optional[datetime] = None
     subtask_count: int = 0
     subtask_done: int = 0

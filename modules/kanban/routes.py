@@ -371,6 +371,7 @@ async def list_tasks(
             "assignee_name": r["assignee_name"],
             "position": r["position"], "help_wanted": r["help_wanted"],
             "help_wanted_message": r["help_wanted_message"], "estimate": r["estimate"],
+            "metadata": json.loads(r["metadata"]) if isinstance(r["metadata"], str) else (r["metadata"] or {}),
             "completed_at": r["completed_at"],
             "subtask_count": r["subtask_count"], "subtask_done": r["subtask_done"],
             "created_at": r["created_at"], "updated_at": r["updated_at"],
@@ -408,13 +409,14 @@ async def create_task(
             "SELECT COALESCE(MAX(task_number), 0) + 1 FROM kanban_tasks WHERE board_id = $1",
             board_id,
         )
+        metadata_json = json.dumps(body.metadata) if body.metadata else '{}'
         try:
             task_id = await conn.fetchval("""
                 INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description,
-                                          priority, assignee_id, position, due_at, estimate)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+                                          priority, assignee_id, position, due_at, estimate, metadata)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb) RETURNING id
             """, board_id, col_id, next_num, body.title, body.description,
-                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate)
+                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate, metadata_json)
         except asyncpg.exceptions.UniqueViolationError:
             # Lost a race — recompute and retry once.
             next_num = await conn.fetchval(
@@ -423,10 +425,10 @@ async def create_task(
             )
             task_id = await conn.fetchval("""
                 INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description,
-                                          priority, assignee_id, position, due_at, estimate)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+                                          priority, assignee_id, position, due_at, estimate, metadata)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb) RETURNING id
             """, board_id, col_id, next_num, body.title, body.description,
-                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate)
+                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate, metadata_json)
 
     cache_manager.invalidate("kanban_tasks")
     return {"id": str(task_id), "task_number": next_num, "title": body.title}
@@ -470,6 +472,19 @@ async def get_task(
             WHERE d.task_id = $1
         """, task_id)
 
+        # Fetch agent logs for status history
+        logs = await conn.fetch("""
+            SELECT l.*, u.name AS user_name
+            FROM kanban_agent_logs l
+            LEFT JOIN users u ON u.id = l.user_id
+            WHERE l.task_id = $1
+            ORDER BY l.created_at DESC
+        """, task_id)
+
+    metadata_val = row["metadata"]
+    if isinstance(metadata_val, str):
+        metadata_val = json.loads(metadata_val) if metadata_val else {}
+
     return {
         "id": str(row["id"]), "board_id": str(row["board_id"]), "column_id": str(row["column_id"]),
         "task_number": row["task_number"], "title": row["title"], "description": row["description"],
@@ -478,6 +493,7 @@ async def get_task(
         "assignee_name": row["assignee_name"],
         "position": row["position"], "help_wanted": row["help_wanted"],
         "help_wanted_message": row["help_wanted_message"], "estimate": row["estimate"],
+        "metadata": metadata_val,
         "completed_at": row["completed_at"],
         "subtask_count": row["subtask_count"], "subtask_done": row["subtask_done"],
         "created_at": row["created_at"], "updated_at": row["updated_at"],
@@ -498,6 +514,11 @@ async def get_task(
              "depends_on_title": d["depends_on_title"],
              "depends_on_completed": d["depends_on_completed"]}
             for d in deps
+        ],
+        "agent_logs": [
+            {"id": str(l["id"]), "user_name": l["user_name"], "action": l["action"],
+             "details": l["details"], "tool": l["tool"], "created_at": l["created_at"]}
+            for l in logs
         ],
     }
 
@@ -522,6 +543,10 @@ async def update_task(
             val = getattr(body, field, None)
             if val is not None:
                 updates.append(f"{field} = ${idx}"); params.append(val); idx += 1
+
+        # Handle metadata as JSONB
+        if body.metadata is not None:
+            updates.append(f"metadata = ${idx}::jsonb"); params.append(json.dumps(body.metadata)); idx += 1
 
         if updates:
             updates.append("updated_at = now()")
