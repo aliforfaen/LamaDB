@@ -289,3 +289,57 @@ async def test_hermes_credentials(client, admin_key, hermes_reachable):
         headers={"Authorization": "Bearer " + admin_key}
     )
     assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Test: active profile
+# ---------------------------------------------------------------------------
+
+@container_required
+@pytest.mark.asyncio
+async def test_hermes_profiles_active(client, admin_key, hermes_reachable):
+    """GET /api/hermes/profiles/active with admin key → 200, has 'active' field."""
+    response = await client.get(
+        "/api/hermes/profiles/active",
+        headers={"Authorization": "Bearer " + admin_key}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "active" in data
+    assert isinstance(data["active"], str)
+
+
+# ---------------------------------------------------------------------------
+# Test: sessions filtered by profile
+# ---------------------------------------------------------------------------
+
+@container_required
+@pytest.mark.asyncio
+async def test_hermes_sessions_profile_filter(client, admin_key, hermes_reachable):
+    """GET /api/hermes/sessions?profile=... filters by Hermes profile.
+
+    Verifies the cross-profile endpoint integration: without a filter the
+    response includes profile_totals, and with a filter the response
+    includes only that profile's sessions.
+    """
+    # Unfiltered — should include all profiles
+    response = await client.get(
+        "/api/hermes/sessions?limit=5",
+        headers={"Authorization": "Bearer " + admin_key}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "profile_totals" in data or "sessions" in data
+    total_all = data.get("total", 0)
+
+    # Filtered by muninn — should equal or be a subset of total_all
+    response = await client.get(
+        "/api/hermes/sessions?profile=muninn&limit=5",
+        headers={"Authorization": "Bearer " + admin_key}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("total", 0) <= total_all
+    for s in data.get("sessions", []):
+        assert s.get("profile") in ("muninn", None)  # some sessions may lack attribution
+

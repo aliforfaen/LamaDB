@@ -1168,6 +1168,13 @@
             <button class="btn btn-sm btn-secondary" id="hermes-tab-health" onclick="switchHermesTab('health')" style="border-radius:0 6px 6px 0;">Health</button>
           </div>
           <span style="flex:1;"></span>
+          <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;">
+            <span>Profile:</span>
+            <select id="hermes-profile-select" class="filter-input" style="font-size:12px;padding:4px 8px;" onchange="loadHermesPage()">
+              <option value="">All profiles</option>
+            </select>
+          </label>
+          <span id="hermes-active-profile" style="font-size:11px;color:var(--muted);"></span>
           <span id="hermes-health-badge" style="font-size:12px;color:var(--muted);"></span>
           <button class="btn btn-sm btn-secondary" onclick="loadHermesPage()">↻ Refresh</button>
         </div>
@@ -1185,7 +1192,12 @@
 
           <!-- Recent sessions table -->
           <h3 style="margin-bottom:10px;">Recent Sessions</h3>
-          <div id="hermes-sessions"><table style="width:100%;"><tbody id="hermes-sessions-tbody"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">Loading…</td></tr></tbody></table></div>
+          <div id="hermes-sessions"><table style="width:100%;">
+            <thead><tr style="text-align:left;font-size:12px;color:var(--muted);">
+              <th>ID</th><th>Profile</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Started</th>
+            </tr></thead>
+            <tbody id="hermes-sessions-tbody"><tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px;">Loading…</td></tr></tbody>
+          </table></div>
         </div>
 
         <div id="hermes-panel-costs" style="display:none;">
