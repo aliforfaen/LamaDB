@@ -1235,6 +1235,170 @@ table td.nowrap { white-space: nowrap; }
 .sub-tab-btn:hover { background: var(--surface-3); color: var(--fg); }
 .sub-tab-btn.active { background: var(--surface-3); color: var(--accent); border-color: var(--accent); }
 
+/* ─── Agent Board Dashboard ─── */
+.ab-dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+.ab-dash-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ab-agent-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition);
+}
+.ab-agent-card:hover { border-color: var(--accent-dim); }
+.ab-agent-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: var(--surface-3);
+  color: var(--fg-2);
+}
+.ab-agent-avatar.agent { background: var(--accent-cyan-dim); color: var(--accent-cyan); }
+.ab-agent-avatar.human { background: var(--accent-dim); color: var(--accent); }
+.ab-agent-info { flex: 1; min-width: 0; }
+.ab-agent-info .name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ab-agent-info .meta {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ab-agent-info .meta .ab-type-badge {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.ab-agent-info .meta .ab-type-badge.agent { background: var(--accent-cyan-dim); color: var(--accent-cyan); }
+.ab-agent-info .meta .ab-type-badge.human { background: var(--accent-dim); color: var(--accent); }
+.ab-agent-status {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+.ab-agent-status .status-dot { width: 6px; height: 6px; }
+.ab-msg-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+}
+.ab-msg-summary-row:last-child { border-bottom: none; }
+.ab-msg-summary-row .label { color: var(--fg-2); }
+.ab-msg-summary-row .value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.ab-msg-summary-row .value.green { color: var(--accent); }
+.ab-msg-summary-row .value.warn { color: var(--warn); }
+.ab-msg-summary-row .value.red { color: var(--danger); }
+
+/* MCP status indicator */
+.ab-mcp-status-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.ab-mcp-status-line .mcp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ab-mcp-status-line .mcp-dot.online { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.ab-mcp-status-line .mcp-dot.offline { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.ab-mcp-status-line .mcp-label { color: var(--fg-2); }
+.ab-mcp-status-line .mcp-tools {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.ab-error-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.ab-error-item:last-child { border-bottom: none; }
+.ab-error-item .ab-err-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--danger);
+  font-size: 14px;
+}
+.ab-error-item .ab-err-body { flex: 1; min-width: 0; }
+.ab-error-item .ab-err-title {
+  color: var(--fg);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ab-error-item .ab-err-meta {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-top: 1px;
+}
+.ab-dash-card .ab-empty {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 16px 0;
+}
+
+@media (max-width: 768px) {
+  .ab-dash-grid { grid-template-columns: 1fr; }
+}
+
 /* ─── Topology view ─── */
 .topo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 .host-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
