@@ -962,7 +962,8 @@
 
       <!-- ════════════════════ DOZZLE PAGE ════════════════════ -->
       <section id="page-dozzle" class="page" aria-label="Dozzle">
-        <div class="filter-bar" style="margin-bottom:12px;">
+        <div id="dozzle-filter-bar" class="filter-bar" style="margin-bottom:12px;display:none;">
+          <button class="btn btn-sm btn-ghost" onclick="window.showDozzleContainers()" title="Back to containers">← Back</button>
           <span class="filter-label">Container</span>
           <select id="dozzle-container-select" onchange="window.setDozzleContainer(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 8px;color:var(--fg);font-family:var(--font-mono);font-size:12px;min-width:140px;">
             <option value="all">All containers</option>
@@ -982,7 +983,8 @@
           <button class="btn btn-sm btn-secondary" onclick="window.loadDozzlePage()">↻ Refresh</button>
           <button class="btn btn-sm btn-secondary" onclick="window.syncDozzle()">Sync</button>
         </div>
-        <div id="dozzle-content"><p class="loading">Loading…</p></div>
+        <div id="dozzle-container-grid" class="dozzle-container-grid"></div>
+        <div id="dozzle-content" style="display:none;"><p class="loading">Loading…</p></div>
       </section>
 
       <!-- ════════════════════ FRESHRSS PAGE ════════════════════ -->

@@ -26,67 +26,137 @@
     return 'info';
   }
 
-  // ─── Main page loader ─────────────────────────────────────────────────
+  function getStatusClass(state) {
+    var s = (state || '').toLowerCase();
+    if (s === 'running') return 'up';
+    if (s === 'exited' || s === 'dead') return 'down';
+    if (s === 'paused') return 'warn';
+    return 'unknown';
+  }
+
+  function getStatusBadgeClass(state) {
+    var s = (state || '').toLowerCase();
+    if (s === 'running') return 'sev-info';
+    if (s === 'exited' || s === 'dead') return 'sev-critical';
+    if (s === 'paused') return 'sev-warn';
+    return '';
+  }
+
+  // ─── Main page loader — show container grid ───────────────────────────
 
   window.loadDozzlePage = async function() {
     try {
-      // Step 1: Fetch containers (once)
-      if (_containers.length === 0) {
-        _containers = await window.api('/api/dozzle/containers');
-        populateContainerSelect(_containers);
-        // Auto-select the first container
-        if (_containers.length > 0 && !_selectedContainerId) {
-          _selectedContainerId = _containers[0].id;
-          var sel = document.getElementById('dozzle-container-select');
-          if (sel) sel.value = _selectedContainerId;
-        }
-      }
+      // Ensure we start in grid view
+      document.getElementById('dozzle-container-grid').style.display = 'block';
+      document.getElementById('dozzle-filter-bar').style.display = 'none';
+      document.getElementById('dozzle-content').style.display = 'none';
 
-      // Step 2: Show prompt if no container selected
-      var contentEl = document.getElementById('dozzle-content');
-      if (!_selectedContainerId || _containers.length === 0) {
-        if (contentEl) {
-          contentEl.innerHTML = _containers.length === 0
-            ? '<div style="color:var(--muted);text-align:center;padding:30px;">No containers found. Check Dozzle connection.</div>'
-            : '<div style="color:var(--muted);text-align:center;padding:30px;">Select a container to view logs.</div>';
-        }
-        updateContainerCount(0);
-        return;
-      }
+      _containers = await window.api('/api/dozzle/containers');
+      renderContainerGrid(_containers);
+    } catch (e) {
+      console.error('[LamaDB] Dozzle error:', e);
+      var grid = document.getElementById('dozzle-container-grid');
+      if (grid) grid.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load containers: ' + window.escHtml(e.message) + '</div>';
+    }
+  };
 
-      // Defensive guard: do not fetch logs without a selected container_id
-      if (!_selectedContainerId) {
-        var contentElGuard = document.getElementById('dozzle-content');
-        if (contentElGuard) {
-          contentElGuard.innerHTML = '<div style="color:var(--muted);text-align:center;padding:30px;">Select a container to view logs.</div>';
-        }
-        return;
-      }
+  // ─── Container grid rendering ────────────────────────────────────────
 
-      // Step 3: Fetch logs for the selected container with current filters
-      var level = getActiveLevel();
-      var since = getActiveSince();
-      // Pass empty level string when 'all' so backend skips level filtering
-      var levelParam = level === 'all' ? '' : level;
-      var url = '/api/dozzle/logs?container_id=' + encodeURIComponent(_selectedContainerId)
-              + '&level=' + encodeURIComponent(levelParam)
-              + '&since=' + encodeURIComponent(since)
-              + '&limit=50';
+  function renderContainerGrid(containers) {
+    var grid = document.getElementById('dozzle-container-grid');
+    if (!grid) return;
+    if (!Array.isArray(containers) || containers.length === 0) {
+      grid.innerHTML = '<div class="dc-empty">No containers found. Check Dozzle connection.</div>';
+      return;
+    }
+    grid.innerHTML = containers.map(function(c) {
+      var id = c.id || '';
+      var name = c.name || id.slice(0, 12) || 'unknown';
+      var image = c.image || '—';
+      var state = c.state || 'unknown';
+      var statusText = c.status || state;
+      var statusClass = getStatusClass(state);
+      var badgeClass = getStatusBadgeClass(state);
+      return '<div class="dozzle-container-card dc-' + statusClass + '">' +
+        '<div class="dc-name" title="' + window.escAttr(id) + '">' + window.escHtml(name) + '</div>' +
+        '<div class="dc-image">' + window.escHtml(image) + '</div>' +
+        '<div class="dc-meta">' +
+          '<span class="sev-badge ' + badgeClass + '">' + window.escHtml(state) + '</span>' +
+          '<span class="dc-status-text">' + window.escHtml(statusText) + '</span>' +
+        '</div>' +
+        '<div class="dc-actions">' +
+          '<button class="btn btn-sm btn-primary" data-container-id="' + window.escAttr(id) + '">View Logs</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
 
+    // Attach click handlers for View Logs buttons
+    grid.querySelectorAll('.dc-actions .btn-primary').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var cid = btn.getAttribute('data-container-id');
+        if (cid) window.showDozzleLogs(cid);
+      });
+    });
+  }
+
+  // ─── Show logs for a specific container ───────────────────────────────
+
+  window.showDozzleLogs = async function(containerId) {
+    _selectedContainerId = containerId;
+
+    // Hide grid, show log view
+    document.getElementById('dozzle-container-grid').style.display = 'none';
+    document.getElementById('dozzle-filter-bar').style.display = '';
+    var contentEl = document.getElementById('dozzle-content');
+    contentEl.style.display = 'block';
+    contentEl.innerHTML = '<p class="loading">Loading logs…</p>';
+
+    populateContainerSelect(_containers, containerId);
+
+    // Update container count label
+    var countEl = document.getElementById('dozzle-container-count');
+    if (countEl) countEl.textContent = '';
+
+    await _loadDozzleLogs();
+  };
+
+  // ─── Internal: re-fetch logs for selected container ──────────────────
+
+  async function _loadDozzleLogs() {
+    if (!_selectedContainerId) return;
+
+    var level = getActiveLevel();
+    var since = getActiveSince();
+    // Pass empty level string when 'all' so backend skips level filtering
+    var levelParam = level === 'all' ? '' : level;
+    var url = '/api/dozzle/logs?container_id=' + encodeURIComponent(_selectedContainerId)
+            + '&level=' + encodeURIComponent(levelParam)
+            + '&since=' + encodeURIComponent(since)
+            + '&limit=50';
+
+    try {
       var result = await window.api(url);
       renderDozzleLogs(result.logs || []);
       updateContainerCount(result.count || 0);
-
     } catch (e) {
-      console.error('[LamaDB] Dozzle error:', e);
+      console.error('[LamaDB] Dozzle log error:', e);
       var container = document.getElementById('dozzle-content');
       if (container) container.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load logs: ' + window.escHtml(e.message) + '</div>';
     }
+  }
+
+  // ─── Back to container grid ───────────────────────────────────────────
+
+  window.showDozzleContainers = function() {
+    document.getElementById('dozzle-container-grid').style.display = 'block';
+    document.getElementById('dozzle-filter-bar').style.display = 'none';
+    document.getElementById('dozzle-content').style.display = 'none';
+    _selectedContainerId = null;
   };
 
   // ─── Container selector ───────────────────────────────────────────────
 
-  function populateContainerSelect(containers) {
+  function populateContainerSelect(containers, selectedId) {
     var sel = document.getElementById('dozzle-container-select');
     if (!sel) return;
     if (!Array.isArray(containers) || containers.length === 0) {
@@ -96,13 +166,16 @@
     sel.innerHTML = containers.map(function(c) {
       var id = c.id || '';
       var name = c.name || c.id || 'unknown';
-      return '<option value="' + window.escAttr(id) + '">' + window.escHtml(name) + '</option>';
+      var selected = id === selectedId ? ' selected' : '';
+      return '<option value="' + window.escAttr(id) + '"' + selected + '>' + window.escHtml(name) + '</option>';
     }).join('');
   }
 
   window.setDozzleContainer = function(containerId) {
-    _selectedContainerId = containerId || null;
-    window.loadDozzlePage();
+    if (containerId && containerId !== 'all' && containerId !== '') {
+      _selectedContainerId = containerId;
+      _loadDozzleLogs();
+    }
   };
 
   // ─── Log rendering ────────────────────────────────────────────────────
@@ -153,18 +226,18 @@
     document.querySelectorAll('#page-dozzle .filter-bar [id^="dozzle-level-"]').forEach(function(b) {
       b.classList.toggle('active', b.id === 'dozzle-level-' + level);
     });
-    window.loadDozzlePage();
+    _loadDozzleLogs();
   };
 
   window.setDozzleSince = function(since) {
     document.querySelectorAll('#page-dozzle .filter-bar [id^="dozzle-since-"]').forEach(function(b) {
       b.classList.toggle('active', b.id === 'dozzle-since-' + since);
     });
-    window.loadDozzlePage();
+    _loadDozzleLogs();
   };
 
   window.syncDozzle = function() {
-    // Force re-fetch of containers
+    // Force re-fetch of containers and go back to grid
     _containers = [];
     _selectedContainerId = null;
     window.loadDozzlePage();
