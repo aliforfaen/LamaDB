@@ -3,6 +3,11 @@
   'use strict';
 
   var _topologyLoaded = false;
+  // Consolidation: when enabled, the history table shows one row per monitor
+  // (the latest) with a count badge for the number of recent status changes
+  // (last 1h). Defaults to true so a flapping monitor doesn't push everything
+  // else out of view.
+  var _consolidate = true;
 
   window.loadUptime = async function() {
     try {
@@ -11,7 +16,8 @@
       updateSummaryBar(status);
     } catch (e) { console.error('[LamaDB] Uptime status error:', e); window.showError('Failed to load uptime status: ' + e.message); }
     try {
-      var history = await window.api('/api/uptime/history?limit=50');
+      var qs = _consolidate ? '?consolidate=true&limit=50' : '?limit=50';
+      var history = await window.api('/api/uptime/history' + qs);
       renderStatusHistory(history);
     } catch (e) { console.error('[LamaDB] Uptime history error:', e); }
     try {
@@ -61,7 +67,12 @@
   }
 
   function renderStatusHistory(history) {
-    var tbody = document.querySelector('#page-uptime tbody');
+    // Scope to the Status History table specifically (not the topology table).
+    // The history table is inside `.col-card` and has 5 columns: Timestamp,
+    // Monitor, Status, Message, Duration. We pick the last such tbody on the
+    // page to avoid clobbering the static placeholder.
+    var tables = document.querySelectorAll('#page-uptime .col-card tbody');
+    var tbody = tables.length ? tables[tables.length - 1] : document.querySelector('#page-uptime tbody');
     if (!tbody || !history) return;
     if (history.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">No history yet</td></tr>';
@@ -72,9 +83,15 @@
       var sevLabel = h.status === 0 ? 'down' : 'up';
       var ts = h.received_at ? new Date(h.received_at).toLocaleString('en-US', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '';
       var dur = h.duration_ms !== null ? h.duration_ms + 'ms' : '\u2014';
+      // Consolidation: show "Monitor (×N)" when count > 1
+      var name = h.monitor_name || h.monitor_id || '?';
+      var count = h.count || 1;
+      if (count > 1) {
+        name += ' <span class="sev-badge warn" title="' + count + ' status changes in the last hour" style="font-weight:600;">\u00d7' + count + '</span>';
+      }
       return '<tr>' +
         '<td class="mono nowrap">' + ts + '</td>' +
-        '<td class="nowrap">' + (h.monitor_name || h.monitor_id || '?') + '</td>' +
+        '<td class="nowrap">' + name + '</td>' +
         '<td><span class="sev-badge ' + sevCls + '">' + sevLabel + '</span></td>' +
         '<td>' + (h.msg || '\u2014') + '</td>' +
         '<td class="mono">' + dur + '</td>' +
@@ -169,6 +186,19 @@
       btn.textContent = 'Poll Uptime Kuma';
     }
   };
+
+  // Wire the consolidation toggle (added by index.html).
+  // When toggled, refetch the history table with or without ?consolidate=true.
+  document.addEventListener('change', function(e) {
+    if (e.target && e.target.id === 'uptime-consolidate-toggle') {
+      _consolidate = !!e.target.checked;
+      // Refetch only the history view
+      var qs = _consolidate ? '?consolidate=true&limit=50' : '?limit=50';
+      window.api('/api/uptime/history' + qs)
+        .then(function(history) { renderStatusHistory(history); })
+        .catch(function(err) { console.error('[LamaDB] Uptime history error:', err); });
+    }
+  });
 
   function renderTopology(data) {
     data = data || {};

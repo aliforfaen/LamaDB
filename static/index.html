@@ -508,6 +508,10 @@
           <div class="section-header">
             <h3>Status History</h3>
             <span class="count">last 50 events</span>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:auto;font-size:12px;color:var(--muted);">
+              <input type="checkbox" id="uptime-consolidate-toggle" checked />
+              Consolidate (1h)
+            </label>
           </div>
           <div class="table-wrap">
             <table>
@@ -563,6 +567,10 @@
           <input type="date" value="2026-05-28" />
           <input type="date" value="2026-05-29" />
           <input type="text" placeholder="Search events…" />
+          <label class="filter-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:8px;">
+            <input type="checkbox" id="events-consolidate-toggle" checked />
+            Consolidate similar (1h)
+          </label>
           <button class="btn btn-secondary btn-sm">Apply</button>
         </div>
 

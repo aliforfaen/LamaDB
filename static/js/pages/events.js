@@ -2,7 +2,7 @@
 (function() {
   'use strict';
 
-  window.eventsFilters = { source: '', severity: '', limit: 20 };
+  window.eventsFilters = { source: '', severity: '', limit: 20, consolidate: true };
 
   window.loadEvents = async function() {
     try {
@@ -10,6 +10,7 @@
       if (window.eventsFilters.source) params.set('source', window.eventsFilters.source);
       if (window.eventsFilters.severity) params.set('severity', window.eventsFilters.severity);
       params.set('limit', window.eventsFilters.limit);
+      if (window.eventsFilters.consolidate) params.set('consolidate', 'true');
       var data = await window.api('/api/events?' + params.toString());
       renderEventsTable(data);
     } catch (e) {
@@ -38,12 +39,18 @@
       var meta = ev.metadata || {};
       var metaStr = JSON.stringify(meta, null, 2);
       var done = ev.processed ? 'checked' : '';
+      // Consolidation: when count > 1, show "Title (×N)" badge
+      var count = ev.count || 1;
+      var titleHtml = stripAnsi(ev.title || '');
+      if (count > 1) {
+        titleHtml += ' <span class="sev-badge warn" title="' + count + ' similar events in the last hour" style="font-weight:600;">×' + count + '</span>';
+      }
       return '<tr class="row-expand" onclick="toggleEventRow(this)">' +
         '<td class="mono nowrap">' + ts + '</td>' +
         '<td class="nowrap">' + (ev.source || '') + '</td>' +
         '<td class="mono nowrap">' + (ev.type || '') + '</td>' +
         '<td><span class="sev-badge ' + sevClass + '">' + sev + '</span></td>' +
-        '<td class="truncate-cell" title="' + stripAnsi(ev.title || '') + '">' + stripAnsi(ev.title || '') + '</td>' +
+        '<td class="truncate-cell" title="' + stripAnsi(ev.title || '') + '">' + titleHtml + '</td>' +
         '<td class="truncate-cell" title="' + stripAnsi(bodyPreview) + '">' + stripAnsi(bodyPreview) + '</td>' +
         '<td><input type="checkbox" ' + done + ' onclick="event.stopPropagation();" /></td>' +
       '</tr>' +
@@ -62,5 +69,14 @@
       window.eventsFilters.limit = rowsSelect ? parseInt(rowsSelect.value, 10) : 20;
       window.loadEvents();
     });
+  });
+
+  // Wire up the consolidation toggle (added by index.html).
+  // The toggle has id `events-consolidate-toggle` and is in the events filter bar.
+  document.addEventListener('change', function(e) {
+    if (e.target && e.target.id === 'events-consolidate-toggle') {
+      window.eventsFilters.consolidate = !!e.target.checked;
+      window.loadEvents();
+    }
   });
 })();

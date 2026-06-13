@@ -4,6 +4,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict
 
 from app.auth import AuthUser, get_current_user
 from app.cache import cache_manager
@@ -12,6 +13,25 @@ from app.models.events import Event, EventCreate, EventPatch
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 logger = logging.getLogger(__name__)
+
+
+class ConsolidatedEvent(BaseModel):
+    """Event row with a duplicate count for the last hour (consolidation view)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    ts: str  # ISO string from asyncpg
+    source: str
+    type: str
+    severity: str
+    title: str
+    body: str | None = None
+    metadata: dict = {}
+    processed: bool = False
+    ticker: bool = False
+    tags: list[str] = []
+    count: int = 1
 
 
 def _event_from_row(row) -> "Event":
@@ -29,6 +49,25 @@ def _event_from_row(row) -> "Event":
     if "tags" not in d:
         d["tags"] = []
     return Event(**d)
+
+
+def _consolidated_from_row(row) -> "ConsolidatedEvent":
+    """Convert an asyncpg row (with `count` column) to a ConsolidatedEvent."""
+    d = dict(row)
+    meta = d.get("metadata")
+    if meta is not None and not isinstance(meta, dict):
+        if isinstance(meta, str):
+            d["metadata"] = json.loads(meta)
+        else:
+            d["metadata"] = dict(meta) if meta else {}
+    elif meta is None:
+        d["metadata"] = {}
+    if "tags" not in d:
+        d["tags"] = []
+    # asyncpg returns timestamp as datetime; serialise to ISO for the response
+    if hasattr(d.get("ts"), "isoformat"):
+        d["ts"] = d["ts"].isoformat()
+    return ConsolidatedEvent(**d)
 
 
 @router.post("", response_model=Event, status_code=status.HTTP_201_CREATED)
@@ -84,18 +123,68 @@ async def create_event(
     return result
 
 
-@router.get("", response_model=list[Event])
+@router.get("", response_model=list[Event] | list[ConsolidatedEvent])
 async def list_events(
     user: Annotated[AuthUser, Depends(get_current_user)],
     source: str | None = Query(default=None, description="Filter by source"),
     severity: str | None = Query(default=None, description="Filter by severity"),
     processed: bool | None = Query(default=None, description="Filter by processed status"),
     ticker: bool | None = Query(default=None, description="Filter by ticker flag"),
+    consolidate: bool = Query(
+        default=False,
+        description="Group similar events (source+title) within the last 1 hour, returning the latest per group + a count.",
+    ),
     limit: int = Query(default=50, ge=1, le=500, description="Max results"),
     offset: int = Query(default=0, ge=0, description="Skip first N results"),
-) -> list[Event]:
-    """List events with optional filters and pagination."""
+) -> list:
+    """List events with optional filters and pagination.
+
+    When `consolidate=true`, groups events with the same `source`+`title` within
+    the last hour and returns only the most recent row per group with a
+    `count` field showing the number of duplicates collapsed.
+    """
     pool = get_pool()
+
+    if consolidate:
+        async with pool.acquire() as conn:
+            conditions = ["ts > now() - interval '1 hour'"]
+            params: list = []
+            param_idx = 1
+
+            if source is not None:
+                conditions.append(f"source = ${param_idx}")
+                params.append(source)
+                param_idx += 1
+
+            if severity is not None:
+                conditions.append(f"severity = ${param_idx}")
+                params.append(severity)
+                param_idx += 1
+
+            if processed is not None:
+                conditions.append(f"processed = ${param_idx}")
+                params.append(processed)
+                param_idx += 1
+
+            if ticker is not None:
+                conditions.append(f"ticker = ${param_idx}")
+                params.append(ticker)
+                param_idx += 1
+
+            where_clause = "WHERE " + " AND ".join(conditions)
+
+            query = f"""
+                SELECT DISTINCT ON (source, title)
+                    id, ts, source, type, severity, title, body, metadata, processed, ticker, tags,
+                    COUNT(*) OVER (PARTITION BY source, title) AS count
+                FROM events
+                {where_clause}
+                ORDER BY source, title, ts DESC
+            """
+
+            rows = await conn.fetch(query, *params)
+            return [_consolidated_from_row(row) for row in rows]
+
     async with pool.acquire() as conn:
         conditions = []
         params = []

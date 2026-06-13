@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger("uptime.webhook")
 
@@ -34,6 +34,22 @@ from .webhook import process_webhook
 router = APIRouter(tags=["uptime"])
 
 
+class ConsolidatedMonitorStatus(BaseModel):
+    """Monitor status with a duplicate count for the last 1h (consolidation view)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    monitor_id: str
+    monitor_name: str
+    monitor_url: str | None = None
+    status: int
+    msg: str | None = None
+    duration_ms: int | None = None
+    received_at: str  # ISO string from asyncpg
+    count: int = 1
+
+
 @router.post("/webhook-debug")
 async def receive_webhook_debug(request: Request):
     """Debug endpoint that logs raw body."""
@@ -50,6 +66,14 @@ def _monitor_status_from_row(row) -> MonitorStatus:
     """Convert an asyncpg row to a MonitorStatus model."""
     d = dict(row)
     return MonitorStatus(**d)
+
+
+def _consolidated_from_row(row) -> ConsolidatedMonitorStatus:
+    """Convert an asyncpg row (with `count` column) to a ConsolidatedMonitorStatus."""
+    d = dict(row)
+    if hasattr(d.get("received_at"), "isoformat"):
+        d["received_at"] = d["received_at"].isoformat()
+    return ConsolidatedMonitorStatus(**d)
 
 
 # ---------------------------------------------------------------------------
@@ -165,30 +189,68 @@ async def get_current_status(
 
 @router.get(
     "/history",
-    response_model=list[MonitorStatus],
+    response_model=list[MonitorStatus] | list[ConsolidatedMonitorStatus],
     tags=["uptime"],
 )
 async def get_history(
     user: Annotated[AuthUser, Depends(get_current_user)],
     monitor_id: str | None = Query(default=None, description="Filter by monitor ID"),
+    consolidate: bool = Query(
+        default=False,
+        description="Group by monitor_id, return latest per monitor + count of recent entries (last 1h).",
+    ),
     limit: int = Query(default=50, ge=1, le=500, description="Max results"),
     offset: int = Query(default=0, ge=0, description="Skip first N results"),
-) -> list[MonitorStatus]:
+) -> list:
     """
     Get recent status changes across all monitors.
 
     Supports filtering by monitor_id and pagination via limit/offset.
 
+    When `consolidate=true`, returns the most recent status row per `monitor_id`
+    plus a `count` of how many status rows for that monitor exist in the last
+    hour. Useful for collapsing a flapping monitor into a single row.
+
     Args:
         monitor_id: Optional monitor ID to filter results.
+        consolidate: Group by monitor_id and return a count of recent entries.
         limit: Maximum number of results to return (default 50, max 500).
         offset: Number of results to skip (for pagination).
 
     Returns:
-        List of MonitorStatus entries ordered by received_at DESC.
+        List of MonitorStatus (or ConsolidatedMonitorStatus) entries ordered by received_at DESC.
     """
     pool = get_pool()
     async with pool.acquire() as conn:
+        if consolidate:
+            # Group by monitor_id, latest row per monitor, with count from last 1h
+            base_where = "received_at > now() - interval '1 hour'"
+            if monitor_id is not None:
+                base_where += f" AND monitor_id = ${1}"
+                rows = await conn.fetch(
+                    f"""
+                    SELECT DISTINCT ON (monitor_id)
+                        id, monitor_id, monitor_name, monitor_url, status, msg, duration_ms, received_at,
+                        COUNT(*) OVER (PARTITION BY monitor_id) AS count
+                    FROM monitor_status
+                    WHERE {base_where}
+                    ORDER BY monitor_id, received_at DESC
+                    """,
+                    monitor_id,
+                )
+            else:
+                rows = await conn.fetch(
+                    f"""
+                    SELECT DISTINCT ON (monitor_id)
+                        id, monitor_id, monitor_name, monitor_url, status, msg, duration_ms, received_at,
+                        COUNT(*) OVER (PARTITION BY monitor_id) AS count
+                    FROM monitor_status
+                    WHERE {base_where}
+                    ORDER BY monitor_id, received_at DESC
+                    """
+                )
+            return [_consolidated_from_row(row) for row in rows]
+
         if monitor_id is not None:
             rows = await conn.fetch(
                 """
@@ -222,28 +284,51 @@ async def get_history(
 
 @router.get(
     "/history/{monitor_id}",
-    response_model=list[MonitorStatus],
+    response_model=list[MonitorStatus] | list[ConsolidatedMonitorStatus],
     tags=["uptime"],
 )
 async def get_monitor_history(
     monitor_id: str,
     user: Annotated[AuthUser, Depends(get_current_user)],
+    consolidate: bool = Query(
+        default=False,
+        description="Group by monitor_id, return latest row + count of recent entries (last 1h).",
+    ),
     limit: int = Query(default=50, ge=1, le=500, description="Max results"),
     offset: int = Query(default=0, ge=0, description="Skip first N results"),
-) -> list[MonitorStatus]:
+) -> list:
     """
     Get status history for a specific monitor.
 
+    When `consolidate=true`, returns the most recent row for this monitor plus
+    a `count` of how many rows for it exist in the last hour.
+
     Args:
         monitor_id: The Uptime Kuma monitor ID.
+        consolidate: If true, return only the latest row + a count.
         limit: Maximum number of results to return.
         offset: Number of results to skip.
 
     Returns:
-        List of MonitorStatus entries for the specified monitor.
+        List of MonitorStatus (or ConsolidatedMonitorStatus) entries for the specified monitor.
     """
     pool = get_pool()
     async with pool.acquire() as conn:
+        if consolidate:
+            rows = await conn.fetch(
+                """
+                SELECT DISTINCT ON (monitor_id)
+                    id, monitor_id, monitor_name, monitor_url, status, msg, duration_ms, received_at,
+                    COUNT(*) OVER (PARTITION BY monitor_id) AS count
+                FROM monitor_status
+                WHERE monitor_id = $1
+                  AND received_at > now() - interval '1 hour'
+                ORDER BY monitor_id, received_at DESC
+                """,
+                monitor_id,
+            )
+            return [_consolidated_from_row(row) for row in rows]
+
         rows = await conn.fetch(
             """
             SELECT id, monitor_id, monitor_name, monitor_url, status, msg, duration_ms, received_at
