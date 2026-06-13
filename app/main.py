@@ -30,20 +30,39 @@ MIGRATIONS_DIR = Path(__file__).parent.parent / "migrations"
 
 
 async def run_migrations(pool) -> None:
-    """Read and execute all SQL migration files in order."""
+    """Execute pending migration files, tracking each in migration_history."""
     migration_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
-    for migration_file in migration_files:
-        logger.info(f"Running migration: {migration_file.name}")
-        # Offload file I/O to thread — migration files can be large
-        sql = await asyncio.to_thread(migration_file.read_text, "utf-8")
 
-        # Remove comment lines
+    async with pool.acquire() as conn:
+        # Ensure tracking table exists (bootstraps itself)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS migration_history (
+                filename TEXT PRIMARY KEY,
+                applied_at TIMESTAMPTZ DEFAULT now(),
+                checksum TEXT,
+                execution_ms INT
+            )
+        """)
+
+        # Fetch already-applied filenames
+        rows = await conn.fetch("SELECT filename FROM migration_history")
+        applied = {row["filename"] for row in rows}
+
+    for migration_file in migration_files:
+        fname = migration_file.name
+        if fname in applied:
+            continue  # already applied — skip
+
+        logger.info(f"Running migration: {fname}")
+        import time, hashlib
+        sql = await asyncio.to_thread(migration_file.read_text, "utf-8")
+        checksum = hashlib.sha256(sql.encode()).hexdigest()[:16]
+
         lines = [line for line in sql.split("\n") if not line.strip().startswith("--")]
         clean = "\n".join(lines)
-
-        # Split on semicolons but preserve $$ dollar-quoted blocks
         statements = _split_sql(clean)
 
+        t0 = time.monotonic()
         async with pool.acquire() as conn:
             for stmt in statements:
                 try:
@@ -51,9 +70,16 @@ async def run_migrations(pool) -> None:
                 except Exception as e:
                     msg = str(e).lower()
                     if "already exists" in msg or "duplicate" in msg:
-                        logger.info(f"Migration skipped (already applied): {e}")
+                        logger.info(f"  Statement skipped (idempotent): {e}")
                     else:
-                        logger.warning(f"Migration statement error (may be non-fatal): {e}")
+                        logger.warning(f"  Statement error: {e}")
+
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
+            await conn.execute(
+                "INSERT INTO migration_history (filename, checksum, execution_ms) VALUES ($1, $2, $3)",
+                fname, checksum, elapsed_ms
+            )
+        logger.info(f"  Applied {fname} ({elapsed_ms}ms)")
 
     logger.info("Migrations completed")
 

@@ -72,12 +72,12 @@
     if (!el) return;
     el.style.display = 'block';
     el.innerHTML = '<h4 style="margin:0 0 10px;">Create User</h4>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
-        '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px;">Name</label><input id="nu-name" type="text" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;color:var(--fg);font-size:13px;" placeholder="agent-name" /></div>' +
-        '<div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px;">Type</label><select id="nu-type" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;color:var(--fg);font-size:13px;"><option value="agent">Agent</option><option value="human">Human</option></select></div>' +
+      '<div class="user-form-grid">' +
+        '<div class="form-group"><label>Name</label><input id="nu-name" type="text" placeholder="agent-name" /></div>' +
+        '<div class="form-group"><label>Type</label><select id="nu-type"><option value="agent">Agent</option><option value="human">Human</option></select></div>' +
       '</div>' +
-      '<div style="margin-top:10px;"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px;">Instructions <span style="color:var(--muted);font-weight:400;">(shown to agent on connect)</span></label><textarea id="nu-instructions" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;color:var(--fg);font-size:12px;font-family:var(--font-mono);" rows="3" placeholder="You are the orchestrator. Pick up backlog tasks\u2026"></textarea></div>' +
-      '<div style="display:flex;gap:8px;margin-top:10px;">' +
+      '<div class="form-group" style="margin-top:10px;"><label>Instructions <span class="help-text">(shown to agent on connect)</span></label><textarea id="nu-instructions" rows="3" placeholder="You are the orchestrator. Pick up backlog tasks\u2026"></textarea></div>' +
+      '<div class="user-form-actions">' +
         '<button class="btn btn-sm btn-primary" onclick="window.createUser()">Create</button>' +
         '<button class="btn btn-sm btn-secondary" onclick="document.getElementById(\'new-user-form\').style.display=\'none\'">Cancel</button>' +
       '</div>';

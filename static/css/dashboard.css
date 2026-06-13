@@ -1018,6 +1018,21 @@ table td.nowrap { white-space: nowrap; }
 }
 .form-row-inline > * { flex: 1; }
 
+/* ─── User create form (Settings > Users) ─── */
+.user-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 500px) {
+  .user-form-grid { grid-template-columns: 1fr; }
+}
+.user-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 /* ─── Tag input ─── */
 .tag-input-wrap {
   display: flex;
