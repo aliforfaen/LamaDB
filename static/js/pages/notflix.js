@@ -51,6 +51,84 @@
 
   // ─── Recent Activity Table ────────────────────────────────────────────
 
+  /**
+   * Group similar events by source + title within 1-hour windows.
+   * Events sorted newest-first; only the latest per group is shown.
+   * Repeated events get a count badge in the title, e.g. "Severance added (×3)".
+   */
+  function consolidateActivity(events) {
+    if (!events || events.length === 0) return [];
+
+    var groups = [];
+    var currentGroup = null;
+
+    events.forEach(function(ev) {
+      var key = ev.source + '::' + (ev.title || ev.type || '');
+
+      if (currentGroup && currentGroup.key === key) {
+        var anchorTs = new Date(currentGroup.events[0].ts).getTime();
+        var evTs = new Date(ev.ts).getTime();
+        var hourMs = 3600000;
+
+        if (Math.abs(anchorTs - evTs) <= hourMs) {
+          currentGroup.events.push(ev);
+          currentGroup.count++;
+          return;
+        }
+      }
+
+      var newGroup = { key: key, events: [ev], count: 1 };
+      groups.push(newGroup);
+      currentGroup = newGroup;
+    });
+
+    // Return latest event per group with count appended to title
+    return groups.map(function(g) {
+      var latest = g.events[0];
+      var titleDisplay = latest.title || latest.type || '';
+      if (g.count > 1) {
+        titleDisplay += ' (\u00d7' + g.count + ')';
+      }
+      return {
+        source: latest.source,
+        title: titleDisplay,
+        type: latest.type,
+        body: latest.body,
+        metadata: latest.metadata,
+        ts: latest.ts,
+      };
+    });
+  }
+
+  /**
+   * Format the detail column as readable key:value pairs.
+   * Tries JSON.parse on string body, then renders as rows.
+   */
+  function formatDetail(ev) {
+    // Special-formatted snapshot summary
+    if (ev.type === 'media_snapshot' && ev.metadata && typeof ev.metadata === 'object') {
+      var parts = [];
+      if (ev.metadata.sonarr) parts.push('Sonarr: ' + (ev.metadata.sonarr.series_count || 0) + ' series');
+      if (ev.metadata.radarr) parts.push('Radarr: ' + (ev.metadata.radarr.movie_count || 0) + ' movies');
+      if (ev.metadata.tautulli) parts.push('Tautulli: ' + (ev.metadata.tautulli.active_streams || 0) + ' streams');
+      return parts.join(' \u00b7 ') || '\u2014';
+    }
+
+    // Try to parse body as JSON and render key:value rows
+    var detail = ev.body;
+    if (typeof detail === 'string') {
+      try { detail = JSON.parse(detail); } catch (e) { /* not JSON, use raw */ }
+    }
+    if (typeof detail === 'object' && detail !== null) {
+      return Object.keys(detail).map(function(k) {
+        var v = detail[k];
+        var val = (typeof v === 'object' && v !== null) ? JSON.stringify(v) : String(v);
+        return window.escHtml(k) + ': ' + window.escHtml(val);
+      }).join('<br>');
+    }
+    return detail ? window.escHtml(detail) : '\u2014';
+  }
+
   function renderNotflixActivity(response) {
     var tbody = document.getElementById('notflix-tbody');
     if (!tbody) return;
@@ -61,22 +139,25 @@
       return;
     }
 
+    // Consolidate repeated events
+    events = consolidateActivity(events);
+
     tbody.innerHTML = events.map(function(ev) {
       var ts = ev.ts || '';
       var timeStr = ts ? window.relativeTime(ts) : '';
       var source = ev.source || '';
-      var title = ev.title || ev.type || '';
-      var body = ev.body || '';
 
       // Pick a badge color per source
       var sourceColors = {sonarr: '--accent-cyan', radarr: '--accent', tautulli: '--info', notflix: '--warn'};
       var colorVar = sourceColors[source] || '--muted';
 
+      var detailHtml = formatDetail(ev);
+
       return '<tr>' +
         '<td class="mono" style="font-size:12px;">' + timeStr + '</td>' +
         '<td><span class="source-badge" style="background:var(' + colorVar + ');color:#000;">' + window.escHtml(source) + '</span></td>' +
-        '<td style="font-weight:500;color:var(--fg);">' + window.escHtml(title) + '</td>' +
-        '<td style="font-size:12px;color:var(--fg-2);">' + window.escHtml(body) + '</td>' +
+        '<td style="font-weight:500;color:var(--fg);">' + window.escHtml(ev.title) + '</td>' +
+        '<td style="font-size:12px;color:var(--fg-2);max-width:300px;word-break:break-word;">' + detailHtml + '</td>' +
       '</tr>';
     }).join('');
   }
