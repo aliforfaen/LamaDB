@@ -1355,16 +1355,14 @@
         </div>
         <div class="card">
           <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
-            <input type="text" id="new-group-name" placeholder="Group name" class="form-input" style="flex:1">
-            <input type="text" id="new-group-desc" placeholder="Description" class="form-input" style="flex:2">
-            <button class="btn btn-primary" onclick="window.createGroup()">Create Group</button>
+            <button class="btn btn-primary" onclick="window.showNewGroupForm()">+ New Group</button>
           </div>
           <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
             <table class="table">
               <thead><tr><th>Name</th><th>Description</th><th>Members</th><th>Created</th></tr></thead>
               <tbody id="groups-table-body"></tbody>
             </table>
-            <div id="groups-detail" class="card" style="background:var(--surface-2)"></div>
+            <div id="groups-detail"></div>
           </div>
         </div>
       </section>
@@ -1376,6 +1374,24 @@
           <p class="page-subtitle">Encrypted credentials, API keys, and logins</p>
         </div>
         <div class="card">
+          <div class="secrets-stats" id="secrets-stats">
+            <div class="stat-card">
+              <div class="stat-label">Total Secrets</div>
+              <div class="stat-value">\u2014</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Expired</div>
+              <div class="stat-value">\u2014</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Last Used</div>
+              <div class="stat-value" style="font-size:18px;">\u2014</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">By Type</div>
+              <div class="stat-sub">\u2014</div>
+            </div>
+          </div>
           <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="window.showNewSecretForm()">+ New Secret</button>
             <input type="text" id="secret-filter-service" placeholder="Filter service..." class="form-input" style="width:150px" onchange="window.loadSecrets({service: this.value})">
@@ -1390,10 +1406,10 @@
           </div>
           <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem">
             <table class="table">
-              <thead><tr><th>Name</th><th>Service</th><th>Type</th><th>Priority</th><th>Tags</th><th>Expires</th><th>Last Used</th></tr></thead>
+              <thead><tr><th>Name</th><th>Service</th><th>Type</th><th>Priority</th><th>Tags</th><th>Expires</th><th>Last Used</th><th style="width:40px;"></th></tr></thead>
               <tbody id="secrets-table-body"></tbody>
             </table>
-            <div id="secrets-detail" class="card" style="background:var(--surface-2)"></div>
+            <div id="secrets-detail"></div>
           </div>
         </div>
       </section>

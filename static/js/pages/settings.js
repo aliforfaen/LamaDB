@@ -2,9 +2,8 @@
 (function() {
   'use strict';
 
-  var _allApiKeys = [];
-  var _apikeyFilter = 'all';
-  var _moduleConfigData = null;
+  var _apikeyPage = 0;
+  var _apikeyPerPage = 25;
   var _moduleConfigName = null;
 
   window.loadSettings = async function() {
@@ -28,29 +27,48 @@
     });
   }
 
+  function getModuleIconColor(name) {
+    var colors = ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#06b6d4', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16'];
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) { hash = ((hash << 5) - hash) + name.charCodeAt(i); hash |= 0; }
+    return colors[Math.abs(hash) % colors.length];
+  }
+
+  function getModuleInitial(name) {
+    return name.charAt(0).toUpperCase();
+  }
+
   function renderModuleCards(modules) {
     var list = document.getElementById('modules-list');
     if (!list) return;
     if (!modules || modules.length === 0) {
       list.innerHTML = '<div style="color:var(--muted);padding:10px;">No modules found</div>'; return;
     }
-    list.innerHTML = modules.map(function(m) {
-      var enabled = m.enabled ? 'checked' : '';
-      return '<div class="module-card" data-module="' + m.name + '">' +
-        '<div class="module-card-info">' +
-          '<h4>' + m.name + '</h4>' +
-          '<p>' + (m.description || '') + '</p>' +
-          '<div class="module-card-meta">v' + (m.version || '0.0.0') + '</div>' +
-        '</div>' +
-        '<div style="display:flex;align-items:center;gap:10px;">' +
-          '<span class="restart-badge">Restart required</span>' +
-          '<label class="toggle">' +
-            '<input type="checkbox" ' + enabled + ' onchange="toggleModule(\'' + m.name + '\', this.checked)" />' +
-            '<span class="toggle-slider"></span>' +
-          '</label>' +
-        '</div>' +
-      '</div>';
-    }).join('');
+    list.innerHTML = '<div class="module-grid">' +
+      modules.map(function(m) {
+        var enabled = m.enabled ? 'checked' : '';
+        var iconColor = getModuleIconColor(m.name);
+        var initial = getModuleInitial(m.name);
+        var iconClass = m.enabled ? 'icon-enabled' : 'icon-disabled';
+        return '<div class="module-card" data-module="' + m.name + '">' +
+          '<div class="module-card-header">' +
+            '<div class="module-card-icon ' + iconClass + '" style="background:' + iconColor + '22;color:' + iconColor + ';">' + initial + '</div>' +
+            '<div class="module-card-info">' +
+              '<h4>' + window.escHtml(m.name) + '</h4>' +
+              '<p>' + window.escHtml(m.description || '') + '</p>' +
+              '<div class="module-card-meta">v' + (m.version || '0.0.0') + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="module-card-actions">' +
+            '<span class="restart-badge">Restart required</span>' +
+            '<label class="toggle" style="margin:0;">' +
+              '<input type="checkbox" ' + enabled + ' onchange="toggleModule(\'' + m.name + '\', this.checked)" />' +
+              '<span class="toggle-slider"></span>' +
+            '</label>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
   }
 
   window.toggleModule = function(name, enabled) {
@@ -108,11 +126,18 @@
       }
       return true;
     });
+
+    // Pagination
+    var totalPages = Math.ceil(filtered.length / _apikeyPerPage);
+    if (_apikeyPage >= totalPages) _apikeyPage = Math.max(0, totalPages - 1);
+    var paged = filtered.slice(_apikeyPage * _apikeyPerPage, (_apikeyPage + 1) * _apikeyPerPage);
+
     if (filtered.length === 0) {
       var msg = filter === 'all' ? 'No API keys yet.' : filter === 'active' ? 'No active API keys.' : filter === 'inactive' ? 'No inactive API keys.' : 'No stale API keys.';
-      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px;">' + msg + '</td></tr>'; return;
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px;">' + msg + '</td></tr>';
+      renderApiKeyPagination(0, 0); return;
     }
-    tbody.innerHTML = filtered.map(function(k) {
+    tbody.innerHTML = paged.map(function(k) {
       var scopes = (k.scopes || []).length > 0 ? (k.scopes || []).map(function(s) {
         return '<span class="scope-pill">' + s + '</span>';
       }).join(' ') : '<span style="color:var(--muted);font-size:12px;">\u2014</span>';
@@ -133,12 +158,48 @@
           '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="revokeApiKey(\'' + k.id + '\', \'' + window.escAttr(k.name) + '\')" title="Revoke key">\u2717</button></td>' +
       '</tr>';
     }).join('');
+    renderApiKeyPagination(filtered.length, totalPages);
   }
+
+  function renderApiKeyPagination(total, totalPages) {
+    var el = document.getElementById('apikey-pagination');
+    if (!el) return;
+    if (total === 0) { el.innerHTML = ''; return; }
+    var start = _apikeyPage * _apikeyPerPage + 1;
+    var end = Math.min((_apikeyPage + 1) * _apikeyPerPage, total);
+    el.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--fg-2);">' +
+        '<select onchange="window.setApiKeyPerPage(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px 6px;color:var(--fg);font-size:12px;">' +
+          '<option value="25"' + (_apikeyPerPage === 25 ? ' selected' : '') + '>25/page</option>' +
+          '<option value="50"' + (_apikeyPerPage === 50 ? ' selected' : '') + '>50/page</option>' +
+          '<option value="100"' + (_apikeyPerPage === 100 ? ' selected' : '') + '>100/page</option>' +
+        '</select>' +
+        '<span>' + start + '\u2013' + end + ' of ' + total + '</span>' +
+        '<button class="btn btn-sm btn-secondary"' + (_apikeyPage === 0 ? ' disabled' : '') + ' onclick="window.prevApiKeyPage()">&laquo; Prev</button>' +
+        '<button class="btn btn-sm btn-secondary"' + (_apikeyPage >= totalPages - 1 ? ' disabled' : '') + ' onclick="window.nextApiKeyPage()">Next &raquo;</button>' +
+      '</div>';
+  }
+
+  window.setApiKeyPerPage = function(n) {
+    _apikeyPerPage = parseInt(n, 10);
+    _apikeyPage = 0;
+    renderApiKeysTable(_allApiKeys);
+  };
+
+  window.prevApiKeyPage = function() {
+    if (_apikeyPage > 0) { _apikeyPage--; renderApiKeysTable(_allApiKeys); }
+  };
+
+  window.nextApiKeyPage = function() {
+    var total = Math.ceil(_allApiKeys.length / _apikeyPerPage);
+    if (_apikeyPage < total - 1) { _apikeyPage++; renderApiKeysTable(_allApiKeys); }
+  };
 
   window.filterApiKeys = function(filter, btn) {
     document.querySelectorAll('#apikey-filter-tabs .filter-tab').forEach(function(t) { t.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     _apikeyFilter = filter;
+    _apikeyPage = 0;
     renderApiKeysTable(_allApiKeys);
   };
 

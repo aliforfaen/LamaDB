@@ -15,7 +15,7 @@
       var groups = await window.api('/api/groups');
       list.innerHTML = '';
       if (!groups.length) {
-        list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--fg-muted);padding:2rem;">No groups yet. Create one above.</td></tr>';
+        list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:2rem;">No groups yet. Create one above.</td></tr>';
         return;
       }
       groups.forEach(function(g) {
@@ -42,55 +42,101 @@
       if (g.members && g.members.length) {
         g.members.forEach(function(m) {
           membersHtml +=
-            '<div class="member-row" style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--border);">' +
-            '<span style="flex:1"><strong>' + window.escHtml(m.user_name) + '</strong></span>' +
-            '<span class="badge" style="font-size:0.75rem">' + m.role + '</span>' +
-            '<button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();window.removeGroupMember(\'' + groupId + '\',\'' + m.user_id + '\')" title="Remove member" style="color:var(--danger)">&times;</button>' +
+            '<div class="member-row">' +
+            '<span class="member-name">' + window.escHtml(m.user_name) + '</span>' +
+            '<span class="member-role badge" style="font-size:0.75rem">' + m.role + '</span>' +
+            '<button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();window.removeGroupMember(\'' + groupId + '\',\'' + m.user_id + '\')" title="Remove member" style="color:var(--danger);flex-shrink:0">&times;</button>' +
             '</div>';
         });
       } else {
-        membersHtml = '<p style="color:var(--fg-muted)">No members yet.</p>';
+        membersHtml = '<p style="color:var(--muted);font-size:13px;">No members yet.</p>';
       }
 
       detail.innerHTML =
-        '<div class="detail-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">' +
-        '<h3 style="margin:0">' + window.escHtml(g.name) + '</h3>' +
-        '<button class="btn btn-sm btn-ghost" onclick="document.getElementById(\'groups-detail\').innerHTML=\'\'">&times;</button>' +
+        '<div class="detail-panel">' +
+        '<div class="detail-header">' +
+        '<h3>' + window.escHtml(g.name) + '</h3>' +
+        '<button class="detail-close" onclick="document.getElementById(\'groups-detail\').innerHTML=\'\'">&times;</button>' +
         '</div>' +
-        '<p style="color:var(--fg-muted);margin-bottom:1rem;">' + window.escHtml(g.description || 'No description') + '</p>' +
-        '<h4 style="margin-bottom:0.5rem">Members (' + (g.members ? g.members.length : 0) + ')</h4>' +
-        '<div style="margin-bottom:0.75rem;display:flex;gap:0.5rem">' +
-        '<select id="new-member-select" style="flex:1;padding:0.3rem">' +
+        '<div class="detail-body">' +
+        '<div class="detail-desc">' + window.escHtml(g.description || 'No description') + '</div>' +
+
+        '<h4 class="detail-section-title">Members (' + (g.members ? g.members.length : 0) + ')</h4>' +
+        '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">' +
+        '<select id="new-member-select" style="flex:1;min-width:100px;padding:6px 8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);font-size:12px;">' +
         '<option value="">Add member...</option>' +
         (users || []).map(function(u) {
           return '<option value="' + u.id + '">' + window.escHtml(u.name) + '</option>';
         }).join('') +
         '</select>' +
-        '<select id="new-member-role" style="padding:0.3rem"><option value="member">Member</option><option value="admin">Admin</option><option value="owner">Owner</option></select>' +
+        '<select id="new-member-role" style="padding:6px 8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);font-size:12px;"><option value="member">Member</option><option value="admin">Admin</option><option value="owner">Owner</option></select>' +
         '<button class="btn btn-sm btn-primary" onclick="window.addGroupMember(\'' + groupId + '\')">Add</button>' +
         '</div>' +
         '<div id="group-members-list">' + membersHtml + '</div>' +
-        '<div style="margin-top:1rem">' +
+
+        '<div class="detail-actions">' +
         '<button class="btn btn-sm btn-danger" onclick="window.deleteGroup(\'' + groupId + '\')">Delete Group</button>' +
+        '</div>' +
+        '</div>' +
         '</div>';
 
       window._currentGroupId = groupId;
     } catch (e) { console.error('showGroupDetail:', e); }
   }
 
+  window.showNewGroupForm = function() {
+    var modal = document.getElementById('modal-new-group');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modal-new-group';
+      modal.className = 'modal-overlay';
+      modal.innerHTML =
+        '<div class="modal">' +
+        '<div class="modal-header">' +
+        '<h3>New Group</h3>' +
+        '<button class="modal-close" onclick="window.closeGroupModal()">&times;</button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+        '<div class="modal-form">' +
+        '<div class="form-group"><label>Group Name</label><input type="text" id="new-group-name" placeholder="e.g. Engineering" required></div>' +
+        '<div class="form-group"><label>Description</label><input type="text" id="new-group-desc" placeholder="Optional description"></div>' +
+        '<div class="form-actions">' +
+        '<button class="btn btn-ghost" onclick="window.closeGroupModal()">Cancel</button>' +
+        '<button class="btn btn-primary" onclick="window.createGroup()">Create Group</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    }
+    // Clear fields
+    var nameInput = document.getElementById('new-group-name');
+    var descInput = document.getElementById('new-group-desc');
+    if (nameInput) nameInput.value = '';
+    if (descInput) descInput.value = '';
+    modal.classList.add('open');
+  };
+
+  window.closeGroupModal = function() {
+    var modal = document.getElementById('modal-new-group');
+    if (modal) modal.classList.remove('open');
+  };
+
   window.createGroup = async function() {
     var name = document.getElementById('new-group-name');
     var desc = document.getElementById('new-group-desc');
-    if (!name || !name.value.trim()) return;
+    if (!name || !name.value.trim()) {
+      window.showToast && window.showToast('Group name is required', null, null, 3000);
+      return;
+    }
     try {
       await window.api('/api/groups', {
         method: 'POST',
         body: JSON.stringify({ name: name.value.trim(), description: (desc ? desc.value.trim() : '') })
       });
-      name.value = '';
-      if (desc) desc.value = '';
+      window.closeGroupModal();
       loadGroups();
-    } catch (e) { window.showError('Failed to create group: ' + e.message); }
+    } catch (e) { window.showToast && window.showToast('Failed to create group: ' + e.message, null, null, 3000); }
   };
 
   window.addGroupMember = async function(groupId) {
@@ -103,24 +149,26 @@
         body: JSON.stringify({ user_id: userId, role: role })
       });
       showGroupDetail(groupId);
-    } catch (e) { window.showError('Failed to add member: ' + e.message); }
+    } catch (e) { window.showToast && window.showToast('Failed to add member: ' + e.message, null, null, 3000); }
   };
 
   window.removeGroupMember = async function(groupId, userId) {
-    if (!confirm('Remove this member?')) return;
-    try {
-      await window.api('/api/groups/' + groupId + '/members/' + userId, { method: 'DELETE' });
-      showGroupDetail(groupId);
-    } catch (e) { window.showError('Failed to remove member: ' + e.message); }
+    window.showConfirm && window.showConfirm('Remove Member', 'Remove this member from the group?', 'Remove', async function() {
+      try {
+        await window.api('/api/groups/' + groupId + '/members/' + userId, { method: 'DELETE' });
+        showGroupDetail(groupId);
+      } catch (e) { window.showToast && window.showToast('Failed to remove member: ' + e.message, null, null, 3000); }
+    });
   };
 
   window.deleteGroup = async function(groupId) {
-    if (!confirm('Delete this group? This cannot be undone.')) return;
-    try {
-      await window.api('/api/groups/' + groupId, { method: 'DELETE' });
-      document.getElementById('groups-detail').innerHTML = '';
-      loadGroups();
-    } catch (e) { window.showError('Failed to delete group: ' + e.message); }
+    window.showConfirm && window.showConfirm('Delete Group', 'Delete this group? This cannot be undone.', 'Delete', async function() {
+      try {
+        await window.api('/api/groups/' + groupId, { method: 'DELETE' });
+        document.getElementById('groups-detail').innerHTML = '';
+        loadGroups();
+      } catch (e) { window.showToast && window.showToast('Failed to delete group: ' + e.message, null, null, 3000); }
+    });
   };
 
   window.loadGroups = loadGroups;
