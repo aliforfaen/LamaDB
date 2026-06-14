@@ -404,6 +404,30 @@ docker logs lamadb_api --tail 20
 - [x] SSE real-time updates, caching on read endpoints
 - [x] Backported from LlamaBan (`~/LamaFiles/projects/kanban/`)
 
+### Phase 14: Local Embeddings + CouchDB Wiki ✅ (2026-06-14)
+- [x] Swap OpenAI text-embedding-3-small (1536d) for sentence-transformers
+  all-MiniLM-L6-v2 (384d, CPU-only)
+- [x] Migration 020: vector(1536)→vector(384) + HNSW index
+- [x] LiveSync V2 HKDF+AES-GCM decryption
+- [x] CouchDB `_changes` feed watcher + poller, only syncs `wiki/` folder
+- [x] 107/108 wiki pages synced, semantic search returns results
+
+### Phase 15: Notification Dedupe + Aggregation ✅ (2026-06-15)
+- [x] Dozzle collector: strip ISO/slash/RFC-2822 timestamps + hex ids from
+  dedup_key fingerprint (was unique per timestamp, blocking all dedup)
+- [x] Migration 022: re-hash existing dedup_keys for events with old
+  fingerprints (collapsed 445,427 dozzle dupes in one run)
+- [x] Migration 023: backfill dedup_key for dozzle events that had
+  container_id but no key (pre-collector events)
+- [x] `/api/notifications/unread?aggregate=true`: GROUP BY (source, type,
+  severity, normalized_title) with count, first_seen, last_seen, event_ids
+- [x] Frontend notifications widget: shows `×N` count badge, dismiss
+  marks all event_ids in group processed
+- [x] `/api/events?exclude_source=dozzle` filter for non-noisy sources
+- [x] Agent Board "Recent API Errors" widget renamed to "Recent System
+  Errors" and excludes dozzle container logs
+- [x] Result: 501k unread dozzle events → 11.6k distinct events
+
 ## Known Pitfalls
 
 | Pitfall | Fix |
@@ -447,6 +471,9 @@ docker logs lamadb_api --tail 20
 | `decrypt_meta` expects `/\\:` prefix on path fields | LiveSync V2 uses `/\\:` prefix (forward slash, backslash, colon). In Python source, check as `path_field.startswith("/\\\\:")` (escape backslashes). |
 | Both `%=` (sync-salt) and `%$` (ephemeral-salt) encryption prefixes are supported | `%=` uses the global `pbkdf2salt` from sync parameters; `%$` embeds its own pbkdf2 salt. Both produce AES-256-GCM ciphertext. Verified against live `obsidiannotes` CouchDB. |
 | Gapped SQL placeholders cause `IndeterminateDatatypeError` | UPDATE/INSERT queries must use sequential placeholders `$1, $2, $3...` starting at `$1`. Gaps like `$2, $3, $4, $5, $6` (skipping $1) cause asyncpg to fail. The error message is misleading — the actual issue is the missing $1 in the SQL syntax. |
+| Dozzle dedup_key includes message timestamps → every recurring error unique | `_event_dedup_key()` must call `_normalize_for_dedup()` (strips ISO/slash dates, RFC-2822 dates, hex ids, ANSI codes) before hashing. Without this, `agregarr cookie 'agregarr.sid' required` (logged 1×/min) becomes 1 unique event per minute. Migrations 022/023 backfill existing rows; `dedup_dozzle_events()` then collapses 500k+ → 1. |
+| `/api/notifications/unread` returns 1 row per event (no aggregation) → unread count grows unbounded | Use `?aggregate=true` (default) which `GROUP BY (source, type, severity, regexp_replace(title, '\\d{4}-...-?', 'TS', 'g'))`. Returns count, first_seen, last_seen, event_ids. Frontend widget shows `×N` count badge; dismiss marks all event_ids processed. |
+| Migration runner applies migration but doesn't record it in `migration_history` | The migration_history INSERT is in the same try-block as the statements; if any statement errors and the runner logs it as a warning, the file is still marked applied. If INSERT itself fails, the row is lost. Check `SELECT * FROM migration_history` after a migration with non-trivial statements. |
 
 ## Important Notes
 

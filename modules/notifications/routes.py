@@ -255,6 +255,11 @@ async def get_log(
 async def get_unread(
     user: Annotated[AuthUser, Depends(_require_auth)],
     limit: int = Query(default=20, ge=1, le=100),
+    aggregate: bool = Query(
+        default=True,
+        description="Collapse recurring events (same source + similar title) "
+                    "into one row with a count. Set false to get raw events.",
+    ),
 ):
     """Get top N actionable (unprocessed, warning/error/critical) events.
 
@@ -263,25 +268,63 @@ async def get_unread(
     worth a human's attention — anything at warn/error/critical that hasn't been
     marked as processed yet.
 
-    NOTE on severity names: the spec called for `('warning', 'error')` but the
-    codebase uses the shorter forms `('warn', 'error', 'critical')` (see
-    modules/ntfy/collector.py _priority_to_severity, modules/hermes/collector.py,
-    modules/dozzle/collector.py). Using the actual values here so we don't miss
-    events.
+    By default, results are aggregated: events sharing the same source AND a
+    timestamp-stripped version of their title are collapsed into a single row
+    with `count`, `first_seen`, and `last_seen` fields. This keeps the overview
+    usable when a single noisy source (e.g. agregarr 401 errors, syncthing
+    warnings) floods the events table.
+
+    NOTE on severity names: the codebase uses the shorter forms
+    `('warn', 'error', 'critical')` (see modules/ntfy/collector.py, etc.).
     """
     pool = get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT id, ts, source, type, severity, title, body, tags, metadata
-            FROM events
-            WHERE processed = false
-              AND severity IN ('warn', 'error', 'critical')
-            ORDER BY ts DESC
-            LIMIT $1
-            """,
-            limit,
-        )
+        if aggregate:
+            # Collapse recurring events by stripping volatile tokens (ISO / slash
+            # dates / RFC 2822 dates / hex ids) from the title before grouping.
+            # Without this, one error per minute from a chatty container becomes
+            # 1 row per minute instead of 1 row per unique error.
+            norm_title = (
+                "regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(title, "
+                "  '\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:?\\d{2})?', 'TS', 'g'), "
+                "  '\\d{4}/\\d{2}/\\d{2}[T ]?\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:?\\d{2})?', 'TS', 'g'), "
+                "  '\\[?\\w{3},\\s+\\d{1,2}\\s+\\w{3}\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}\\s+[+-]\\d{4}\\]?', 'TS', 'g'), "
+                "  '\\b\\d+#\\d+: \\*\\d+', 'REQ', 'g'), "
+                "  '\\s+', ' ', 'g')"
+            )
+            rows = await conn.fetch(
+                f"""
+                SELECT
+                    MIN(id) AS id,
+                    source,
+                    type,
+                    severity,
+                    MIN({norm_title}) AS title,
+                    MAX(ts) AS last_ts,
+                    MIN(ts) AS first_ts,
+                    COUNT(*) AS count,
+                    ARRAY_AGG(id) AS event_ids
+                FROM events
+                WHERE processed = false
+                  AND severity IN ('warn', 'error', 'critical')
+                GROUP BY source, type, severity, {norm_title}
+                ORDER BY last_ts DESC
+                LIMIT $1
+                """,
+                limit,
+            )
+        else:
+            rows = await conn.fetch(
+                """
+                SELECT id, ts, source, type, severity, title, body, tags, metadata
+                FROM events
+                WHERE processed = false
+                  AND severity IN ('warn', 'error', 'critical')
+                ORDER BY ts DESC
+                LIMIT $1
+                """,
+                limit,
+            )
 
         total_row = await conn.fetchrow(
             """
@@ -294,33 +337,39 @@ async def get_unread(
 
     items = []
     for r in rows:
-        meta = r["metadata"]
-        if isinstance(meta, str):
-            try:
-                meta = json.loads(meta)
-            except (ValueError, TypeError):
-                meta = {}
-        if not isinstance(meta, dict):
-            meta = {}
-
-        items.append({
+        item = {
             "id": r["id"],
-            "ts": r["ts"].isoformat() if r["ts"] else None,
+            "ts": (r.get("last_ts") or r.get("ts")).isoformat() if (r.get("last_ts") or r.get("ts")) else None,
             "source": r["source"],
             "type": r["type"],
             "severity": r["severity"],
             "title": r["title"] or "",
-            "body": r["body"] or "",
-            "tags": list(r["tags"]) if r["tags"] else [],
-            "metadata": meta,
-        })
+        }
+        if aggregate:
+            item["count"] = r.get("count", 1)
+            item["first_seen"] = r["first_ts"].isoformat() if r.get("first_ts") else None
+            item["last_seen"] = r["last_ts"].isoformat() if r.get("last_ts") else None
+            item["event_ids"] = list(r["event_ids"]) if r.get("event_ids") else [r["id"]]
+        else:
+            # Raw event: pull body/tags/metadata
+            meta = r.get("metadata")
+            if isinstance(meta, str):
+                try:
+                    meta = json.loads(meta)
+                except (ValueError, TypeError):
+                    meta = {}
+            if not isinstance(meta, dict):
+                    meta = {}
+            item["body"] = r.get("body") or ""
+            item["tags"] = list(r["tags"]) if r.get("tags") else []
+            item["metadata"] = meta
+        items.append(item)
 
     return {
         "items": items,
         "count": len(items),
         "total_unread": total_row["cnt"] if total_row else 0,
     }
-
 
 @router.get("/channels")
 async def channel_status(user: Annotated[AuthUser, Depends(_require_auth)]):

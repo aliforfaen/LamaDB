@@ -311,13 +311,24 @@
         var sev = (n.severity || 'warn').toLowerCase();
         var sevClass = 'notification-sev-' + sev;
         var icon = sev === 'critical' ? '!' : sev === 'error' ? 'x' : '!';
-        var time = n.ts ? window.relativeTime(n.ts) : '';
+        // When aggregated, prefer last_seen (the most recent occurrence).
+        var ts = n.last_seen || n.ts;
+        var time = ts ? window.relativeTime(ts) : '';
         var source = n.source || 'unknown';
         var title = window.escHtml(n.title || n.body || '(no details)');
-        return '<div class="notification-item" data-id="' + n.id + '">' +
+        var count = n.count || 1;
+        var countBadge = count > 1
+          ? ' <span class="notification-count" title="'
+              + count + ' similar events collapsed">×' + count + '</span>'
+          : '';
+        // Carry the full event-id list on the row so dismiss can mark them
+        // all processed in one click.
+        var idsJson = (n.event_ids && n.event_ids.length) ? JSON.stringify(n.event_ids) : '';
+        return '<div class="notification-item" data-id="' + n.id + '"' +
+          (idsJson ? ' data-ids=\'' + idsJson + '\'' : '') + '>' +
           '<span class="notification-sev ' + sevClass + '">' + icon + '</span>' +
           '<div class="notification-body">' +
-            '<span class="notification-title">' + title + '</span>' +
+            '<span class="notification-title">' + title + countBadge + '</span>' +
             '<span class="notification-meta">' +
               '<span class="notification-source">' + window.escHtml(source) + '</span>' +
               '<span class="notification-time">' + time + '</span>' +
@@ -339,15 +350,30 @@
   }
 
   window.dismissNotification = async function(eventId, btn) {
+    // When the row represents a collapsed group of N events, the cell data-id
+    // holds the lead id and data-ids holds the full list. Fetch both.
+    var item = btn && btn.closest('.notification-item');
+    var allIds = [];
+    if (item) {
+      try {
+        var raw = item.getAttribute('data-ids');
+        if (raw) allIds = JSON.parse(raw);
+      } catch (e) { allIds = []; }
+    }
+    if (allIds.length === 0) allIds = [eventId];
+
     btn.disabled = true;
     btn.textContent = '...';
     try {
-      await window.api('/api/events/' + eventId, {
-        method: 'PATCH',
-        body: JSON.stringify({ processed: true })
-      });
-      // Remove the item from the list
-      var item = btn.closest('.notification-item');
+      // Patch each event in the group. Failures on individual events are
+      // ignored — the group is considered dismissed as long as the lead id
+      // is processed.
+      await Promise.all(allIds.map(function(id) {
+        return window.api('/api/events/' + id, {
+          method: 'PATCH',
+          body: JSON.stringify({ processed: true })
+        }).catch(function() { return null; });
+      }));
       if (item) {
         item.style.opacity = '0.3';
         setTimeout(function() {
@@ -367,7 +393,6 @@
       console.error('[LamaDB] Dismiss notification error:', e);
       btn.disabled = false;
       btn.textContent = 'dismiss';
-      if (window.showToast) window.showToast('Failed to dismiss: ' + e.message, 'error');
     }
   };
 

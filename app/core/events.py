@@ -127,6 +127,10 @@ async def create_event(
 async def list_events(
     user: Annotated[AuthUser, Depends(get_current_user)],
     source: str | None = Query(default=None, description="Filter by source"),
+    exclude_source: str | None = Query(
+        default=None,
+        description="Exclude events with this source (e.g. 'dozzle' to hide noisy container logs).",
+    ),
     severity: str | None = Query(default=None, description="Filter by severity"),
     processed: bool | None = Query(default=None, description="Filter by processed status"),
     ticker: bool | None = Query(default=None, description="Filter by ticker flag"),
@@ -143,6 +147,39 @@ async def list_events(
     the last hour and returns only the most recent row per group with a
     `count` field showing the number of duplicates collapsed.
     """
+    pool = get_pool()
+
+    if consolidate:
+        async with pool.acquire() as conn:
+            conditions = ["ts > now() - interval '1 hour'"]
+            params: list = []
+            param_idx = 1
+
+            if source is not None:
+                conditions.append(f"source = ${param_idx}")
+                params.append(source)
+                param_idx += 1
+
+            if exclude_source is not None:
+                conditions.append(f"source <> ${param_idx}")
+                params.append(exclude_source)
+                param_idx += 1
+
+            if severity is not None:
+                conditions.append(f"severity = ${param_idx}")
+                params.append(severity)
+                param_idx += 1
+
+            if processed is not None:
+                conditions.append(f"processed = ${param_idx}")
+                params.append(processed)
+                param_idx += 1
+
+            if ticker is not None:
+                conditions.append(f"ticker = ${param_idx}")
+                params.append(ticker)
+                param_idx += 1
+
     pool = get_pool()
 
     if consolidate:
@@ -193,6 +230,11 @@ async def list_events(
         if source is not None:
             conditions.append(f"source = ${param_idx}")
             params.append(source)
+            param_idx += 1
+
+        if exclude_source is not None:
+            conditions.append(f"source <> ${param_idx}")
+            params.append(exclude_source)
             param_idx += 1
 
         if severity is not None:

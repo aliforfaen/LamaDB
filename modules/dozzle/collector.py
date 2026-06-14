@@ -25,13 +25,43 @@ def _sanitize(text: str) -> str:
     return text.encode("utf-8", errors="replace").decode("utf-8")
 
 
+_ISO_TS_RE = re.compile(r'\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?')
+# Common log line prefixes like "[Sun, 14 Jun 2026 23:32:01 +0200]" — RFC 2822 style
+_RFC_TS_RE = re.compile(r'\[\w{3},\s+\d{1,2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4}\]')
+# ANSI control sequences (move-to, color, etc.) — re-strip here in case sanitize missed a path
+_CTRL_RE = re.compile(r'\x1b\[[0-9;?]*[a-zA-Z]')
+# Sequence numbers / uuids / ports that vary per line but don't change the error
+_VAR_TOKEN_RE = re.compile(r'\[?\b[0-9a-f]{8,}\b\]?', re.IGNORECASE)
+
+
+def _normalize_for_dedup(message: str) -> str:
+    """Strip volatile tokens (timestamps, hex ids) so identical errors dedupe.
+
+    Without this, the same recurring error from a container (e.g. agregarr's
+    'cookie agregarr.sid required' once per minute) becomes 1 unique event
+    per timestamp. We collapse those here so recurring errors get a single
+    event per container/level/message-triple.
+    """
+    s = message or ""
+    s = _ISO_TS_RE.sub('TS', s)
+    s = _RFC_TS_RE.sub('TS', s)
+    s = _CTRL_RE.sub('', s)
+    s = _VAR_TOKEN_RE.sub('ID', s)
+    # Collapse repeated whitespace
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+
 def _event_dedup_key(container_id: str, level: str, message: str) -> str:
     """Generate a deduplication key for a log event.
 
-    Uses a hash of container_id + level + message[:200] so identical log
-    entries don't generate duplicate events across polling cycles.
+    Uses a hash of container_id + level + normalized_message[:200] so identical
+    log entries don't generate duplicate events across polling cycles. Volatile
+    tokens (timestamps, uuids, ANSI codes) are stripped before hashing so a
+    recurring error from a container collapses to a single event.
     """
-    fingerprint = f"{container_id}|{level}|{message[:200]}"
+    normalized = _normalize_for_dedup(message)[:200]
+    fingerprint = f"{container_id}|{level}|{normalized}"
     return hashlib.sha256(fingerprint.encode()).hexdigest()
 
 
@@ -166,7 +196,10 @@ async def collect() -> dict:
 
                 message = _sanitize(message)
                 ticker = severity == "error"
-                title = _sanitize(f"{name}: {message[:100]}" if message else f"{name}: log event")
+                # Use normalized message for the title so consolidation queries
+                # that group by (source, title) can collapse recurring errors.
+                norm_for_title = _sanitize(_normalize_for_dedup(message))[:100]
+                title = _sanitize(f"{name}: {norm_for_title}" if norm_for_title else f"{name}: log event")
 
                 await conn.execute(
                     """

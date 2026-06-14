@@ -285,14 +285,21 @@
     });
   }
 
-  /* ─── DASHBOARD: RECENT API ERRORS ────────────────────────────────── */
+  /* ─── DASHBOARD: RECENT SYSTEM ERRORS ─────────────────────────────── */
   function loadAbApiErrors() {
     var list = document.getElementById('ab-api-errors-list');
     if (!list) return;
 
-    window.api('/api/events?severity=error&limit=5').then(function(events) {
+    // Filter out the noisiest sources (dozzle container logs flood the
+    // events table with one error per container per minute). The Overview
+    // "Notifications" widget shows those separately, with aggregation.
+    window.api('/api/events?severity=error&limit=50&exclude_source=dozzle').then(function(events) {
       var countEl = document.getElementById('ab-error-count');
-      if (countEl && Array.isArray(events)) countEl.textContent = events.length + ' recent';
+      if (countEl) {
+        // Show the count of distinct *unprocessed* high-signal errors
+        var high = (events || []).filter(function(e) { return !e.processed; }).length;
+        countEl.textContent = high + ' recent';
+      }
 
       if (!Array.isArray(events) || events.length === 0) {
         list.innerHTML = '<div class="ab-empty">No recent errors.</div>';
@@ -314,7 +321,7 @@
         '</div>';
       }).join('');
     }).catch(function(e) {
-      list.innerHTML = '<div style="color:var(--danger);padding:10px;">Failed: ' + e.message + '</div>';
+      list.innerHTML = '<div class="ab-empty">Errors unavailable</div>';
     });
   }
 
