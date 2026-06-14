@@ -64,9 +64,15 @@ class Settings(BaseSettings):
     homeassistant_highlight_entities: str = ""
 
 
-    # OpenAI embeddings
-    openai_api_key: str = ""
-    embedding_model: str = "text-embedding-3-small"
+
+    # Wiki — CouchDB-backed LiveSync collector
+    wiki_couchdb_url: str = ""
+    wiki_couchdb_db: str = ""
+    wiki_couchdb_user: str = ""
+    wiki_couchdb_password: str = ""
+    wiki_couchdb_encryption_key: str = ""  # LiveSync E2EE passphrase
+    wiki_sync_interval: int = 900    # seconds, safety-net full re-sync
+
 
 settings = Settings()
 

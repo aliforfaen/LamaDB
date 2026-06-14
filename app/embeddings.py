@@ -1,24 +1,25 @@
-"""OpenAI embedding service for LamaDB documents.
+"""Local CPU-only embedding service for LamaDB documents.
 
-Uses text-embedding-3-small (1536 dims) via the openai Python package.
-Falls back gracefully when no API key is configured.
+Uses sentence-transformers/all-MiniLM-L6-v2 (384 dims).
+Model is lazy-loaded on first call to avoid blocking startup.
 """
+import asyncio
 import logging
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Lazy-initialized async client
-_client = None
+# Lazy-initialized model
+_model = None
 
 
-def _get_client():
-    """Return (or create) a shared AsyncOpenAI client."""
-    global _client
-    if _client is None and settings.openai_api_key:
-        from openai import AsyncOpenAI
-        _client = AsyncOpenAI(api_key=settings.openai_api_key)
-    return _client
+def _get_model():
+    """Return (or create) a shared SentenceTransformer instance."""
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device="cpu")
+        logger.info("Loaded local embedding model: all-MiniLM-L6-v2 (384 dims, CPU)")
+    return _model
 
 
 def _prepare_text(title: str | None, content: str | None) -> str:
@@ -29,52 +30,29 @@ def _prepare_text(title: str | None, content: str | None) -> str:
     if content:
         parts.append(content)
     text = "\n".join(parts)
-    # text-embedding-3-small has an 8191 token limit (~32K chars safely)
-    return text[:8000]
+    # all-MiniLM-L6-v2 has a 256 token limit (~1000 chars safely)
+    return text[:1000]
 
 
-async def generate_embedding(text: str) -> list[float] | None:
-    """Generate a 1536-dim embedding for a single text.
+async def generate_embedding(text: str) -> list[float]:
+    """Generate a 384-dim embedding for a single text.
 
-    Returns None if OpenAI is not configured or the request fails.
+    Runs model.encode in a thread to avoid blocking the event loop.
+    Never returns None — raises on model load failure.
     """
-    client = _get_client()
-    if client is None:
-        return None
-
-    try:
-        resp = await client.embeddings.create(
-            model=settings.embedding_model,
-            input=text,
-        )
-        return resp.data[0].embedding
-    except Exception:
-        logger.warning("OpenAI embedding failed for text len=%d", len(text), exc_info=True)
-        return None
+    model = _get_model()
+    return (await asyncio.to_thread(model.encode, text)).tolist()
 
 
-async def generate_embeddings_batch(texts: list[str]) -> list[list[float] | None]:
+async def generate_embeddings_batch(texts: list[str]) -> list[list[float]]:
     """Generate embeddings for a batch of texts.
 
-    OpenAI supports up to 2048 inputs per batch request.
-    Returns a list of embeddings (or None per-text on failure).
+    Runs model.encode in one thread call.
+    Returns a list of embeddings in the same order.
     """
-    client = _get_client()
-    if client is None:
-        return [None] * len(texts)
-
-    try:
-        resp = await client.embeddings.create(
-            model=settings.embedding_model,
-            input=texts,
-        )
-        # Response data is ordered the same as input
-        return [item.embedding for item in resp.data]
-    except Exception:
-        logger.warning(
-            "OpenAI batch embedding failed for %d texts", len(texts), exc_info=True
-        )
-        return [None] * len(texts)
+    model = _get_model()
+    embeddings = await asyncio.to_thread(model.encode, texts)
+    return [emb.tolist() for emb in embeddings]
 
 
 async def embed_document_async(doc_id: str, title: str | None, content: str | None) -> None:
@@ -86,8 +64,10 @@ async def embed_document_async(doc_id: str, title: str | None, content: str | No
     from app.db import get_pool
 
     text = _prepare_text(title, content)
-    embedding = await generate_embedding(text)
-    if embedding is None:
+    try:
+        embedding = await generate_embedding(text)
+    except Exception:
+        logger.warning("Failed to generate embedding for doc %s", doc_id, exc_info=True)
         return
 
     embedding_str = f"[{','.join(str(v) for v in embedding)}]"

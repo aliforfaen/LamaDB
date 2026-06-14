@@ -176,7 +176,7 @@ async def lifespan(app: FastAPI):
 
     # Start background poller tasks (skip in test mode)
     if not is_test:
-        for module_name, interval in [("freshrss", 900), ("ntfy", 300), ("dozzle", 300), ("notflix", 1800), ("hermes", 300), ("homeassistant", 300)]:
+        for module_name, interval in [("freshrss", 900), ("ntfy", 300), ("dozzle", 300), ("notflix", 1800), ("hermes", 300), ("homeassistant", 300), ("wiki", 900)]:
             try:
                 mod = __import__(f"modules.{module_name}", fromlist=["ENABLED", "collect"])
                 if getattr(mod, "ENABLED", False) and hasattr(mod, "collect"):
@@ -242,6 +242,18 @@ async def lifespan(app: FastAPI):
         listener_task.add_done_callback(background_tasks.discard)
         logger.info("Started SSE pg_listener on channels: event_created, task_update, document_created, monitor_status, kanban_task_updated, secret_updated, secret_request_updated")
 
+        # Wiki LiveSync watcher — continuous CouchDB _changes feed poller
+        if (settings.wiki_couchdb_url and settings.wiki_couchdb_db
+                and settings.wiki_couchdb_user and settings.wiki_couchdb_password
+                and settings.wiki_couchdb_encryption_key):
+            try:
+                from modules.wiki.collector import watch_wiki_changes
+                wiki_task = asyncio.create_task(watch_wiki_changes())
+                background_tasks.add(wiki_task)
+                wiki_task.add_done_callback(background_tasks.discard)
+                logger.info("Started Wiki LiveSync watcher (continuous)")
+            except ImportError:
+                logger.warning("Wiki LiveSync watcher not available")
     yield
     for task in background_tasks:
         task.cancel()

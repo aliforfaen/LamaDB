@@ -50,7 +50,13 @@ services:
       HOMEASSISTANT_URL: ${HA_URL:-}
       HOMEASSISTANT_TOKEN: ${HA_TOKEN:-}
       HOMEASSISTANT_HIGHLIGHT_ENTITIES: ${HOMEASSISTANT_HIGHLIGHT_ENTITIES:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      WIKI_COUCHDB_URL: ${WIKI_COUCHDB_URL:-}
+      WIKI_COUCHDB_DB: ${WIKI_COUCHDB_DB:-}
+      WIKI_COUCHDB_USER: ${WIKI_COUCHDB_USER:-}
+      WIKI_COUCHDB_PASSWORD: ${WIKI_COUCHDB_PASSWORD:-}
+      WIKI_COUCHDB_ENCRYPTION_KEY: ${WIKI_COUCHDB_ENCRYPTION_KEY:-}
+      # OPENAI_API_KEY is deprecated — embeddings now use local sentence-transformers
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       - ${WIKI_PATH:-/home/messhias/Basecamp/wiki}:/wiki:ro
     ports:

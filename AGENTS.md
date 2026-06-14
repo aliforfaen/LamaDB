@@ -8,6 +8,9 @@ LamaDB is a self-hosted central data layer / Life OS. It stores documents, event
 
 Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table. Ingest pipeline for push-based lifecycle hooks. MCP server exposes LamaDB as callable tools for AI agents.
 
+## Context
+When a user asks about this project, a "llm-wiki" is kept for it in the folder `~/Basecamp/wiki/projects/lamadb/`. Read files in this folder if any context is needed. And keep them up to date with work and plans.
+
 ## Architecture
 
 ```
@@ -49,7 +52,7 @@ lamadb/
 │   ├── db.py              # asyncpg connection pool
 │   ├── auth.py            # API key auth with roles (includes verify_api_key for SSE)
 │   ├── cache.py           # In-memory TTL cache with tag invalidation
-│   ├── embeddings.py      # OpenAI embedding service (text-embedding-3-small, 1536d)
+│   │   ├── embeddings.py      # Sentence-transformers (all-MiniLM-L6-v2, 384d)
 │   ├── sse.py             # SSE infrastructure (SSEManager + pg_listener)
 │   ├── mcp_server.py      # MCP JSON-RPC 2.0 handler
 │   ├── mcp_registry.py    # Auto-discovers MCP tools from modules
@@ -107,13 +110,16 @@ lamadb/
 │   │   ├── models.py
 │   │   ├── webhook.py
 │   │   └── collector.py   # Background poller (every 5m)
-│   ├── wiki/              # Wiki reader (Karakeep API)
+│   ├── wiki/              # Wiki reader + CouchDB LiveSync collector
 │   │   ├── __init__.py
 │   │   ├── routes.py      # /api/wiki/*
 │   │   ├── models.py
 │   │   ├── wiki_db.py
 │   │   ├── wiki_reader.py
-│   │   └── scratchpad.py
+│   │   ├── scratchpad.py
+│   │   ├── couchdb_crypto.py  # LiveSync HKDF/AES-GCM decryption
+│   │   ├── couchdb_client.py  # CouchDB HTTP client (Basic auth)
+│   │   └── collector.py       # LiveSync _changes feed watcher + upsert
 │   ├── hermes/            # Hermes Agent analytics
 │   │   ├── __init__.py
 │   │   ├── routes.py      # /api/hermes/*
@@ -149,7 +155,15 @@ lamadb/
 │   ├── 011_user_layouts.sql
 │   ├── 012_dashboard_notify_triggers.sql
 │   ├── 013_api_key_prefix.sql
-│   └── 014_kanban_core.sql   # Users + 7 kanban tables + NOTIFY triggers
+│   ├── 014_kanban_core.sql   # Users + 7 kanban tables + NOTIFY triggers
+│   ├── 015_user_theme.sql
+│   ├── 016_dedup_cron.sql
+│   ├── 017_groups_core.sql
+│   ├── 018_secrets_module.sql
+│   ├── 019_kanban_task_metadata.sql
+│   ├── 019_migration_history.sql
+│   ├── 020_local_embeddings_384.sql  # vector(1536)→vector(384), drop+recreate HNSW
+│   └── 021_wiki_sync_state.sql       # Wiki collector CouchDB _changes seq tracker
 ├── benchmarks/
 │   └── bench_all_endpoints.py
 ├── tests/
@@ -424,20 +438,37 @@ docker logs lamadb_api --tail 20
 | Completing a task must move it to Done column | `complete_task` route finds the Done column via `status = 'done'` and updates `column_id` BEFORE auto-starting dependents. |
 | Kanban SSE channel is `kanban_task_updated` | NOTIFY triggers fire on INSERT/UPDATE/DELETE of `kanban_tasks`. Frontend registers callback via `window._sseCallbacks['kanban_task_updated']`. pg_listener subscribes in app/main.py. |
 | User creation auto-generates API key with user_id link | `POST /api/users` creates both a `users` row and an `api_keys` row with `user_id` FK. New keys MUST include `key_prefix` for O(1) lookup. Legacy keys in migration get user_id backfilled from name matching. |
+| Embeddings now use local `sentence-transformers/all-MiniLM-L6-v2` (384-dim) | No more OpenAI dependency. Model loads lazily on first `generate_embedding()` call. First call takes ~5-10s. Backfill after migration: trigger `POST /api/search/embeddings/backfill` with admin key. |
+| HNSW index recreated after vector dim change (migration 020) | Migration drops HNSW, clears embeddings, alters `vector(1536)` → `vector(384)`, recreates index. All existing embeddings are cleared and must be regenerated via backfill endpoint. |
+| Wiki collector uses CouchDB `_changes` feed with longpoll | Runs continuously via `watch_wiki_changes()` asyncio task. Advances sequence per batch. On errors, backs off exponentially (10s → 300s max). |
+| Wiki sync state persisted in `wiki_sync_state` table | Tracks last processed CouchDB sequence. Reset to `'0'` to trigger full re-sync: `UPDATE wiki_sync_state SET last_seq = '0';` |
+| Wiki collector only syncs `wiki/` folder pages | Files outside `wiki/` are skipped via path prefix check. Set `WIKI_COUCHDB_URL`, `WIKI_COUCHDB_DB`, `WIKI_COUCHDB_USER`, `WIKI_COUCHDB_PASSWORD`, `WIKI_COUCHDB_ENCRYPTION_KEY` env vars. |
+| LiveSync chunk IDs contain `+` which decodes to space in URLs | CouchDB client URL-encodes path segments via `urllib.parse.quote`. Raw `+` in doc IDs (e.g., `h:+abc`) must be encoded as `%2B` in HTTP requests. |
+| `decrypt_meta` expects `/\\:` prefix on path fields | LiveSync V2 uses `/\\:` prefix (forward slash, backslash, colon). In Python source, check as `path_field.startswith("/\\\\:")` (escape backslashes). |
+| Both `%=` (sync-salt) and `%$` (ephemeral-salt) encryption prefixes are supported | `%=` uses the global `pbkdf2salt` from sync parameters; `%$` embeds its own pbkdf2 salt. Both produce AES-256-GCM ciphertext. Verified against live `obsidiannotes` CouchDB. |
+| Gapped SQL placeholders cause `IndeterminateDatatypeError` | UPDATE/INSERT queries must use sequential placeholders `$1, $2, $3...` starting at `$1`. Gaps like `$2, $3, $4, $5, $6` (skipping $1) cause asyncpg to fail. The error message is misleading — the actual issue is the missing $1 in the SQL syntax. |
 
 ## Important Notes
 
 - The `/feeds/{slug}.xml` endpoint is PUBLIC (no auth). It's RSS — readers can't send API keys.
 - The `/api/uptime/webhook` endpoint is semi-public. We'll validate by source IP later, but for PoC it's open.
 - Module tables are created by module-specific migrations. The feeds and uptime tables are in 001_initial.sql for PoC simplicity.
-- Lambda uses `STATUS` column in kanban migration — ensure `IF NOT EXISTS` guards on ALTER TABLE commands.
-
-## Environment Variables
-
-See `.env.example` for full list. Key variables:
-
 ```
 DATABASE_URL=postgresql://lamadb:lamadb@postgres:5432/lamadb
+API_KEY_SALT=<random-string-for-hashing>
+CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+# Local embeddings: see app/embeddings.py (no OpenAI key required)
+WIKI_COUCHDB_URL=http://valhalla:5984
+WIKI_COUCHDB_DB=obsidiannotes
+WIKI_COUCHDB_USER=
+WIKI_COUCHDB_PASSWORD=
+WIKI_COUCHDB_ENCRYPTION_KEY=
+FRESHRSS_URL=http://valhalla:8780 # FreshRSS GReader API base URL
+HERMES_URL=http://dev-vm:9119     # Hermes Agent API
+UPTIME_KUMA_URL=...               # Uptime Kuma API URL
+DOZZLE_URL=...                    # Dozzle API URL
+SONARR_URL=... / RADARR_URL=... / TAUTULLI_URL=...
+```
 API_KEY_SALT=<random-string-for-hashing>
 CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 OPENAI_API_KEY=sk-...            # Optional — embeddings silently skipped if empty

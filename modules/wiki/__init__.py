@@ -34,7 +34,15 @@ MODULE_MCP_TOOLS = [
 ]
 
 
+
 def get_router():
     from .routes import router
 
     return router
+
+
+async def collect():
+    """Wiki collector: sync CouchDB LiveSync changes into documents table."""
+    from .collector import collect as _collect
+
+    return await _collect()

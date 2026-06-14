@@ -41,7 +41,7 @@ def _doc_from_row(row) -> Document:
     )
 
 
-def _text_to_pseudo_embedding(text: str, dims: int = 1536) -> list[float]:
+def _text_to_pseudo_embedding(text: str, dims: int = 384) -> list[float]:
     """Generate a deterministic pseudo-embedding from text using hash expansion.
     This is a placeholder until a real embedding model is connected.
     Uses SHA-256 hash of the text, expanded to `dims` dimensions, L2-normalized.
@@ -100,37 +100,52 @@ async def search_semantic(
     user: Annotated[AuthUser, Depends(get_current_user)],
     q: str = Query(..., min_length=1, description="Search term"),
     limit: int = Query(default=10, ge=1, le=50, description="Max results"),
+    source_type: str = Query(default=None, description="Optional filter by source_type (e.g. 'wiki')"),
 ) -> list[Document]:
     """
     Semantic search on documents using pgvector cosine similarity.
 
-    Uses OpenAI text-embedding-3-small when configured, falls back to
-    deterministic pseudo-embeddings otherwise (returns empty when no
-    embeddings are stored).
+    Uses local sentence-transformers/all-MiniLM-L6-v2 (384-dim) for embeddings.
     """
     pool = get_pool()
 
-    # Try real embedding first, fall back to pseudo
     embedding = await generate_embedding(q)
     if embedding is None:
         embedding = _text_to_pseudo_embedding(q)
 
     embedding_str = f"[{','.join(str(v) for v in embedding)}]"
     async with pool.acquire() as conn:
-        rows = await conn.fetch(
-            """
-            SELECT
-                id, source_type, title, content, metadata, tags,
-                created_at, updated_at,
-                1 - (embedding <=> $1::vector) AS sim
-            FROM documents
-            WHERE embedding IS NOT NULL
-            ORDER BY embedding <=> $1::vector
-            LIMIT $2
-            """,
-            embedding_str,
-            limit,
-        )
+        if source_type:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    id, source_type, title, content, metadata, tags,
+                    created_at, updated_at,
+                    1 - (embedding <=> $1::vector) AS sim
+                FROM documents
+                WHERE embedding IS NOT NULL AND source_type = $3
+                ORDER BY embedding <=> $1::vector
+                LIMIT $2
+                """,
+                embedding_str,
+                limit,
+                source_type,
+            )
+        else:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    id, source_type, title, content, metadata, tags,
+                    created_at, updated_at,
+                    1 - (embedding <=> $1::vector) AS sim
+                FROM documents
+                WHERE embedding IS NOT NULL
+                ORDER BY embedding <=> $1::vector
+                LIMIT $2
+                """,
+                embedding_str,
+                limit,
+            )
         return [_doc_from_row(row) for row in rows]
 
 
