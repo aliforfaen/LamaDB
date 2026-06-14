@@ -334,7 +334,7 @@
             '<td class="mono" style="font-size:11px;">' + (t.id ? t.id.substring(0, 8) : '') + '</td>' +
             '<td>' + window.escHtml(t.task_type || t.type || '') + '</td>' +
             '<td><span class="sev-badge ' + statusClass + '">' + (t.status || 'pending') + '</span></td>' +
-            '<td>' + window.escHtml(t.assigned_to || t.agent || '') + '</td>' +
+            '<td>' + window.escHtml(t.claimed_by || t.assigned_to || t.agent || '\u2014') + '</td>' +
             '<td class="mono" style="font-size:12px;">' + window.relativeTime(t.created_at) + '</td>' +
           '</tr>';
         }).join('') +

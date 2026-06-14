@@ -4,6 +4,8 @@
 
   var _apikeyPage = 0;
   var _apikeyPerPage = 25;
+  var _apikeyFilter = 'all';
+  var _allApiKeys = [];
   var _moduleConfigName = null;
 
   window.loadSettings = async function() {
@@ -92,7 +94,7 @@
       window.api('/api/dashboard/api-keys'),
       window.api('/api/dashboard/api-keys/stats')
     ]).then(function(results) {
-      _allApiKeys = results[0].keys || [];
+      _allApiKeys = (results[0] && results[0].keys) || [];
       renderApiKeyStats(results[1]);
       renderApiKeysTable(_allApiKeys);
     }).catch(function(e) {
