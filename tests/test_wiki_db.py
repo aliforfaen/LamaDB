@@ -342,12 +342,12 @@ async def test_search_pages(client, admin_key, db_pool):
 @pytest.mark.asyncio
 async def test_wikilink_sync(client, admin_key, db_pool):
     """Create page with [[Some Page]] links → document_links entries are created."""
-    # Create two pages
-    page1 = await make_page(client, admin_key, "Link Source",
-                            "test/link-source.md", "See [[Target Page]] for info.",
-)
+    # Create target first so it exists when the source page's wikilink is resolved
     page2 = await make_page(client, admin_key, "Target Page",
                             "test/target-page.md", "This is the target.",
+)
+    page1 = await make_page(client, admin_key, "Link Source",
+                            "test/link-source.md", "See [[Target Page]] for info.",
 )
 
     # The make_page already calls sync_wikilinks on create.
