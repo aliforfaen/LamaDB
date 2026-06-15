@@ -335,6 +335,21 @@ async def get_unread(
             """
         )
 
+        # Fetch body/tags/metadata for the latest event in each aggregated group.
+        # The aggregated query returns event_ids in insertion order, so the
+        # max(id) per group is the most recent event — we look up its details
+        # here in a single batched query (avoids the O(n*m) cost of a LATERAL
+        # JOIN over the 16k+ row events table).
+        detail_map: dict = {}
+        if aggregate and rows:
+            latest_ids = [max(r["event_ids"]) for r in rows if r.get("event_ids")]
+            if latest_ids:
+                detail_rows = await conn.fetch(
+                    "SELECT id, body, tags, metadata FROM events WHERE id = ANY($1)",
+                    latest_ids,
+                )
+                detail_map = {r["id"]: r for r in detail_rows}
+
     items = []
     for r in rows:
         item = {
@@ -350,18 +365,24 @@ async def get_unread(
             item["first_seen"] = r["first_ts"].isoformat() if r.get("first_ts") else None
             item["last_seen"] = r["last_ts"].isoformat() if r.get("last_ts") else None
             item["event_ids"] = list(r["event_ids"]) if r.get("event_ids") else [r["id"]]
+            # Pull body/tags/metadata from the latest event in this group.
+            # detail_map is keyed by max(event_ids), not min(id).
+            latest_id = max(r["event_ids"]) if r.get("event_ids") else r["id"]
+            detail = detail_map.get(latest_id)
         else:
-            # Raw event: pull body/tags/metadata
-            meta = r.get("metadata")
+            detail = r
+
+        if detail is not None:
+            meta = detail.get("metadata")
             if isinstance(meta, str):
                 try:
                     meta = json.loads(meta)
                 except (ValueError, TypeError):
                     meta = {}
             if not isinstance(meta, dict):
-                    meta = {}
-            item["body"] = r.get("body") or ""
-            item["tags"] = list(r["tags"]) if r.get("tags") else []
+                meta = {}
+            item["body"] = detail.get("body") or ""
+            item["tags"] = list(detail["tags"]) if detail.get("tags") else []
             item["metadata"] = meta
         items.append(item)
 

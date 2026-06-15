@@ -40,38 +40,56 @@ async def db_pool():
 
 @pytest_asyncio.fixture(scope="function")
 async def admin_headers(db_pool):
-    """Admin auth headers with a properly seeded API key."""
+    """Admin auth headers with a properly seeded API key.
+
+    Includes key_prefix (SHA-256 of first 16 chars of the plain key) so the
+    auth route uses its O(1) prefix lookup. Without this, every request from
+    a test auth-creating fixture triggers the legacy fallback (full scan +
+    bcrypt per row), which times out when api_keys has 100+ legacy rows.
+    """
     import bcrypt
-    key_plain = "test-notif-admin-" + uuid4().hex[:8]
+    import hashlib
+    # Include the random suffix BEFORE the first 16 chars so each test key
+    # produces a unique key_prefix. Without this, key_plain[:16] is
+    # "test-notif-admin-" for every test, all prefixes collide, and the
+    # O(1) auth lookup returns 100+ rows × bcrypt check = 10s+ per request.
+    suffix = uuid4().hex
+    key_plain = "lamadb_t_" + suffix
     key_hash = bcrypt.hashpw(
         (settings.api_key_salt + key_plain).encode(),
         bcrypt.gensalt()
     ).decode()
+    key_prefix = hashlib.sha256(key_plain[:16].encode()).hexdigest()
     async with db_pool.acquire() as conn:
         await conn.execute(
-            """INSERT INTO api_keys (name, key_hash, role, scopes, active)
-               VALUES ($1, $2, $3, $4, true)
+            """INSERT INTO api_keys (name, key_hash, key_prefix, role, scopes, active)
+               VALUES ($1, $2, $3, $4, $5, true)
                ON CONFLICT (key_hash) DO NOTHING""",
-            "test-notif-admin", key_hash, "admin", ["notifications"],
+            "test-notif-admin", key_hash, key_prefix, "admin", ["notifications"],
         )
     return {"Authorization": f"Bearer {key_plain}"}
 
 
 @pytest_asyncio.fixture(scope="function")
 async def read_headers(db_pool):
-    """Read-only auth headers."""
+    """Read-only auth headers (with key_prefix for O(1) auth lookup)."""
     import bcrypt
-    key_plain = "test-notif-read-" + uuid4().hex[:8]
+    import hashlib
+    # See admin_headers above for why the random part must land inside the
+    # first 16 chars of the key. Same pattern here.
+    suffix = uuid4().hex
+    key_plain = "lamadb_r_" + suffix
     key_hash = bcrypt.hashpw(
         (settings.api_key_salt + key_plain).encode(),
         bcrypt.gensalt()
     ).decode()
+    key_prefix = hashlib.sha256(key_plain[:16].encode()).hexdigest()
     async with db_pool.acquire() as conn:
         await conn.execute(
-            """INSERT INTO api_keys (name, key_hash, role, scopes, active)
-               VALUES ($1, $2, $3, $4, true)
+            """INSERT INTO api_keys (name, key_hash, key_prefix, role, scopes, active)
+               VALUES ($1, $2, $3, $4, $5, true)
                ON CONFLICT (key_hash) DO NOTHING""",
-            "test-notif-read", key_hash, "read", ["notifications"],
+            "test-notif-read", key_hash, key_prefix, "read", ["notifications"],
         )
     return {"Authorization": f"Bearer {key_plain}"}
 
