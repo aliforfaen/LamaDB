@@ -11,6 +11,7 @@ MODULE_MCP_TOOLS = [
     {"name": "kanban_start_task", "description": "Start working on a task (auto-claims if unassigned)", "handler": "modules.kanban.mcp:kanban_start_task"},
     {"name": "kanban_complete_task", "description": "Complete a task and auto-start dependents", "handler": "modules.kanban.mcp:kanban_complete_task"},
     {"name": "kanban_create_task", "description": "Create a new task in a board", "handler": "modules.kanban.mcp:kanban_create_task"},
+    {"name": "kanban_create_from_template", "description": "Create a new kanban task from a template. Pre-fills title, description, priority, tags, and subtasks.", "inputSchema": {"type": "object", "properties": {"board_id": {"type": "string", "description": "Board ID"}, "template_id": {"type": "string", "description": "Template ID"}, "title_override": {"type": "string", "description": "Override template title (optional)"}}, "required": ["board_id", "template_id"]}, "handler": "modules.kanban.mcp:kanban_create_from_template"},
     {"name": "kanban_update_task", "description": "Update task fields", "handler": "modules.kanban.mcp:kanban_update_task"},
     {"name": "kanban_add_comment", "description": "Add a comment to a task", "handler": "modules.kanban.mcp:kanban_add_comment"},
     {"name": "kanban_get_task", "description": "Get full task details with subtasks and comments", "handler": "modules.kanban.mcp:kanban_get_task"},

@@ -175,7 +175,8 @@ async def kanban_complete_task(user_id: str, task_id: str, summary: str | None =
 
 
 async def kanban_create_task(user_id: str, board_id: str, title: str,
-                             description: str | None = None, priority: str = "medium") -> dict:
+                             description: str | None = None, priority: str = "medium",
+                             tags: list[str] | None = None) -> dict:
     """Create a new task in a board's Backlog column."""
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -198,9 +199,9 @@ async def kanban_create_task(user_id: str, board_id: str, title: str,
         )
         try:
             task_id = await conn.fetchval(
-                """INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description, priority)
-                   VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
-                board_id, col_id, next_num, title, description, priority,
+                """INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description, priority, tags)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id""",
+                board_id, col_id, next_num, title, description, priority, tags or [],
             )
         except asyncpg.exceptions.UniqueViolationError:
             # Lost a race — recompute and retry once.
@@ -209,9 +210,9 @@ async def kanban_create_task(user_id: str, board_id: str, title: str,
                 board_id,
             )
             task_id = await conn.fetchval(
-                """INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description, priority)
-                   VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
-                board_id, col_id, next_num, title, description, priority,
+                """INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description, priority, tags)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id""",
+                board_id, col_id, next_num, title, description, priority, tags or [],
             )
         await _log_action(user_id, task_id, board_id, "task_created", tool="kanban_create_task")
 
@@ -219,7 +220,8 @@ async def kanban_create_task(user_id: str, board_id: str, title: str,
 
 
 async def kanban_update_task(user_id: str, task_id: str, title: str | None = None,
-                             description: str | None = None, priority: str | None = None) -> dict:
+                             description: str | None = None, priority: str | None = None,
+                             tags: list[str] | None = None) -> dict:
     """Update task fields."""
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -236,6 +238,8 @@ async def kanban_update_task(user_id: str, task_id: str, title: str | None = Non
             updates.append(f"description = ${idx}"); params.append(description); idx += 1
         if priority is not None:
             updates.append(f"priority = ${idx}"); params.append(priority); idx += 1
+        if tags is not None:
+            updates.append(f"tags = ${idx}"); params.append(tags); idx += 1
 
         if updates:
             updates.append("updated_at = now()")
@@ -290,6 +294,7 @@ async def kanban_get_task(user_id: str, task_id: str) -> dict:
             "priority": row["priority"], "assignee": row["assignee_name"],
             "help_wanted": row["help_wanted"], "help_wanted_message": row["help_wanted_message"],
             "completed": row["completed_at"] is not None,
+            "tags": list(row["tags"]) if row["tags"] else [],
             "subtasks": [
                 {"title": s["title"], "completed": s["completed"]} for s in subtasks
             ],
@@ -334,4 +339,96 @@ async def kanban_my_instructions(user_id: str) -> dict:
         "board_instructions": [
             {"board": b["name"], "instructions": b["instructions"]} for b in boards
         ],
+    }
+
+
+async def kanban_create_from_template(
+    user_id: str, board_id: str, template_id: str, title_override: str | None = None,
+) -> dict:
+    """Create a new kanban task from a template. Pre-fills title, description,
+    priority, tags, and creates subtasks from the template.
+    """
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        template = await conn.fetchrow(
+            "SELECT * FROM kanban_task_templates WHERE id = $1", template_id,
+        )
+        if not template:
+            return {"error": "Template not found"}
+
+        col_id = await conn.fetchval(
+            "SELECT id FROM kanban_columns WHERE board_id = $1 AND status = 'backlog' ORDER BY position LIMIT 1",
+            board_id,
+        )
+        if not col_id:
+            col_id = await conn.fetchval(
+                "SELECT id FROM kanban_columns WHERE board_id = $1 ORDER BY position LIMIT 1",
+                board_id,
+            )
+        if not col_id:
+            return {"error": "Board has no columns"}
+
+        next_num = await conn.fetchval(
+            "SELECT COALESCE(MAX(task_number), 0) + 1 FROM kanban_tasks WHERE board_id = $1",
+            board_id,
+        )
+
+        # title_override wins; otherwise use template name
+        title = title_override or template["name"]
+        description = template["description"]
+        priority = template["priority"] or "medium"
+        tags = list(template["tags"]) if template["tags"] else []
+
+        try:
+            task_id = await conn.fetchval(
+                """INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description, priority, tags)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id""",
+                board_id, col_id, next_num, title, description, priority, tags,
+            )
+        except asyncpg.exceptions.UniqueViolationError:
+            next_num = await conn.fetchval(
+                "SELECT COALESCE(MAX(task_number), 0) + 1 FROM kanban_tasks WHERE board_id = $1",
+                board_id,
+            )
+            task_id = await conn.fetchval(
+                """INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description, priority, tags)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id""",
+                board_id, col_id, next_num, title, description, priority, tags,
+            )
+
+        # Create subtasks from template
+        template_subtasks = template["subtasks"]
+        if isinstance(template_subtasks, str):
+            try:
+                template_subtasks = json.loads(template_subtasks) or []
+            except (ValueError, TypeError):
+                template_subtasks = []
+        elif template_subtasks is None:
+            template_subtasks = []
+
+        created_subtask_ids: list[str] = []
+        for idx, st in enumerate(template_subtasks):
+            sub_title = st.get("title") if isinstance(st, dict) else None
+            if not sub_title:
+                continue
+            sub_pos = st.get("position", idx) if isinstance(st, dict) else idx
+            sub_id = await conn.fetchval(
+                "INSERT INTO kanban_subtasks (task_id, title, position) VALUES ($1, $2, $3) RETURNING id",
+                task_id, sub_title, sub_pos,
+            )
+            if sub_id:
+                created_subtask_ids.append(str(sub_id))
+
+        await _log_action(
+            user_id, task_id, board_id,
+            "task_created_from_template", template["name"], "kanban_create_from_template",
+        )
+
+    cache_manager.invalidate("kanban_tasks")
+    return {
+        "status": "created",
+        "task_id": str(task_id),
+        "task_number": next_num,
+        "title": title,
+        "subtask_count": len(created_subtask_ids),
     }

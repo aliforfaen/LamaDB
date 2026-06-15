@@ -18,8 +18,8 @@ class WikiPage(BaseModel):
 
     path: str = Field(..., description="Relative path from wiki root, e.g. entities/homelab-services.md")
     title: str = Field(..., description="Page title (derived from filename or first heading)")
-    section: str = Field(..., description="Top-level directory section (entities, concepts, projects, raw, etc.)")
-    size: int = Field(..., description="File size in bytes")
+    section: str = Field(default="", description="Top-level directory section (entities, concepts, projects, raw, etc.)")
+    size: int = Field(default=0, description="File size in bytes")
 
 
 class WikiPageContent(BaseModel):

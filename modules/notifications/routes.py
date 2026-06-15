@@ -6,8 +6,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth import AuthUser, get_current_user
+from app.cache import cache_manager
 from app.db import get_pool
-from .models import RuleCreate, RuleUpdate, RuleResponse, FireRequest, FireResponse
+from .models import (
+    RuleCreate,
+    RuleUpdate,
+    RuleResponse,
+    FireRequest,
+    FireResponse,
+    SourceConfig,
+    SourceConfigCreate,
+    SourceConfigUpdate,
+)
 
 router = APIRouter(prefix="", tags=["notifications"])
 logger = logging.getLogger(__name__)
@@ -408,3 +418,178 @@ async def channel_status(user: Annotated[AuthUser, Depends(_require_auth)]):
     channels["ntfy"] = {"configured": bool(settings.ntfy_url)}
 
     return channels
+
+
+# ---------------------------------------------------------------------------
+# Source config CRUD — per-source noise threshold controls
+# ---------------------------------------------------------------------------
+
+def _source_config_from_row(row) -> SourceConfig:
+    """Convert an asyncpg row to a SourceConfig."""
+    d = dict(row)
+    if d.get("id") is not None:
+        d["id"] = str(d["id"])
+    for ts_field in ("created_at", "updated_at"):
+        val = d.get(ts_field)
+        if val is not None and hasattr(val, "isoformat"):
+            d[ts_field] = val.isoformat()
+    return SourceConfig(**d)
+
+
+@router.get("/source-configs", response_model=list[SourceConfig])
+async def list_source_configs(user: Annotated[AuthUser, Depends(_require_auth)]):
+    """List all per-source noise configurations."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM source_config ORDER BY source_name ASC"
+        )
+    return [_source_config_from_row(r) for r in rows]
+
+
+@router.post(
+    "/source-configs",
+    response_model=SourceConfig,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_source_config(
+    cfg: SourceConfigCreate,
+    user: Annotated[AuthUser, Depends(_require_auth)],
+):
+    """Create a new per-source noise configuration. Requires admin role."""
+    if user.role not in ("admin",):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required",
+        )
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        try:
+            row = await conn.fetchrow(
+                """INSERT INTO source_config
+                   (source_name, max_events_per_hour, auto_dismiss_after_minutes, enabled)
+                   VALUES ($1, $2, $3, $4)
+                   RETURNING *""",
+                cfg.source_name,
+                cfg.max_events_per_hour,
+                cfg.auto_dismiss_after_minutes,
+                cfg.enabled,
+            )
+        except Exception as e:
+            # Unique-violation on source_name
+            if "duplicate key" in str(e).lower() or "unique" in str(e).lower():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Source config for '{cfg.source_name}' already exists",
+                )
+            raise
+
+    cache_manager.invalidate("notifications")
+    return _source_config_from_row(row)
+
+
+@router.get("/source-configs/{config_id}", response_model=SourceConfig)
+async def get_source_config(
+    config_id: str,
+    user: Annotated[AuthUser, Depends(_require_auth)],
+):
+    """Get a single per-source noise configuration by ID."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM source_config WHERE id = $1",
+            config_id,
+        )
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Source config not found",
+        )
+    return _source_config_from_row(row)
+
+
+@router.patch("/source-configs/{config_id}", response_model=SourceConfig)
+async def update_source_config(
+    config_id: str,
+    update: SourceConfigUpdate,
+    user: Annotated[AuthUser, Depends(_require_auth)],
+):
+    """Partial update of a per-source noise configuration. Requires admin role."""
+    if user.role not in ("admin",):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required",
+        )
+
+    # Dynamic SET clause — sequential placeholders starting at $1
+    updates = []
+    params = []
+    idx = 1
+
+    if update.max_events_per_hour is not None:
+        updates.append(f"max_events_per_hour = ${idx}")
+        params.append(update.max_events_per_hour)
+        idx += 1
+    if update.auto_dismiss_after_minutes is not None:
+        updates.append(f"auto_dismiss_after_minutes = ${idx}")
+        params.append(update.auto_dismiss_after_minutes)
+        idx += 1
+    if update.enabled is not None:
+        updates.append(f"enabled = ${idx}")
+        params.append(update.enabled)
+        idx += 1
+
+    if not updates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update",
+        )
+
+    updates.append("updated_at = now()")
+    params.append(config_id)
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            f"""UPDATE source_config
+                SET {', '.join(updates)}
+                WHERE id = ${idx}
+                RETURNING *""",
+            *params,
+        )
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Source config not found",
+        )
+    cache_manager.invalidate("notifications")
+    return _source_config_from_row(row)
+
+
+@router.delete("/source-configs/{config_id}")
+async def delete_source_config(
+    config_id: str,
+    user: Annotated[AuthUser, Depends(_require_auth)],
+):
+    """Delete a per-source noise configuration. Requires admin role."""
+    if user.role not in ("admin",):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin role required",
+        )
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM source_config WHERE id = $1",
+            config_id,
+        )
+        if result == "DELETE 0":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Source config not found",
+            )
+    cache_manager.invalidate("notifications")
+    return {"ok": True}

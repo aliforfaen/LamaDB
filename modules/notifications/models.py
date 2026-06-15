@@ -66,3 +66,30 @@ class FireResponse(BaseModel):
     rules_matched: int
     notifications_sent: int
     results: list[dict]
+
+
+# ─────────────────────────────────────────────────────────────────
+# Per-source noise configuration
+# ─────────────────────────────────────────────────────────────────
+
+class SourceConfig(BaseModel):
+    id: str
+    source_name: str
+    max_events_per_hour: int = 0
+    auto_dismiss_after_minutes: int = 0
+    enabled: bool = True
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class SourceConfigCreate(BaseModel):
+    source_name: str
+    max_events_per_hour: int = 0
+    auto_dismiss_after_minutes: int = 0
+    enabled: bool = True
+
+
+class SourceConfigUpdate(BaseModel):
+    max_events_per_hour: int | None = None
+    auto_dismiss_after_minutes: int | None = None
+    enabled: bool | None = None

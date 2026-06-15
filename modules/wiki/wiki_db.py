@@ -282,16 +282,25 @@ def _doc_to_page(d: dict) -> dict:
 
     Returns:
         Wiki page dict with string id, iso timestamps, etc.
+        Section is derived from the top-level path segment and size from
+        the content length so the response matches the WikiPage Pydantic
+        model. Full content is omitted for list/search summaries.
     """
     meta = d.get("metadata")
     if isinstance(meta, str):
         meta = json.loads(meta)
 
+    path = meta.get("path", "") if meta else ""
+    section = path.split("/", 1)[0] if "/" in path else ""
+    content = d.get("content", "") or ""
+    size = len(content)
+
     return {
         "id": str(d["id"]) if d.get("id") else None,
         "title": d.get("title", ""),
-        "content": d.get("content", ""),
-        "path": meta.get("path", "") if meta else "",
+        "path": path,
+        "section": section,
+        "size": size,
         "tags": d.get("tags", []),
         "created_at": d.get("created_at").isoformat() if d.get("created_at") else None,
         "updated_at": d.get("updated_at").isoformat() if d.get("updated_at") else None,

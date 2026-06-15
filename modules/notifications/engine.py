@@ -14,6 +14,79 @@ logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────
+# Per-source noise threshold helpers
+# ─────────────────────────────────────────────────────────────────
+
+async def check_source_config(conn, source_name: str) -> bool:
+    """Return True if an event from `source_name` should be allowed through.
+
+    - If no config exists for the source, allow.
+    - If the config is disabled, allow (acts as a kill-switch on the row only).
+    - If `max_events_per_hour <= 0`, allow (unlimited).
+    - Otherwise, count events from this source in the last hour; allow only
+      if the count is strictly below the limit.
+    """
+    if not source_name:
+        return True
+
+    row = await conn.fetchrow(
+        """SELECT max_events_per_hour, enabled
+           FROM source_config
+           WHERE source_name = $1""",
+        source_name,
+    )
+    if not row:
+        return True
+    if not row.get("enabled", True):
+        return True
+
+    cap = row.get("max_events_per_hour") or 0
+    if cap <= 0:
+        return True
+
+    count = await conn.fetchval(
+        """SELECT COUNT(*) FROM events
+           WHERE source = $1
+             AND ts > now() - interval '1 hour'""",
+        source_name,
+    )
+    return (count or 0) < cap
+
+
+async def auto_dismiss_old_events(conn) -> int:
+    """Mark events processed when their source's auto-dismiss window has elapsed.
+
+    Returns the total number of rows updated across all configured sources.
+    """
+    rows = await conn.fetch(
+        """SELECT source_name, auto_dismiss_after_minutes
+           FROM source_config
+           WHERE enabled = true
+             AND auto_dismiss_after_minutes > 0"""
+    )
+    if not rows:
+        return 0
+
+    total = 0
+    for r in rows:
+        result = await conn.execute(
+            """UPDATE events
+               SET processed = true
+               WHERE source = $1
+                 AND processed = false
+                 AND ts < now() - ($2::int * interval '1 minute')""",
+            r["source_name"],
+            r["auto_dismiss_after_minutes"],
+        )
+        # asyncpg returns "UPDATE <n>"
+        try:
+            total += int(result.split()[-1])
+        except (ValueError, AttributeError):
+            pass
+    return total
+
+
+# ─────────────────────────────────────────────────────────────────
 # Rule matching
 # ─────────────────────────────────────────────────────────────────
 
@@ -145,6 +218,25 @@ async def _dispatch(rule: dict, event: dict) -> dict:
 async def fire_event(event: dict) -> FireResponse:
     """Match an event against enabled rules and dispatch to all matching channels."""
     pool = get_pool()
+    source = event.get("source")
+
+    # Per-source noise threshold check — short-circuit if the source is over
+    # its hourly cap. The event itself is still inserted upstream; this only
+    # prevents notification dispatch + matches from running.
+    if source:
+        async with pool.acquire() as conn:
+            allowed = await check_source_config(conn, source)
+        if not allowed:
+            logger.info(
+                "Suppressing notifications for source %r (over hourly cap)",
+                source,
+            )
+            return FireResponse(
+                event_id=event.get("id", 0),
+                rules_matched=0,
+                notifications_sent=0,
+                results=[{"status": "suppressed", "reason": "source_cap_exceeded"}],
+            )
 
     # Load all enabled rules ordered by priority
     async with pool.acquire() as conn:

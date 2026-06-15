@@ -16,6 +16,7 @@
     loadCacheStats();
     loadAppearance();
     loadMaintenance();
+    loadSourceConfigs();
   };
 
   // ─── Module Management ─────────────────────────────────────────────────────
@@ -571,6 +572,8 @@
     // Load tab-specific content
     if (tab === 'users') {
       window.loadUsersPage && window.loadUsersPage();
+    } else if (tab === 'source-configs') {
+      loadSourceConfigs();
     }
   };
 
@@ -615,6 +618,132 @@
     }).catch(function(e) {
       window.showToast('Failed: ' + e.message, null, null, 5000);
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Settings'; }
+    });
+  };
+
+  // ─── Source Config (per-source noise thresholds) ──────────────────────────
+  var _sourceConfigs = [];
+
+  function loadSourceConfigs() {
+    var tbody = document.getElementById('source-configs-tbody');
+    if (!tbody) return;
+    window.api('/api/notifications/source-configs').then(function(data) {
+      _sourceConfigs = Array.isArray(data) ? data : [];
+      renderSourceConfigsTable(_sourceConfigs);
+    }).catch(function(e) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--danger);text-align:center;padding:20px;">Failed to load source configs: ' + window.escHtml(e.message) + '</td></tr>';
+    });
+  }
+
+  function renderSourceConfigsTable(configs) {
+    var tbody = document.getElementById('source-configs-tbody');
+    if (!tbody) return;
+    if (!configs || configs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">No source configs. Click "Add Source" to create one.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = configs.map(function(c) {
+      var maxPerHour = (c.max_events_per_hour && c.max_events_per_hour > 0) ? c.max_events_per_hour : '<span style="color:var(--muted);">unlimited</span>';
+      var autoDismiss = (c.auto_dismiss_after_minutes && c.auto_dismiss_after_minutes > 0) ? c.auto_dismiss_after_minutes + ' min' : '<span style="color:var(--muted);">never</span>';
+      var enabledChecked = c.enabled ? 'checked' : '';
+      return '<tr data-config-id="' + c.id + '">' +
+        '<td><code style="font-size:12px;">' + window.escHtml(c.source_name) + '</code></td>' +
+        '<td>' + maxPerHour + '</td>' +
+        '<td>' + autoDismiss + '</td>' +
+        '<td><label class="toggle" style="margin:0;" onclick="event.stopPropagation()">' +
+          '<input type="checkbox" ' + enabledChecked + ' onchange="toggleSourceConfig(\'' + c.id + '\', ' + c.enabled + ')" />' +
+          '<span class="toggle-slider"></span></label></td>' +
+        '<td style="text-align:right;">' +
+          '<button class="btn btn-ghost btn-sm" onclick="editSourceConfig(\'' + c.id + '\')">Edit</button> ' +
+          '<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="deleteSourceConfig(\'' + c.id + '\', \'' + window.escAttr(c.source_name) + '\')">Delete</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  window.toggleSourceConfigForm = function() {
+    var form = document.getElementById('source-config-form');
+    if (!form) return;
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    if (form.style.display === 'block') {
+      // Clear fields for new entry
+      document.getElementById('scf-id').value = '';
+      document.getElementById('scf-source').value = '';
+      document.getElementById('scf-source').disabled = false;
+      document.getElementById('scf-max').value = '0';
+      document.getElementById('scf-dismiss').value = '0';
+      document.getElementById('scf-enabled').checked = true;
+      document.getElementById('source-config-form-title').textContent = 'Add Source Config';
+    }
+  };
+
+  window.editSourceConfig = function(id) {
+    var c = _sourceConfigs.find(function(x) { return x.id === id; });
+    if (!c) return;
+    var form = document.getElementById('source-config-form');
+    if (!form) return;
+    form.style.display = 'block';
+    document.getElementById('scf-id').value = c.id;
+    document.getElementById('scf-source').value = c.source_name;
+    document.getElementById('scf-source').disabled = true;  // source_name is the unique key; don't allow rename via PATCH
+    document.getElementById('scf-max').value = c.max_events_per_hour || 0;
+    document.getElementById('scf-dismiss').value = c.auto_dismiss_after_minutes || 0;
+    document.getElementById('scf-enabled').checked = !!c.enabled;
+    document.getElementById('source-config-form-title').textContent = 'Edit Source Config';
+  };
+
+  window.submitSourceConfig = async function() {
+    var id = document.getElementById('scf-id').value;
+    var source = document.getElementById('scf-source').value.trim();
+    var maxPerHour = parseInt(document.getElementById('scf-max').value) || 0;
+    var autoDismiss = parseInt(document.getElementById('scf-dismiss').value) || 0;
+    var enabled = document.getElementById('scf-enabled').checked;
+
+    if (!source) { alert('Source name is required.'); return; }
+
+    try {
+      if (id) {
+        await window.api('/api/notifications/source-configs/' + id, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            max_events_per_hour: maxPerHour,
+            auto_dismiss_after_minutes: autoDismiss,
+            enabled: enabled,
+          }),
+        });
+      } else {
+        await window.api('/api/notifications/source-configs', {
+          method: 'POST',
+          body: JSON.stringify({
+            source_name: source,
+            max_events_per_hour: maxPerHour,
+            auto_dismiss_after_minutes: autoDismiss,
+            enabled: enabled,
+          }),
+        });
+      }
+      window.toggleSourceConfigForm();
+      loadSourceConfigs();
+    } catch (e) { alert('Failed to save source config: ' + e.message); }
+  };
+
+  window.toggleSourceConfig = function(id, currentEnabled) {
+    window.api('/api/notifications/source-configs/' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled: !currentEnabled }),
+    }).then(function() { loadSourceConfigs(); })
+      .catch(function(e) {
+        window.showToast('Failed: ' + e.message, null, null, 3000);
+        loadSourceConfigs();
+      });
+  };
+
+  window.deleteSourceConfig = function(id, sourceName) {
+    window.showConfirm('Delete Source Config', 'Delete config for "' + sourceName + '"? Future events from this source will no longer be throttled.', '\u2717', function() {
+      window.api('/api/notifications/source-configs/' + id, { method: 'DELETE' }).then(function() {
+        loadSourceConfigs();
+        window.showToast('Source config deleted.', null, null, 3000);
+      }).catch(function(e) { window.showToast('Failed: ' + e.message, null, null, 3000); });
     });
   };
 })();

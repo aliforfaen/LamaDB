@@ -18,6 +18,7 @@ from .models import (
     KanbanSubtask, KanbanSubtaskCreate, KanbanSubtaskUpdate,
     KanbanComment, KanbanCommentCreate,
     KanbanTaskDependency, KanbanTaskDependencyCreate,
+    KanbanTaskTemplate, KanbanTaskTemplateCreate, KanbanTaskTemplateUpdate,
     AgentConnect,
 )
 
@@ -337,6 +338,7 @@ async def list_tasks(
     column_id: str | None = Query(default=None),
     assignee_id: str | None = Query(default=None),
     priority: str | None = Query(default=None),
+    tag: str | None = Query(default=None, description="Filter by tag"),
 ):
     """List tasks for a board, optionally filtered."""
     pool = get_pool()
@@ -348,9 +350,10 @@ async def list_tasks(
             FROM kanban_tasks t
             LEFT JOIN users u ON u.id = t.assignee_id
             WHERE t.board_id = $1
+              AND ($2::text IS NULL OR $2 = ANY(t.tags))
         """
-        params = [board_id]
-        idx = 2
+        params = [board_id, tag]
+        idx = 3
 
         if column_id:
             query += f" AND t.column_id = ${idx}"; params.append(column_id); idx += 1
@@ -374,6 +377,7 @@ async def list_tasks(
             "metadata": json.loads(r["metadata"]) if isinstance(r["metadata"], str) else (r["metadata"] or {}),
             "completed_at": r["completed_at"],
             "subtask_count": r["subtask_count"], "subtask_done": r["subtask_done"],
+            "tags": list(r["tags"]) if r["tags"] else [],
             "created_at": r["created_at"], "updated_at": r["updated_at"],
         }
         for r in rows
@@ -384,9 +388,46 @@ async def list_tasks(
 async def create_task(
     board_id: str, body: KanbanTaskCreate,
     user: Annotated[AuthUser, Depends(_require_admin_or_agent)],
+    template_id: str | None = Query(default=None, description="Template ID to pre-fill fields from"),
 ):
-    """Create a task with auto-incrementing task_number."""
+    """Create a task with auto-incrementing task_number.
+
+    If ``template_id`` is provided, the template's title/description/priority/tags
+    pre-fill any fields the caller did not specify. Subtasks from the template
+    are then created on the new task.
+    """
     pool = get_pool()
+    # Resolve template defaults (user-supplied body fields take precedence)
+    template = None
+    template_subtasks: list[dict] = []
+    if template_id:
+        async with pool.acquire() as conn:
+            template = await conn.fetchrow(
+                "SELECT name, description, priority, tags, subtasks FROM kanban_task_templates WHERE id = $1",
+                template_id,
+            )
+        if template:
+            template_subtasks_raw = template["subtasks"]
+            if isinstance(template_subtasks_raw, str):
+                try:
+                    template_subtasks = json.loads(template_subtasks_raw) or []
+                except (ValueError, TypeError):
+                    template_subtasks = []
+            elif isinstance(template_subtasks_raw, list):
+                template_subtasks = template_subtasks_raw
+
+            # Pre-fill from template; user-provided values win
+            if not body.title:
+                body.title = template["name"]
+            if body.description is None and template["description"]:
+                body.description = template["description"]
+            if not body.tags and template["tags"]:
+                body.tags = list(template["tags"])
+            # priority default already "medium" via model; only override if template
+            # has an explicit non-empty priority
+            if template["priority"]:
+                body.priority = template["priority"]
+
     async with pool.acquire() as conn:
         col_id = body.column_id
         if not col_id:
@@ -413,10 +454,10 @@ async def create_task(
         try:
             task_id = await conn.fetchval("""
                 INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description,
-                                          priority, assignee_id, position, due_at, estimate, metadata)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb) RETURNING id
+                                          priority, assignee_id, position, due_at, estimate, metadata, tags)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12) RETURNING id
             """, board_id, col_id, next_num, body.title, body.description,
-                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate, metadata_json)
+                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate, metadata_json, body.tags)
         except asyncpg.exceptions.UniqueViolationError:
             # Lost a race — recompute and retry once.
             next_num = await conn.fetchval(
@@ -425,13 +466,40 @@ async def create_task(
             )
             task_id = await conn.fetchval("""
                 INSERT INTO kanban_tasks (board_id, column_id, task_number, title, description,
-                                          priority, assignee_id, position, due_at, estimate, metadata)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb) RETURNING id
+                                          priority, assignee_id, position, due_at, estimate, metadata, tags)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12) RETURNING id
             """, board_id, col_id, next_num, body.title, body.description,
-                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate, metadata_json)
+                body.priority, body.assignee_id, max_pos, body.due_at, body.estimate, metadata_json, body.tags)
+
+        # Create subtasks from template (if any)
+        created_subtask_ids: list[str] = []
+        for idx, st in enumerate(template_subtasks):
+            sub_title = st.get("title") if isinstance(st, dict) else None
+            if not sub_title:
+                continue
+            sub_pos = st.get("position", idx) if isinstance(st, dict) else idx
+            sub_id = await conn.fetchval(
+                "INSERT INTO kanban_subtasks (task_id, title, position) VALUES ($1, $2, $3) RETURNING id",
+                task_id, sub_title, sub_pos,
+            )
+            if sub_id:
+                created_subtask_ids.append(str(sub_id))
+
+        # Log template use
+        if template:
+            await conn.execute(
+                """INSERT INTO kanban_agent_logs (user_id, task_id, board_id, action, details, tool)
+                   VALUES ($1, $2, $3, 'task_created_from_template', $4, 'api')""",
+                user.user_id, task_id, board_id, template["name"],
+            )
 
     cache_manager.invalidate("kanban_tasks")
-    return {"id": str(task_id), "task_number": next_num, "title": body.title}
+    return {
+        "id": str(task_id),
+        "task_number": next_num,
+        "title": body.title,
+        "subtask_ids": created_subtask_ids,
+    }
 
 
 @router.get("/tasks/{task_id}")
@@ -496,6 +564,7 @@ async def get_task(
         "metadata": metadata_val,
         "completed_at": row["completed_at"],
         "subtask_count": row["subtask_count"], "subtask_done": row["subtask_done"],
+        "tags": list(row["tags"]) if row["tags"] else [],
         "created_at": row["created_at"], "updated_at": row["updated_at"],
         "subtasks": [
             {"id": str(s["id"]), "task_id": str(s["task_id"]), "title": s["title"],
@@ -547,6 +616,10 @@ async def update_task(
         # Handle metadata as JSONB
         if body.metadata is not None:
             updates.append(f"metadata = ${idx}::jsonb"); params.append(json.dumps(body.metadata)); idx += 1
+
+        # Handle tags
+        if body.tags is not None:
+            updates.append(f"tags = ${idx}"); params.append(body.tags); idx += 1
 
         if updates:
             updates.append("updated_at = now()")
@@ -795,3 +868,144 @@ async def add_comment(
         )
     cache_manager.invalidate("kanban_tasks")
     return {"id": str(comment_id), "task_id": task_id, "body": body.body}
+
+
+# ── Task Templates ───────────────────────────────────────────
+
+def _row_to_template(row) -> dict:
+    """Coerce a kanban_task_templates row into the API response shape."""
+    subtasks = row["subtasks"]
+    if isinstance(subtasks, str):
+        try:
+            subtasks = json.loads(subtasks) if subtasks else []
+        except (ValueError, TypeError):
+            subtasks = []
+    elif subtasks is None:
+        subtasks = []
+    return {
+        "id": str(row["id"]),
+        "name": row["name"],
+        "description": row["description"],
+        "priority": row["priority"],
+        "tags": list(row["tags"]) if row["tags"] else [],
+        "subtasks": subtasks,
+        "created_by": str(row["created_by"]) if row["created_by"] else None,
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+@router.get("/templates")
+@cached(ttl_seconds=60, invalidate_tags=["kanban_templates"], key_prefix="kanban_templates")
+async def list_templates(
+    request: Request,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
+    """List all kanban task templates."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM kanban_task_templates ORDER BY name"
+        )
+    return [_row_to_template(r) for r in rows]
+
+
+@router.post("/templates", status_code=status.HTTP_201_CREATED)
+async def create_template(
+    body: KanbanTaskTemplateCreate,
+    user: Annotated[AuthUser, Depends(_require_admin_or_agent)],
+):
+    """Create a new kanban task template."""
+    pool = get_pool()
+    subtasks_json = json.dumps(body.subtasks) if body.subtasks else '[]'
+    async with pool.acquire() as conn:
+        template_id = await conn.fetchval(
+            """INSERT INTO kanban_task_templates
+               (name, description, priority, tags, subtasks, created_by)
+               VALUES ($1, $2, $3, $4, $5::jsonb, $6) RETURNING id""",
+            body.name, body.description, body.priority, body.tags, subtasks_json, user.user_id,
+        )
+        row = await conn.fetchrow(
+            "SELECT * FROM kanban_task_templates WHERE id = $1", template_id,
+        )
+    cache_manager.invalidate("kanban_templates")
+    return _row_to_template(row)
+
+
+@router.get("/templates/{template_id}")
+@cached(ttl_seconds=60, invalidate_tags=["kanban_templates"], key_prefix="kanban_template")
+async def get_template(
+    request: Request,
+    template_id: str,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
+    """Get a single kanban task template."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM kanban_task_templates WHERE id = $1", template_id,
+        )
+        if not row:
+            raise HTTPException(status_code=404, detail="Template not found")
+    return _row_to_template(row)
+
+
+@router.patch("/templates/{template_id}")
+async def update_template(
+    template_id: str, body: KanbanTaskTemplateUpdate,
+    user: Annotated[AuthUser, Depends(_require_admin_or_agent)],
+):
+    """Update a kanban task template."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        existing = await conn.fetchval(
+            "SELECT id FROM kanban_task_templates WHERE id = $1", template_id,
+        )
+        if not existing:
+            raise HTTPException(status_code=404, detail="Template not found")
+
+        updates = []
+        params = []
+        idx = 1
+        if body.name is not None:
+            updates.append(f"name = ${idx}"); params.append(body.name); idx += 1
+        if body.description is not None:
+            updates.append(f"description = ${idx}"); params.append(body.description); idx += 1
+        if body.priority is not None:
+            updates.append(f"priority = ${idx}"); params.append(body.priority); idx += 1
+        if body.tags is not None:
+            updates.append(f"tags = ${idx}"); params.append(body.tags); idx += 1
+        if body.subtasks is not None:
+            updates.append(f"subtasks = ${idx}::jsonb")
+            params.append(json.dumps(body.subtasks)); idx += 1
+
+        if updates:
+            updates.append("updated_at = now()")
+            params.append(template_id)
+            await conn.execute(
+                f"UPDATE kanban_task_templates SET {', '.join(updates)} WHERE id = ${idx}",
+                *params,
+            )
+
+    cache_manager.invalidate("kanban_templates")
+    return {"status": "ok"}
+
+
+@router.delete("/templates/{template_id}")
+async def delete_template(
+    template_id: str,
+    user: Annotated[AuthUser, Depends(_require_admin_or_agent)],
+):
+    """Delete a kanban task template."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        existing = await conn.fetchval(
+            "SELECT id FROM kanban_task_templates WHERE id = $1", template_id,
+        )
+        if not existing:
+            raise HTTPException(status_code=404, detail="Template not found")
+        await conn.execute(
+            "DELETE FROM kanban_task_templates WHERE id = $1", template_id,
+        )
+    cache_manager.invalidate("kanban_templates")
+    return {"status": "deleted"}

@@ -4,7 +4,7 @@
 
 LamaDB is a self-hosted central data layer / Life OS. It stores documents, events, and relationships in PostgreSQL, exposes a FastAPI REST API, and serves RSS feeds generated from its data.
 
-**Current phase: Phase 15 — Notification Dedupe + Aggregation.** 15 modules. ~70 commits, 263+ tests. Notification dedup pipeline: Dozzle collector strips ISO/RFC-2822 timestamps and hex ids from dedup_key fingerprint (was unique per timestamp, blocking all dedup), migrations 022/023 backfill dedup_keys for 445k+ stale dozzle events collapsing them to ~11.6k distinct events, `/api/notifications/unread?aggregate=true` groups by (source, type, severity, normalized_title) returning count/first_seen/last_seen/event_ids, frontend notification widget shows `×N` count badge, dismiss marks all event_ids in group processed, `/api/events?exclude_source=dozzle` filter, Agent Board widget renamed "Recent System Errors" excluding dozzle container logs. Result: 501k unread dozzle events → 11.6k distinct events.
+**Current phase: Phase 16 — P2 Sprint (Wiki + Kanban + Noise Threshold).** 15 modules. ~80 commits, 270+ tests. WikiPage model fix (section/size optional), topology overview widget on dashboard, kanban tags (TEXT[] + GIN index + filter + frontend chips), task templates (save/apply with tags + subtasks), per-source noise threshold (source_config table + auto-dismiss), notification engine JSONB fix (fire_event works), dozzle dedup "Mon DD YYYY" regex, pg_stat_statements extension.
 
 Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table. Ingest pipeline for push-based lifecycle hooks. MCP server exposes LamaDB as callable tools for AI agents.
 
@@ -427,6 +427,26 @@ docker logs lamadb_api --tail 20
 - [x] Agent Board "Recent API Errors" widget renamed to "Recent System
   Errors" and excludes dozzle container logs
 - [x] Result: 501k unread dozzle events → 11.6k distinct events
+
+### Phase 16: P2 Sprint — Wiki + Kanban + Noise Threshold ✅ (2026-06-15)
+- [x] WikiPage model: `section`/`size` optional with defaults, computed from path/content
+- [x] `GET /api/wiki/pages` no longer returns 500 (was missing fields for Pydantic model)
+- [x] Topology overview widget on dashboard (compact host cards, click-through to uptime)
+- [x] Kanban tags: `tags TEXT[]` + GIN index on `kanban_tasks`, `?tag=foo` filter, frontend chips
+- [x] Task templates: `kanban_task_templates` table, CRUD endpoints, apply via `?template_id=xxx`
+- [x] MCP tool: `kanban_create_from_template` (12 tools total)
+- [x] Per-source noise threshold: `source_config` table, `max_events_per_hour`, `auto_dismiss_after_minutes`
+- [x] `fire_event()` checks source config before dispatching; over-cap events marked `processed=true`
+- [x] Admin UI for source config in settings page
+- [x] Notification engine fix: `channel_config` JSONB parsed from string to dict in `fire_event()`
+- [x] Dozzle dedup: "Mon DD, YYYY HH:MM:SS" regex (Sonarr/Radarr/Syncthing format)
+- [x] Migration 024: `pg_stat_statements` extension
+- [x] Migration 025: dedup Mon DD YYYY backfill
+- [x] Migration 026: kanban tags column + GIN index
+- [x] Migration 027: kanban task templates table
+- [x] Migration 028: source_config table
+- [x] Dashboard ghost routes eliminated (removed doubled `/api/dashboard` prefix)
+- [x] 153 stale test API keys + 181 test events cleaned up
 
 ## Known Pitfalls
 

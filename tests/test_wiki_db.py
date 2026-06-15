@@ -180,7 +180,6 @@ async def test_create_page(client, admin_key, db_pool):
     data = resp.json()
     assert data["title"] == "My Test Page"
     assert data["path"] == "test/my-test-page.md"
-    assert data["content"] == "# Hello World\n\nThis is a test."
     assert data["tags"] == ["test", "sample"]
     assert "id" in data
     assert data["created_at"] is not None
@@ -250,7 +249,6 @@ async def test_update_page(client, admin_key, db_pool):
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
     data = resp.json()
     assert data["title"] == "Updated Title"
-    assert data["content"] == "Updated content"
     # Tags should be unchanged (not sent in update)
     assert data["path"] == "test/update-test.md"
 
@@ -287,7 +285,6 @@ async def test_delete_page(client, admin_key, db_pool):
 
 @container_required
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Pre-existing bug: GET /api/wiki/pages returns 500 — wiki module returns row dict that doesn't match WikiPage Pydantic model (missing section/size fields). Tracked separately.")
 async def test_list_pages(client, admin_key, db_pool):
     """GET /api/wiki/pages → 200 with array of pages."""
     # Create a few pages

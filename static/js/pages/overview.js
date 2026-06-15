@@ -24,6 +24,7 @@
       loadHealthBar(),
       loadModuleCards(),
       loadNotificationsList(),
+      loadTopologyOverview(),
       loadActivityFeed(),
       loadRSSHeadlines(),
       loadAgentStatus(),
@@ -395,6 +396,54 @@
       btn.textContent = 'dismiss';
     }
   };
+
+  // ─── Host Topology Overview ──────────────────────────────
+
+  async function loadTopologyOverview() {
+    var list = document.getElementById('topo-overview-list');
+    if (!list) return;
+
+    try {
+      var data = await window.api('/api/uptime/topology');
+      var hosts = data.hosts || [];
+      var summary = data.summary || {};
+      var badgeEl = document.getElementById('topo-badge');
+
+      if (badgeEl) {
+        badgeEl.textContent = (summary.hosts_up || 0) + '/' + (summary.total_hosts || 0) + ' UP';
+        badgeEl.className = 'widget-badge' + ((summary.hosts_up || 0) < (summary.total_hosts || 0) ? ' has-unread' : '');
+      }
+
+      if (hosts.length === 0) {
+        list.innerHTML = '<div style="color:var(--muted);padding:12px;font-size:13px;">No hosts</div>';
+        return;
+      }
+
+      var orphanCount = summary.orphans || 0;
+      list.innerHTML = hosts.map(function(h) {
+        var dotClass = h.status === 0 ? 'topo-down' :
+          (h.up_count > 0 && h.up_count < h.total_services) ? 'topo-partial' : 'topo-up';
+        var countText = (h.up_count || 0) + '/' + (h.total_services || 0) + ' UP';
+        return '<div class="topo-host-row ' + dotClass + '" onclick="event.stopPropagation(); window.navigateTo(\'uptime\')">' +
+          '<span class="host-dot ' + dotClass + '"></span>' +
+          '<span class="host-name">' + window.escHtml(h.name || '?') + '</span>' +
+          '<span class="host-count">' + countText + '</span>' +
+        '</div>';
+      }).join('') +
+      (orphanCount > 0
+        ? '<div class="topo-host-row" style="border-left:2px solid var(--muted);cursor:default;" onclick="event.stopPropagation(); window.navigateTo(\'uptime\')">' +
+          '<span class="host-dot" style="background:var(--muted);"></span>' +
+          '<span class="host-name" style="color:var(--muted);font-size:12px;">' + orphanCount + ' orphan' + (orphanCount !== 1 ? 's' : '') + '</span>' +
+        '</div>'
+        : '');
+    } catch (e) {
+      console.error('[LamaDB] Topology overview error:', e);
+      list.innerHTML = '<div style="color:var(--muted);padding:12px;font-size:13px;">Topology unavailable</div>';
+    }
+
+    // Refresh every 60s
+    _setPoll(loadTopologyOverview, 60000);
+  }
 
   // ─── Activity Feed ────────────────────────────────────────
 

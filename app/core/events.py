@@ -84,10 +84,22 @@ async def create_event(
 
     pool = get_pool()
     async with pool.acquire() as conn:
+        # Per-source noise threshold check — if this source is over its
+        # hourly cap, still insert the event but mark it processed so it
+        # never surfaces in the unread / notification pipeline.
+        from modules.notifications.engine import check_source_config
+        allowed = await check_source_config(conn, event.source)
+        initial_processed = not allowed
+        if not allowed:
+            logger.info(
+                "Inserting event for source %r as processed (over hourly cap)",
+                event.source,
+            )
+
         row = await conn.fetchrow(
             """
-            INSERT INTO events (source, type, severity, title, body, metadata, ticker, tags)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO events (source, type, severity, title, body, metadata, ticker, tags, processed)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id, ts, source, type, severity, title, body, metadata, processed, ticker, tags
             """,
             event.source,
@@ -98,27 +110,32 @@ async def create_event(
             json.dumps(event.metadata),
             event.ticker,
             event.tags,
+            initial_processed,
         )
         result = _event_from_row(row)
 
     cache_manager.invalidate("events")
 
-    # Fire notifications reactively (outside the transaction)
-    try:
-        from modules.notifications.engine import fire_event
-        await fire_event({
-            "id": result.id,
-            "source": result.source,
-            "type": result.type,
-            "severity": result.severity,
-            "title": result.title,
-            "body": result.body,
-            "tags": result.tags or [],
-        })
-    except ImportError:
-        pass
-    except Exception as e:
-        logger.warning(f"Notification dispatch failed: {e}")
+    # Fire notifications reactively (outside the transaction). Skip when the
+    # event was already marked processed by the source-cap check above — the
+    # engine's own check_source_config call is a no-op cost in that case, but
+    # we avoid the extra round-trip and avoid firing downstream channels.
+    if not initial_processed:
+        try:
+            from modules.notifications.engine import fire_event
+            await fire_event({
+                "id": result.id,
+                "source": result.source,
+                "type": result.type,
+                "severity": result.severity,
+                "title": result.title,
+                "body": result.body,
+                "tags": result.tags or [],
+            })
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.warning(f"Notification dispatch failed: {e}")
 
     return result
 

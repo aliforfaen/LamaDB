@@ -105,6 +105,7 @@ class KanbanTaskCreate(BaseModel):
     due_at: Optional[datetime] = None
     estimate: Optional[str] = None
     metadata: Optional[dict] = None
+    tags: list[str] = []
 
 
 class KanbanTaskUpdate(BaseModel):
@@ -117,6 +118,7 @@ class KanbanTaskUpdate(BaseModel):
     help_wanted: Optional[bool] = None
     help_wanted_message: Optional[str] = None
     metadata: Optional[dict] = None
+    tags: Optional[list[str]] = None
 
 
 class KanbanTaskMove(BaseModel):
@@ -152,6 +154,7 @@ class KanbanTask(BaseModel):
     completed_at: Optional[datetime] = None
     subtask_count: int = 0
     subtask_done: int = 0
+    tags: list[str] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -237,3 +240,34 @@ class KanbanAgentLog(BaseModel):
     details: Optional[str] = None
     tool: Optional[str] = None
     created_at: Optional[datetime] = None
+
+
+# ── Task Templates ─────────────────────────────────────────
+
+class KanbanTaskTemplate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    description: Optional[str] = None
+    priority: str = 'medium'
+    tags: list[str] = []
+    subtasks: list[dict] = []  # [{title, position}]
+    created_by: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class KanbanTaskTemplateCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+    priority: str = Field(default='medium', pattern=r'^(low|medium|high|critical)$')
+    tags: list[str] = []
+    subtasks: list[dict] = []  # [{title, position}]
+
+
+class KanbanTaskTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[str] = None
+    tags: Optional[list[str]] = None
+    subtasks: Optional[list[dict]] = None
