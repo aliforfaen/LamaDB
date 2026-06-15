@@ -268,7 +268,6 @@ async def test_delete_rule(client, admin_headers, clean_notif_tables):
 
 @container_required
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 async def test_fire_endpoint(client, admin_headers, clean_notif_tables):
     """POST /fire evaluates rules and returns match/send counts."""
     # Create a rule
@@ -303,7 +302,6 @@ async def test_fire_endpoint(client, admin_headers, clean_notif_tables):
 
 @container_required
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 async def test_rule_matching_source(client, admin_headers, clean_notif_tables):
     """A rule with match_source fires only for that source."""
     # Create source-specific rule
@@ -342,7 +340,6 @@ async def test_rule_matching_source(client, admin_headers, clean_notif_tables):
 # ─────────────────────────────────────────────────────────────────
 
 @container_required
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 @pytest.mark.asyncio
 async def test_rule_matching_severity(client, admin_headers, clean_notif_tables):
     """A rule with match_severity fires only for that severity."""
@@ -376,7 +373,6 @@ async def test_rule_matching_severity(client, admin_headers, clean_notif_tables)
 # ─────────────────────────────────────────────────────────────────
 
 @container_required
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 @pytest.mark.asyncio
 async def test_rule_matching_tags(client, admin_headers, clean_notif_tables):
     """A rule with match_tags fires only when ALL tags are present."""
@@ -410,7 +406,6 @@ async def test_rule_matching_tags(client, admin_headers, clean_notif_tables):
 # ─────────────────────────────────────────────────────────────────
 
 @container_required
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 @pytest.mark.asyncio
 async def test_rule_non_matching(client, admin_headers, clean_notif_tables):
     """An event that doesn't match any rule's conditions fires nothing."""
@@ -440,7 +435,6 @@ async def test_rule_non_matching(client, admin_headers, clean_notif_tables):
 # ─────────────────────────────────────────────────────────────────
 
 @container_required
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 @pytest.mark.asyncio
 async def test_rule_disabled(client, admin_headers, clean_notif_tables):
     """A disabled rule is not evaluated."""
@@ -472,7 +466,6 @@ async def test_rule_disabled(client, admin_headers, clean_notif_tables):
 # ─────────────────────────────────────────────────────────────────
 
 @container_required
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 @pytest.mark.asyncio
 async def test_rule_cooldown(client, admin_headers, clean_notif_tables):
     """A rule with cooldown_seconds > 0 logs 'cooldown' on immediate re-fire."""
@@ -580,7 +573,6 @@ async def test_forbidden_read_role(client, clean_notif_tables):
 
 @container_required
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 async def test_log_endpoint(client, admin_headers, clean_notif_tables):
     """GET /log returns the notification delivery log."""
     # Create a rule and fire an event
@@ -634,7 +626,6 @@ async def test_channel_status(client, admin_headers, clean_notif_tables):
 
 @container_required
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 async def test_webhook_channel(client, admin_headers, clean_notif_tables):
     """A webhook rule fires and makes a POST to the configured URL."""
     payload = {
@@ -666,7 +657,6 @@ async def test_webhook_channel(client, admin_headers, clean_notif_tables):
 
 @container_required
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Pre-existing bug: POST /api/notifications/fire returns 500 — notification engine crashes when evaluating rules. Tracked separately.")
 async def test_rule_priority_order(client, admin_headers, clean_notif_tables):
     """Rules with higher priority are evaluated first (critical > high > normal > low)."""
     # Create two rules for same event — different priorities

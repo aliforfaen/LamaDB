@@ -28,6 +28,10 @@ def _sanitize(text: str) -> str:
 _ISO_TS_RE = re.compile(r'\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?')
 # Common log line prefixes like "[Sun, 14 Jun 2026 23:32:01 +0200]" — RFC 2822 style
 _RFC_TS_RE = re.compile(r'\[\w{3},\s+\d{1,2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4}\]')
+# "Mon DD, YYYY HH:MM:SS" — Sonarr/Radarr/Syncthing/Agregarr log prefix style,
+# e.g. "Jun 15, 2026 13:17:00". Without stripping this, every minute yields a
+# unique dedup_key for the same recurring error.
+_MON_DD_TS_RE = re.compile(r'\w{3}\s+\d{1,2},\s+\d{4}\s+\d{2}:\d{2}:\d{2}')
 # ANSI control sequences (move-to, color, etc.) — re-strip here in case sanitize missed a path
 _CTRL_RE = re.compile(r'\x1b\[[0-9;?]*[a-zA-Z]')
 # Sequence numbers / uuids / ports that vary per line but don't change the error
@@ -45,6 +49,7 @@ def _normalize_for_dedup(message: str) -> str:
     s = message or ""
     s = _ISO_TS_RE.sub('TS', s)
     s = _RFC_TS_RE.sub('TS', s)
+    s = _MON_DD_TS_RE.sub('TS', s)
     s = _CTRL_RE.sub('', s)
     s = _VAR_TOKEN_RE.sub('ID', s)
     # Collapse repeated whitespace

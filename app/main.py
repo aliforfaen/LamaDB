@@ -21,7 +21,6 @@ faulthandler.register(signal.SIGUSR1, all_threads=True)
 from app.core.documents import router as documents_router
 from app.core.events import router as events_router
 from app.core.search import router as search_router
-from app.core.dashboard import router as dashboard_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -293,10 +292,12 @@ def make_app() -> FastAPI:
         return {"status": "ok"}
 
     # Register core routers
+    # NOTE: dashboard_router is NOT included here — it lives in modules/dashboard/
+    # and is auto-discovered by the module loader below with prefix /api/dashboard.
+    # Including it here would create doubled ghost routes at /api/dashboard/api/dashboard/...
     app.include_router(documents_router)
     app.include_router(events_router)
     app.include_router(search_router)
-    app.include_router(dashboard_router)
 
     # User management (kanban)
     from app.core.users import router as users_router

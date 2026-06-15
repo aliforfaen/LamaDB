@@ -17,7 +17,7 @@ from app.config import settings
 from app.db import get_pool
 from app.sse import sse_manager
 
-router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+router = APIRouter(tags=["dashboard"])
 
 SOURCE_ICONS = {
     "uptime_kuma": "uptime-kuma",

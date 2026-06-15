@@ -168,6 +168,14 @@ async def fire_event(event: dict) -> FireResponse:
     async with pool.acquire() as conn:
         for row in rows:
             rule = dict(row)
+            # Coerce JSONB channel_config from string to dict (asyncpg returns JSONB as str)
+            cc = rule.get("channel_config")
+            if cc is not None and not isinstance(cc, dict):
+                if isinstance(cc, str):
+                    cc = json.loads(cc)
+                else:
+                    cc = dict(cc) if cc else {}
+            rule["channel_config"] = cc or {}
             if not _rule_matches(rule, event):
                 continue
             rules_matched += 1

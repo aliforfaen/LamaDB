@@ -285,10 +285,11 @@ async def get_unread(
             # Without this, one error per minute from a chatty container becomes
             # 1 row per minute instead of 1 row per unique error.
             norm_title = (
-                "regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(title, "
+                "regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(title, "
                 "  '\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:?\\d{2})?', 'TS', 'g'), "
                 "  '\\d{4}/\\d{2}/\\d{2}[T ]?\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:?\\d{2})?', 'TS', 'g'), "
                 "  '\\[?\\w{3},\\s+\\d{1,2}\\s+\\w{3}\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}\\s+[+-]\\d{4}\\]?', 'TS', 'g'), "
+                "  '\\w{3}\\s+\\d{1,2},\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}', 'TS', 'g'), "
                 "  '\\b\\d+#\\d+: \\*\\d+', 'REQ', 'g'), "
                 "  '\\s+', ' ', 'g')"
             )
