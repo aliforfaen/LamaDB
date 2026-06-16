@@ -17,6 +17,8 @@ MODULE_MCP_TOOLS = [
         "description": "Get the current status of all monitored services (up/down/pending)",
         "inputSchema": {"type": "object", "properties": {}},
         "handler": "modules.uptime.mcp:get_uptime_status",
+        "toolset": "both",
+        "module": "uptime",
     },
     {
         "name": "get_uptime_history",
@@ -29,6 +31,8 @@ MODULE_MCP_TOOLS = [
             },
         },
         "handler": "modules.uptime.mcp:get_uptime_history",
+        "toolset": "both",
+        "module": "uptime",
     },
 ]
 

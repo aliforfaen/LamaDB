@@ -17,6 +17,8 @@ MODULE_MCP_TOOLS = [
             "required": ["q"],
         },
         "handler": "modules.wiki.mcp:wiki_search",
+        "toolset": "both",
+        "module": "wiki",
     },
     {
         "name": "scratchpad_capture",
@@ -30,6 +32,8 @@ MODULE_MCP_TOOLS = [
             "required": ["content"],
         },
         "handler": "modules.wiki.mcp:scratchpad_capture",
+        "toolset": "both",
+        "module": "wiki",
     },
 ]
 

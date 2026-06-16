@@ -324,12 +324,16 @@ def make_app() -> FastAPI:
         "Full-text + semantic search across documents",
         {"type": "object", "properties": {"q": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["q"]},
         search_documents,
+        toolset="both",
+        module="documents",
     )
     register_tool(
         "get_document",
         "Get a single document by ID with its links",
         {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]},
         get_document,
+        toolset="both",
+        module="documents",
     )
     register_tool(
         "create_document",
@@ -346,6 +350,8 @@ def make_app() -> FastAPI:
             "required": ["title", "source_type"],
         },
         create_document,
+        toolset="both",
+        module="documents",
     )
     register_tool(
         "update_document",
@@ -363,6 +369,8 @@ def make_app() -> FastAPI:
             "required": ["id"],
         },
         update_document,
+        toolset="both",
+        module="documents",
     )
     register_tool(
         "create_event",
@@ -381,6 +389,8 @@ def make_app() -> FastAPI:
             "required": ["source", "type_", "title"],
         },
         create_event,
+        toolset="both",
+        module="events",
     )
     register_tool(
         "get_events",
@@ -395,6 +405,8 @@ def make_app() -> FastAPI:
             },
         },
         get_events,
+        toolset="both",
+        module="events",
     )
     register_tool(
         "lamadb_docs",
@@ -406,6 +418,8 @@ def make_app() -> FastAPI:
             },
         },
         lamadb_docs,
+        toolset="both",
+        module="",
     )
 
     # Discover module MCP tools (uptime, agent_board, wiki)

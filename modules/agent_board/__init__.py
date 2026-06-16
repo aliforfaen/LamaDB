@@ -17,6 +17,8 @@ MODULE_MCP_TOOLS = [
             },
         },
         "handler": "modules.agent_board.mcp:get_agent_tasks",
+        "toolset": "both",
+        "module": "agent_board",
     },
     {
         "name": "send_agent_message",
@@ -33,6 +35,8 @@ MODULE_MCP_TOOLS = [
             "required": ["to_agent", "subject"],
         },
         "handler": "modules.agent_board.mcp:send_agent_message",
+        "toolset": "both",
+        "module": "agent_board",
     },
 ]
 
