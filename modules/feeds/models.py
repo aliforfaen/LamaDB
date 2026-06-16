@@ -62,3 +62,12 @@ class Feed(FeedBase):
 
     id: UUID = Field(..., description="Feed UUID")
     created_at: datetime = Field(..., description="Creation timestamp")
+
+
+class PublishEntry(BaseModel):
+    """Model for publishing an entry to a feed."""
+
+    title: str = Field(..., min_length=1, max_length=500)
+    content: str = Field(default="")
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)

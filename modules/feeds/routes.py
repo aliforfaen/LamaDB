@@ -2,14 +2,16 @@
 Feeds API routes.
 
 Endpoints:
-  - POST /api/feeds          — create a new feed (admin/agent only)
-  - GET  /api/feeds          — list all feeds (auth required)
-  - GET  /api/feeds/{slug}   — get feed by slug (auth required)
-  - PUT  /api/feeds/{slug}   — update feed (admin/agent only)
-  - DELETE /api/feeds/{slug} — delete feed (admin only)
+  - POST /api/feeds              — create a new feed (admin/agent only)
+  - GET  /api/feeds              — list all feeds (auth required)
+  - GET  /api/feeds/{slug}       — get feed by slug (auth required)
+  - PUT  /api/feeds/{slug}       — update feed (admin/agent only)
+  - DELETE /api/feeds/{slug}     — delete feed (admin only)
+  - POST /api/feeds/{slug}/publish — publish an entry to a feed (admin/agent only)
 
 The public RSS endpoint is in get_public_router().
 """
+import json
 from typing import Annotated
 from uuid import UUID
 
@@ -19,7 +21,7 @@ from app.auth import AuthUser, get_current_user
 from app.db import get_pool
 
 from .generator import generate_feed
-from .models import Feed, FeedCreate, FeedUpdate
+from .models import Feed, FeedCreate, FeedUpdate, PublishEntry
 
 router = APIRouter(tags=["feeds"])
 
@@ -294,6 +296,70 @@ async def delete_feed(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Feed '{slug}' not found",
             )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/feeds/{slug}/publish — publish entry to feed
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{slug}/publish",
+    status_code=status.HTTP_201_CREATED,
+)
+async def publish_to_feed(
+    slug: str,
+    entry: PublishEntry,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
+    """
+    Publish an entry to an RSS feed. Creates a document with source_type='agent_feed'
+    and tags merged from the feed's filter_tags + entry tags.
+    """
+    if user.role not in ("admin", "agent"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin or agent role required",
+        )
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        feed_row = await conn.fetchrow(
+            "SELECT id, filter_tags, filter_source_types FROM feeds WHERE slug = $1",
+            slug,
+        )
+        if feed_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Feed '{slug}' not found",
+            )
+
+        feed_tags = list(feed_row["filter_tags"]) if feed_row["filter_tags"] else []
+        all_tags = list(set(feed_tags + entry.tags))
+
+        doc_id = await conn.fetchval(
+            """
+            INSERT INTO documents (source_type, title, content, tags, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+            """,
+            "agent_feed",
+            entry.title,
+            entry.content,
+            all_tags,
+            json.dumps({
+                **entry.metadata,
+                "feed_slug": slug,
+                "published_by": user.user_id or "unknown",
+            }),
+        )
+
+        return {
+            "status": "published",
+            "document_id": str(doc_id),
+            "feed": slug,
+            "tags": all_tags,
+        }
 
 
 # ---------------------------------------------------------------------------
