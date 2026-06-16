@@ -425,6 +425,13 @@ def make_app() -> FastAPI:
     # Discover module MCP tools (uptime, agent_board, wiki)
     from app.mcp_registry import discover_module_tools
     discover_module_tools()
+
+    # Register consolidated (action-based) tools — collapses 29 flat tools
+    # into 11 dispatchers. The original flat tools (e.g. kanban_my_tasks) are
+    # still registered above for backward compatibility.
+    from app.mcp_consolidated import register_all as register_consolidated_tools
+    register_consolidated_tools()
+
     logger.info("MCP server ready")
 
     # Discover and include module routers
