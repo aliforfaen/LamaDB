@@ -3564,3 +3564,39 @@ table td.nowrap { white-space: nowrap; }
   .ha-card .ha-state { font-size: 14px; }
   .ha-card .ha-btn { font-size: 9px; padding: 4px 6px; }
 }
+
+/* ─── MCP Control Pane ─── */
+.mcp-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.mcp-tools-section { margin-top: 16px; }
+.mcp-tools-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.mcp-tools-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.mcp-search-input { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 0.85rem; width: 200px; }
+.mcp-module-group { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+.mcp-module-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--bg-secondary); cursor: pointer; user-select: none; }
+.mcp-module-header:hover { background: var(--bg-hover); }
+.mcp-module-name { font-weight: 600; font-size: 0.95rem; }
+.mcp-module-stats { font-size: 0.8rem; color: var(--muted); }
+.mcp-expand-icon { font-size: 0.75rem; transition: transform 0.2s; }
+.mcp-module-group.collapsed .mcp-module-tools { display: none; }
+.mcp-module-group.collapsed .mcp-expand-icon { transform: rotate(-90deg); }
+.mcp-module-tools { padding: 0; }
+.mcp-tool-row { display: grid; grid-template-columns: 1fr auto auto auto auto auto auto; gap: 12px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--border); font-size: 0.85rem; }
+.mcp-tool-row:hover { background: var(--bg-hover); }
+.mcp-tool-row.disabled { opacity: 0.5; }
+.mcp-tool-row.has-errors { border-left: 3px solid var(--danger); }
+.mcp-tool-name { font-family: monospace; font-size: 0.82rem; }
+.mcp-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+.mcp-badge.admin { background: var(--accent-dim, rgba(59,130,246,0.15)); color: var(--accent, #3b82f6); }
+.mcp-badge.worker { background: var(--bg-secondary); color: var(--muted); }
+.mcp-tool-calls, .mcp-tool-errors, .mcp-tool-last, .mcp-tool-avg { color: var(--muted); font-size: 0.8rem; }
+.mcp-tool-row.has-errors .mcp-tool-errors { color: var(--danger, #ef4444); }
+.mcp-error { padding: 16px; color: var(--danger, #ef4444); text-align: center; }
+@media (max-width: 768px) {
+  .mcp-tool-row { grid-template-columns: 1fr auto; gap: 4px; }
+  .mcp-tool-calls, .mcp-tool-errors, .mcp-tool-last, .mcp-tool-avg { display: none; }
+}

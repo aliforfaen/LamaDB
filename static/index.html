@@ -1233,6 +1233,7 @@
           <button class="tab-btn" data-tab="settings-health" onclick="window.switchSettingsTab('health')">System Health</button>
           <button class="tab-btn" data-tab="settings-cache-stats" onclick="window.switchSettingsTab('cache-stats')">Cache Stats</button>
           <button class="tab-btn" data-tab="settings-uptime-poll" onclick="window.switchSettingsTab('uptime-poll')">Uptime Sync</button>
+          <button class="tab-btn" data-tab="settings-mcp" onclick="window.switchSettingsTab('mcp')">MCP Server</button>
           <button class="tab-btn" data-tab="settings-source-configs" onclick="window.switchSettingsTab('source-configs')">Source Config</button>
           <button class="tab-btn" data-tab="settings-users" onclick="window.switchSettingsTab('users')">Users</button>
         </div>
@@ -1399,6 +1400,26 @@
           </div>
           <div id="users-table"><p class="loading">Loading\u2026</p></div>
           <div id="new-user-form" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-top:12px;"></div>
+        </div>
+
+        <div id="tab-settings-mcp" class="tab-panel" style="display:none;">
+          <h3>MCP Server</h3>
+          <div class="mcp-stat-grid" id="mcp-stat-grid"></div>
+          <div class="mcp-tools-section">
+            <div class="mcp-tools-header">
+              <h3>Registered Tools</h3>
+              <div class="mcp-tools-toolbar">
+                <div class="filter-tabs" id="mcp-filter-tabs">
+                  <button class="filter-tab active" data-filter="all" onclick="window.filterMcpTools('all', this)">All</button>
+                  <button class="filter-tab" data-filter="admin" onclick="window.filterMcpTools('admin', this)">Admin</button>
+                  <button class="filter-tab" data-filter="worker" onclick="window.filterMcpTools('worker', this)">Worker</button>
+                  <button class="filter-tab" data-filter="disabled" onclick="window.filterMcpTools('disabled', this)">Disabled</button>
+                </div>
+                <input type="text" id="mcp-tool-search" placeholder="Search tools..." oninput="window.filterMcpToolsList()" class="mcp-search-input" />
+              </div>
+            </div>
+            <div id="mcp-tools-list"></div>
+          </div>
         </div>
 
       </section>

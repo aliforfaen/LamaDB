@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     homeassistant_token: str = ""
     homeassistant_highlight_entities: str = ""
 
+    # Feeds module — public base URL for RSS feed links
+    feeds_base_url: str = ""
+
 
 
     # Wiki — CouchDB-backed LiveSync collector

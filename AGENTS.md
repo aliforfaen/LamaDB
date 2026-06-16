@@ -4,9 +4,20 @@
 
 LamaDB is a self-hosted central data layer / Life OS. It stores documents, events, and relationships in PostgreSQL, exposes a FastAPI REST API, and serves RSS feeds generated from its data.
 
-**Current phase: Phase 16 — P2 Sprint (Wiki + Kanban + Noise Threshold).** 15 modules. ~80 commits, 270+ tests. WikiPage model fix (section/size optional), topology overview widget on dashboard, kanban tags (TEXT[] + GIN index + filter + frontend chips), task templates (save/apply with tags + subtasks), per-source noise threshold (source_config table + auto-dismiss), notification engine JSONB fix (fire_event works), dozzle dedup "Mon DD YYYY" regex, pg_stat_statements extension.
+**Current phase: Phase 17 — MCP Architecture + RSS Feeds.** 15 modules. ~90 commits, 290+ tests. MCP server refactored: 29 flat tools → 11 consolidated action-based dispatchers, split into `/mcp/admin` (all tools) and `/mcp/worker` (subset) endpoints, in-memory stats tracking, frontend control pane in Settings. RSS feeds: 4 agent-driven feeds (lamalab, media, life, briefing), `POST /api/feeds/{slug}/publish` endpoint, morning brief generator, feed pruning with configurable retention.
 
-Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table. Ingest pipeline for push-based lifecycle hooks. MCP server exposes LamaDB as callable tools for AI agents.
+Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table. Ingest pipeline for push-based lifecycle hooks. MCP server exposes LamaDB as callable tools for AI agents via consolidated action-based endpoints.
+
+## Working With Ali
+
+Ali has ADHD. This affects how to approach development sessions:
+
+- **Talk first, code later.** Start with exploration and brainstorming. Don't jump to implementation. Ask questions, understand the vision, propose alternatives. The best sessions start with 15-30 minutes of discussion before any code is written.
+- **One thing at a time.** Don't present a 10-task plan upfront. Show the next step, get buy-in, then do it. Parallel work is fine for independent tasks, but the human should see one coherent thread.
+- **Concrete over abstract.** "Here's what the API response looks like" beats "we'll add a response model." Show examples, paste actual output, demo with curl.
+- **Keep the fun ratio high.** This is a learning project. If testing takes longer than building, skip it. If a refactor is boring, note it for later. Momentum matters more than perfection.
+- **Respect the "no."** If Ali says "I don't want to pull up planning yet," don't. If they say "let's chew on ideas," brainstorm. Follow their节奏.
+- **Session handoffs matter.** Ali forgets what happened yesterday. The wiki, AGENTS.md, and handoff docs are the external brain. Keep them current.
 
 ## Context
 When a user asks about this project, a "llm-wiki" is kept for it in the folder `~/Basecamp/wiki/projects/lamadb/`. Read files in this folder if any context is needed. And keep them up to date with work and plans.
@@ -54,8 +65,11 @@ lamadb/
 │   ├── cache.py           # In-memory TTL cache with tag invalidation
 │   │   ├── embeddings.py      # Sentence-transformers (all-MiniLM-L6-v2, 384d)
 │   ├── sse.py             # SSE infrastructure (SSEManager + pg_listener)
-│   ├── mcp_server.py      # MCP JSON-RPC 2.0 handler
-│   ├── mcp_registry.py    # Auto-discovers MCP tools from modules
+│   ├── mcp_server.py      # MCP JSON-RPC 2.0 handler (admin/worker endpoints)
+│   ├── mcp_registry.py    # Auto-discovers MCP tools from modules (toolset/module/enabled metadata)
+│   ├── mcp_consolidated.py # 11 consolidated action-based MCP tools
+│   ├── mcp_tracker.py     # In-memory tool call stats tracker
+│   ├── mcp_admin.py       # /api/mcp/admin API (stats, tools, toggle)
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── documents.py   # Document + Link models
@@ -74,7 +88,9 @@ lamadb/
 │   │   ├── __init__.py
 │   │   ├── routes.py      # /api/feeds/* + /feeds/{slug}.xml
 │   │   ├── models.py
-│   │   └── generator.py   # RSS XML generation
+│   │   ├── generator.py   # RSS XML generation
+│   │   ├── cleanup.py     # Feed pruning with configurable retention
+│   │   └── briefing.py    # Morning brief generator from LamaDB data
 │   ├── uptime/            # Uptime Kuma webhook + registry poller
 │   │   ├── __init__.py
 │   │   ├── routes.py      # /api/uptime/*
@@ -332,7 +348,7 @@ Module discovery in `app/main.py`:
 
 Modules can define their own database tables. Migration files for modules go in `migrations/` with the module name prefix.
 
-MCP tools are declared via `MODULE_MCP_TOOLS` list in `__init__.py` and auto-registered by `app/mcp_registry.py`.
+MCP tools are declared via `MODULE_MCP_TOOLS` list in `__init__.py` and auto-registered by `app/mcp_registry.py`. Each tool declaration should include `toolset` ("admin" | "worker" | "both") and `module` (scope name for auth) fields. Consolidated tools (action-based dispatchers) are registered in `app/mcp_consolidated.py`.
 
 ## Development Workflow
 
@@ -448,6 +464,21 @@ docker logs lamadb_api --tail 20
 - [x] Dashboard ghost routes eliminated (removed doubled `/api/dashboard` prefix)
 - [x] 153 stale test API keys + 181 test events cleaned up
 
+### Phase 17: MCP Architecture + RSS Feeds ✅ (2026-06-16)
+- [x] MCP registry: `toolset`/`module`/`enabled` metadata on all tools
+- [x] 11 consolidated action-based tools (29 flat → 11 dispatchers)
+- [x] Split endpoints: `/mcp/admin` (11 tools) + `/mcp/worker` (8 tools)
+- [x] Legacy `/mcp` endpoint preserved (deprecation warning)
+- [x] In-memory tool call stats tracker (calls, errors, avg duration)
+- [x] Admin API: `/api/mcp/admin/stats`, `/tools`, `PATCH /tools/{name}`
+- [x] Frontend control pane in Settings → MCP Server tab
+- [x] 20 consolidated tests (all passing)
+- [x] RSS feeds: 4 seeded (lamalab, media, life, briefing)
+- [x] `POST /api/feeds/{slug}/publish` endpoint
+- [x] Morning brief generator (`modules/feeds/briefing.py`)
+- [x] Feed pruning with configurable retention (`modules/feeds/cleanup.py`)
+- [x] Configurable `BASE_URL` for feed links
+
 ## Known Pitfalls
 
 | Pitfall | Fix |
@@ -473,6 +504,11 @@ docker logs lamadb_api --tail 20
 | Cache invalidation uses tags — misspelled tags silently do nothing | Double-check tag names. `cache_manager.invalidate("documents")` must match the `invalidate_tags=["documents"]` on the `@cached` decorator. |
 | `docker compose build --no-cache api` doesn't always invalidate COPY layers | Use `docker build -t lamadb-api:latest -f Dockerfile . && docker compose up -d api --force-recreate` for guaranteed fresh builds. |
 | MCP tools in MODULE_MCP_TOOLS use `handler` key with dotted path `module.path:func_name` | The `_import_handler()` function splits on `:` and imports. Double-check the module path and function name. |
+| Consolidated MCP tools use `action` parameter to dispatch to existing handlers | The dispatcher in `app/mcp_consolidated.py` uses `inspect.signature()` to filter kwargs. Extra params (like `action` itself) are silently dropped. No handler modifications needed. |
+| MCP `toggle_tool()` is in-memory only — resets on container restart | Tool enable/disable state lives in `_tools` dict, not in DB. Use for operational toggling, not permanent configuration. |
+| MCP endpoint toolset filtering: `/mcp/admin` gets all tools, `/mcp/worker` excludes `toolset="admin"` tools | Worker agents can't call `admin_secrets` or other admin-only tools. Check `tool["toolset"]` before dispatching. |
+| Feed publish endpoint merges tags with feed's `filter_tags` | `POST /api/feeds/{slug}/publish` creates a document with `source_type='agent_feed'` and merged tags. Feed's `filter_tags` are always included. |
+| Morning brief queries may return empty sections | `generate_morning_brief()` handles missing data gracefully — returns "All Clear" if no notable activity. Each section has try/except guards. |
 | `inbox_for` defaults to `to_agent` when not provided | In `send_message()`, `message.inbox_for or message.to_agent` ensures backward compatibility for old code that doesn't set inbox_for. |
 | `settings.json` overlay sits alongside `.env` — env vars take priority | `discover_module_configs()` checks `settings` (env) first, then `settings_overlay` (file), then `field["default"]`. Don't delete the file manually — use the API. |
 | WebSocket auth uses first-message pattern | `dashboard_websocket()` accepts the connection, then reads the first JSON message for `{"key": "..."}`. Invalid keys get code 4001. |

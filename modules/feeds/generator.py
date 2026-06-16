@@ -9,13 +9,15 @@ from datetime import datetime
 
 from feedgen.feed import FeedGenerator
 
+from app.config import settings
 from app.db import get_pool
 
 from .models import Feed
 
 
-# Base URL for document links (can be overridden via settings)
-BASE_URL = "http://localhost:8000"
+def _get_base_url() -> str:
+    """Return the public base URL for feed links."""
+    return getattr(settings, 'feeds_base_url', '') or 'http://localhost:8000'
 
 
 def _generate_feed_xml(feed: Feed, items: list[dict]) -> str:
@@ -29,10 +31,11 @@ def _generate_feed_xml(feed: Feed, items: list[dict]) -> str:
     Returns:
         RSS XML string.
     """
+    base_url = _get_base_url()
     fg = FeedGenerator()
     fg.title(feed.name)
     fg.description(feed.description or "")
-    fg.link(href=f"{BASE_URL}/feeds/{feed.slug}.xml", rel="self")
+    fg.link(href=f"{base_url}/feeds/{feed.slug}.xml", rel="self")
     fg.language("en")
 
     for item in items:
@@ -41,7 +44,7 @@ def _generate_feed_xml(feed: Feed, items: list[dict]) -> str:
 
         # Link to document or API endpoint
         doc_id = item["id"]
-        fe.link(href=f"{BASE_URL}/api/documents/{doc_id}")
+        fe.link(href=f"{base_url}/api/documents/{doc_id}")
 
         # Description: content or first 500 chars
         content = item.get("content") or ""

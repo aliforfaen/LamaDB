@@ -574,6 +574,8 @@
       window.loadUsersPage && window.loadUsersPage();
     } else if (tab === 'source-configs') {
       loadSourceConfigs();
+    } else if (tab === 'mcp') {
+      window.loadMcpTab();
     }
   };
 
@@ -745,5 +747,120 @@
         window.showToast('Source config deleted.', null, null, 3000);
       }).catch(function(e) { window.showToast('Failed: ' + e.message, null, null, 3000); });
     });
+  };
+
+  // ─── MCP Control Pane ─────────────────────────────────────────────────────
+  var _mcpToolsCache = [];
+  var _mcpStatsCache = null;
+  var _mcpFilterActive = 'all';
+
+  window.loadMcpTab = async function() {
+    try {
+      var statsRes = await window.api('/api/mcp/admin/stats');
+      _mcpStatsCache = statsRes;
+      renderMcpStatCards(statsRes);
+    } catch (e) {
+      document.getElementById('mcp-stat-grid').innerHTML =
+        '<div class="stat-card"><div class="label">Error</div><div class="value">' + window.escHtml(e.message) + '</div></div>';
+    }
+    try {
+      var toolsRes = await window.api('/api/mcp/admin/tools');
+      _mcpToolsCache = toolsRes.tools || [];
+      renderMcpToolsList(_mcpToolsCache);
+    } catch (e) {
+      document.getElementById('mcp-tools-list').innerHTML =
+        '<div class="mcp-error">Failed to load tools: ' + window.escHtml(e.message) + '</div>';
+    }
+  };
+
+  function renderMcpStatCards(stats) {
+    var grid = document.getElementById('mcp-stat-grid');
+    var enabledCount = stats.tools.filter(function(t) { return t.enabled !== false; }).length;
+    var total = stats.tools.length;
+    var avgDuration = stats.tools.length > 0
+      ? (stats.tools.reduce(function(s, t) { return s + (t.avg_duration_ms || 0); }, 0) / stats.tools.length).toFixed(0)
+      : '—';
+    grid.innerHTML =
+      '<div class="stat-card"><div class="label">Total Calls</div><div class="value">' + stats.total_calls.toLocaleString() + '</div></div>' +
+      '<div class="stat-card"><div class="label">Error Rate</div><div class="value">' + stats.error_rate.toFixed(1) + '%</div></div>' +
+      '<div class="stat-card"><div class="label">Tools Active</div><div class="value">' + enabledCount + '/' + total + '</div></div>' +
+      '<div class="stat-card"><div class="label">Avg Duration</div><div class="value">' + avgDuration + 'ms</div></div>';
+  }
+
+  function renderMcpToolsList(tools) {
+    var container = document.getElementById('mcp-tools-list');
+    var groups = {};
+    tools.forEach(function(t) {
+      var mod = t.module || 'core';
+      if (!groups[mod]) groups[mod] = [];
+      groups[mod].push(t);
+    });
+    var html = '';
+    Object.keys(groups).sort().forEach(function(mod) {
+      var modTools = groups[mod];
+      var modCalls = modTools.reduce(function(s, t) { return s + (t.calls || 0); }, 0);
+      var modErrors = modTools.reduce(function(s, t) { return s + (t.errors || 0); }, 0);
+      html += '<div class="mcp-module-group">';
+      html += '<div class="mcp-module-header" onclick="this.parentElement.classList.toggle(\'collapsed\')">';
+      html += '<span class="mcp-module-name">' + window.escHtml(mod) + '</span>';
+      html += '<span class="mcp-module-stats">' + modTools.length + ' tools &middot; ' + modCalls + ' calls &middot; ' + modErrors + ' errors</span>';
+      html += '<span class="mcp-expand-icon">&#9660;</span>';
+      html += '</div>';
+      html += '<div class="mcp-module-tools">';
+      modTools.forEach(function(t) {
+        var enabled = t.enabled !== false;
+        var toolsetBadge = t.toolset === 'admin'
+          ? '<span class="mcp-badge admin">admin</span>'
+          : '<span class="mcp-badge worker">both</span>';
+        var errorClass = (t.errors && t.errors > 0) ? ' has-errors' : '';
+        html += '<div class="mcp-tool-row' + errorClass + (enabled ? '' : ' disabled') + '">';
+        html += '<span class="mcp-tool-name">' + window.escHtml(t.name) + '</span>';
+        html += toolsetBadge;
+        html += '<span class="mcp-tool-calls">' + (t.calls || 0) + ' calls</span>';
+        html += '<span class="mcp-tool-errors">' + (t.errors || 0) + ' err</span>';
+        html += '<span class="mcp-tool-last">' + (t.last_call ? window.relativeTime(t.last_call) : 'never') + '</span>';
+        html += '<span class="mcp-tool-avg">' + (t.avg_duration_ms ? t.avg_duration_ms.toFixed(0) + 'ms' : '&mdash;') + '</span>';
+        html += '<label class="toggle"><input type="checkbox" ' + (enabled ? 'checked' : '') +
+          ' onchange="window.toggleMcpTool(\'' + window.escAttr(t.name) + '\', this.checked)"><span class="toggle-slider"></span></label>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+    container.innerHTML = html;
+  }
+
+  window.toggleMcpTool = function(name, enabled) {
+    window.api('/api/mcp/admin/tools/' + encodeURIComponent(name), {
+      method: 'PATCH',
+      body: JSON.stringify({ enabled: enabled }),
+    }).then(function() {
+      window.showToast('Tool "' + name + '" ' + (enabled ? 'enabled' : 'disabled'));
+      var tool = _mcpToolsCache.find(function(t) { return t.name === name; });
+      if (tool) tool.enabled = enabled;
+      if (_mcpStatsCache) renderMcpStatCards(_mcpStatsCache);
+    }).catch(function(e) {
+      window.showError('Failed: ' + e.message);
+      window.loadMcpTab();
+    });
+  };
+
+  window.filterMcpTools = function(filter, btn) {
+    _mcpFilterActive = filter;
+    document.querySelectorAll('#mcp-filter-tabs .filter-tab').forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    window.filterMcpToolsList();
+  };
+
+  window.filterMcpToolsList = function() {
+    var search = (document.getElementById('mcp-tool-search').value || '').toLowerCase();
+    var filtered = _mcpToolsCache.filter(function(t) {
+      if (_mcpFilterActive === 'disabled' && t.enabled !== false) return false;
+      if (_mcpFilterActive === 'admin' && t.toolset !== 'admin') return false;
+      if (_mcpFilterActive === 'worker' && t.toolset === 'admin') return false;
+      if (search && t.name.toLowerCase().indexOf(search) === -1 &&
+          (t.description || '').toLowerCase().indexOf(search) === -1) return false;
+      return true;
+    });
+    renderMcpToolsList(filtered);
   };
 })();
