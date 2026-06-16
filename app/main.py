@@ -311,6 +311,10 @@ def make_app() -> FastAPI:
     from app.mcp_server import router as mcp_router
     app.include_router(mcp_router)
 
+    # Register MCP admin API (stats, tool catalog, enable/disable)
+    from app.mcp_admin import router as mcp_admin_router
+    app.include_router(mcp_admin_router)
+
     # Register core MCP tools
     from app.mcp_registry import register_tool
     from app.core.mcp import (
