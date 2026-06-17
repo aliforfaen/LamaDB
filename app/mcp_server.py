@@ -151,6 +151,24 @@ async def _handle(request: Request, toolset: str | None) -> dict:
             return _jsonrpc_error(rpc_id, ERROR_INTERNAL, perm_err)
 
         arguments = params.get("arguments", {}) or {}
+
+        # Inject user_id from the authenticated API key.  Consolidated
+        # dispatchers always accept **kwargs and filter internally by the
+        # target handler's signature.  Standalone handlers are only given
+        # user_id if they declare it explicitly.
+        if user.user_id and "user_id" not in arguments:
+            try:
+                import inspect
+                sig = inspect.signature(tool["handler"])
+                has_var_keyword = any(
+                    p.kind == inspect.Parameter.VAR_KEYWORD
+                    for p in sig.parameters.values()
+                )
+                if has_var_keyword or "user_id" in sig.parameters:
+                    arguments["user_id"] = user.user_id
+            except (TypeError, ValueError):
+                pass
+
         start = time.monotonic()
         try:
             result = await tool["handler"](**arguments)

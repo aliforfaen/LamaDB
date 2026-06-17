@@ -234,7 +234,7 @@ async def update_document(id: str, title: str = None, content: str = None,
     }
 
 
-async def create_event(source: str, type_: str, title: str, severity: str = "info",
+async def create_event(source: str, event_type: str, title: str, severity: str = "info",
                        body: str = "", metadata: dict = None, tags: list[str] = None) -> dict:
     """Create a new event."""
     pool = get_pool()
@@ -246,7 +246,7 @@ async def create_event(source: str, type_: str, title: str, severity: str = "inf
             RETURNING id, ts, source, type, severity, title, body, metadata, tags
             """,
             source,
-            type_,
+            event_type,
             severity,
             title,
             body,
@@ -275,7 +275,7 @@ async def create_event(source: str, type_: str, title: str, severity: str = "inf
     }
 
 
-async def get_events(source: str = None, type_: str = None, severity: str = None,
+async def get_events(source: str = None, event_type: str = None, severity: str = None,
                      limit: int = 50) -> dict:
     """Get events with optional filters."""
     pool = get_pool()
@@ -289,9 +289,9 @@ async def get_events(source: str = None, type_: str = None, severity: str = None
             params.append(source)
             param_idx += 1
 
-        if type_ is not None:
+        if event_type is not None:
             conditions.append(f"type = ${param_idx}")
-            params.append(type_)
+            params.append(event_type)
             param_idx += 1
 
         if severity is not None:

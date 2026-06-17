@@ -124,11 +124,7 @@ def register_all() -> None:
     # 1. agent_documents — search/get/create/update documents
     register_consolidated_tool(
         name="agent_documents",
-        description=(
-            "Document operations. action: 'search' (q, limit), 'get' (id), "
-            "'create' (title, source_type, content, tags, metadata), 'update' "
-            "(id, title, content, tags, metadata, source_type)."
-        ),
+        description="Document CRUD. Actions: search, get, create, update.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -157,16 +153,13 @@ def register_all() -> None:
     # 2. agent_events — create/list events
     register_consolidated_tool(
         name="agent_events",
-        description=(
-            "Event operations. action: 'create' (source, type_, title, severity, body, "
-            "metadata, tags), 'list' (source, type_, severity, limit)."
-        ),
+        description="Event bus. Actions: create, list.",
         inputSchema={
             "type": "object",
             "properties": {
                 "action": {"type": "string", "enum": ["create", "list"]},
                 "source": {"type": "string"},
-                "type_": {"type": "string"},
+                "event_type": {"type": "string"},
                 "title": {"type": "string"},
                 "severity": {"type": "string", "enum": ["info", "warning", "critical"]},
                 "body": {"type": "string"},
@@ -187,9 +180,7 @@ def register_all() -> None:
     # 3. agent_wiki — search pages / capture scratchpad
     register_consolidated_tool(
         name="agent_wiki",
-        description=(
-            "Wiki operations. action: 'search' (q, limit), 'scratch' (content, title)."
-        ),
+        description="Wiki pages. Actions: search, scratch.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -212,10 +203,7 @@ def register_all() -> None:
     # 4. agent_uptime — status / history
     register_consolidated_tool(
         name="agent_uptime",
-        description=(
-            "Uptime operations. action: 'status' (no params), 'history' "
-            "(monitor_id, limit)."
-        ),
+        description="Uptime monitors. Actions: status, history.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -236,9 +224,7 @@ def register_all() -> None:
     # 5. lamadb_docs — passthrough (no action dispatch)
     register_tool(
         name="lamadb_docs",
-        description=(
-            "Read LamaDB documentation. topic='api' for the full agent API reference."
-        ),
+        description="LamaDB docs. topic='api' for full reference.",
         inputSchema={
             "type": "object",
             "properties": {"topic": {"type": "string", "default": "api"}},
@@ -251,12 +237,7 @@ def register_all() -> None:
     # 6. agent_kanban_tasks — task CRUD + discovery
     register_consolidated_tool(
         name="agent_kanban_tasks",
-        description=(
-            "Kanban task operations. action: 'my_tasks' (board_id), 'find_work' "
-            "(board_id), 'get' (task_id), 'create' (board_id, title, description, "
-            "priority, tags), 'create_from_template' (board_id, template_id, "
-            "title_override), 'update' (task_id, title, description, priority, tags)."
-        ),
+        description="Kanban tasks. Actions: my_tasks, find_work, get, create, create_from_template, update.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -293,10 +274,7 @@ def register_all() -> None:
     # 7. agent_kanban_workflow — claim/start/complete/help_wanted
     register_consolidated_tool(
         name="agent_kanban_workflow",
-        description=(
-            "Kanban task workflow. action: 'claim' (task_id), 'start' (task_id), "
-            "'complete' (task_id, summary), 'help_wanted' (task_id, message)."
-        ),
+        description="Kanban lifecycle. Actions: claim, start, complete, help_wanted.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -323,9 +301,7 @@ def register_all() -> None:
     # 8. agent_kanban_comments — add comment
     register_consolidated_tool(
         name="agent_kanban_comments",
-        description=(
-            "Kanban comment operations. action: 'add' (task_id, body)."
-        ),
+        description="Kanban comments. Actions: add.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -343,10 +319,7 @@ def register_all() -> None:
     # 9. agent_kanban_meta — my_instructions
     register_consolidated_tool(
         name="agent_kanban_meta",
-        description=(
-            "Kanban meta. action: 'my_instructions' (no params) returns the calling "
-            "agent's instructions."
-        ),
+        description="Kanban agent config. Actions: my_instructions.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -362,10 +335,7 @@ def register_all() -> None:
     # 10. agent_messages — list_tasks / send
     register_consolidated_tool(
         name="agent_messages",
-        description=(
-            "Agent board. action: 'list_tasks' (status, priority, limit), 'send' "
-            "(to_agent, subject, body, message_type, metadata)."
-        ),
+        description="Agent messaging. Actions: list_tasks, send.",
         inputSchema={
             "type": "object",
             "properties": {
@@ -393,11 +363,7 @@ def register_all() -> None:
     # Renames: the public API uses 'secret_id', the handlers take 'id'.
     register_consolidated_tool(
         name="admin_secrets",
-        description=(
-            "Secret management (admin only). action: 'list' (user_id, service, "
-            "secret_type, tag, accessible), 'metadata' (secret_id), 'reveal' "
-            "(secret_id), 'request_access' (secret_id, reason)."
-        ),
+        description="Secrets (admin). Actions: list, metadata, reveal, request_access.",
         inputSchema={
             "type": "object",
             "properties": {

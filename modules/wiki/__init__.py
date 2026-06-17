@@ -17,7 +17,7 @@ MODULE_MCP_TOOLS = [
             "required": ["q"],
         },
         "handler": "modules.wiki.mcp:wiki_search",
-        "toolset": "both",
+        "toolset": "legacy",
         "module": "wiki",
     },
     {
@@ -32,7 +32,7 @@ MODULE_MCP_TOOLS = [
             "required": ["content"],
         },
         "handler": "modules.wiki.mcp:scratchpad_capture",
-        "toolset": "both",
+        "toolset": "legacy",
         "module": "wiki",
     },
 ]

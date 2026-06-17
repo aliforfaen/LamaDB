@@ -323,12 +323,15 @@ def make_app() -> FastAPI:
         lamadb_docs,
     )
 
+    # Legacy flat tools — kept for backward compatibility with the /mcp
+    # endpoint.  Use toolset="legacy" so they do NOT appear on /mcp/admin
+    # or /mcp/worker (those expose only the consolidated action-based tools).
     register_tool(
         "search_documents",
         "Full-text + semantic search across documents",
         {"type": "object", "properties": {"q": {"type": "string"}, "limit": {"type": "integer"}}, "required": ["q"]},
         search_documents,
-        toolset="both",
+        toolset="legacy",
         module="documents",
     )
     register_tool(
@@ -336,7 +339,7 @@ def make_app() -> FastAPI:
         "Get a single document by ID with its links",
         {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]},
         get_document,
-        toolset="both",
+        toolset="legacy",
         module="documents",
     )
     register_tool(
@@ -354,7 +357,7 @@ def make_app() -> FastAPI:
             "required": ["title", "source_type"],
         },
         create_document,
-        toolset="both",
+        toolset="legacy",
         module="documents",
     )
     register_tool(
@@ -373,7 +376,7 @@ def make_app() -> FastAPI:
             "required": ["id"],
         },
         update_document,
-        toolset="both",
+        toolset="legacy",
         module="documents",
     )
     register_tool(
@@ -383,33 +386,33 @@ def make_app() -> FastAPI:
             "type": "object",
             "properties": {
                 "source": {"type": "string"},
-                "type_": {"type": "string"},
+                "event_type": {"type": "string"},
                 "title": {"type": "string"},
                 "severity": {"type": "string", "enum": ["info", "warning", "critical"]},
                 "body": {"type": "string"},
                 "metadata": {"type": "object"},
                 "tags": {"type": "array", "items": {"type": "string"}},
             },
-            "required": ["source", "type_", "title"],
+            "required": ["source", "event_type", "title"],
         },
         create_event,
-        toolset="both",
+        toolset="legacy",
         module="events",
     )
     register_tool(
         "get_events",
-        "Get events with optional source/type/severity filters",
+        "Get events with optional source/event_type/severity filters",
         {
             "type": "object",
             "properties": {
                 "source": {"type": "string"},
-                "type_": {"type": "string"},
+                "event_type": {"type": "string"},
                 "severity": {"type": "string"},
                 "limit": {"type": "integer"},
             },
         },
         get_events,
-        toolset="both",
+        toolset="legacy",
         module="events",
     )
     register_tool(
@@ -422,17 +425,19 @@ def make_app() -> FastAPI:
             },
         },
         lamadb_docs,
-        toolset="both",
+        toolset="legacy",
         module="",
     )
 
-    # Discover module MCP tools (uptime, agent_board, wiki)
+    # Discover module MCP tools (uptime, agent_board, wiki, kanban, secrets).
+    # These are legacy flat tools registered with toolset="legacy" — they only
+    # appear on the /mcp endpoint for backward compatibility.
     from app.mcp_registry import discover_module_tools
     discover_module_tools()
 
     # Register consolidated (action-based) tools — collapses 29 flat tools
-    # into 11 dispatchers. The original flat tools (e.g. kanban_my_tasks) are
-    # still registered above for backward compatibility.
+    # into 11 dispatchers. These are the primary tools for /mcp/admin and
+    # /mcp/worker endpoints.
     from app.mcp_consolidated import register_all as register_consolidated_tools
     register_consolidated_tools()
 

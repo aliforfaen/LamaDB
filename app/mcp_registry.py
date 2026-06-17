@@ -101,9 +101,14 @@ def _make_dispatcher(
             call_kwargs[mapped] = v
 
         sig = _get_handler_params(action)
-        if sig.parameters:
-            valid_params = set(sig.parameters.keys())
+        # Always filter — sig.parameters is {} (falsy) for zero-param
+        # handlers, so the `if sig.parameters:` guard would skip filtering
+        # and let extra kwargs like user_id through.
+        valid_params = set(sig.parameters.keys())
+        if valid_params:
             call_kwargs = {k: v for k, v in call_kwargs.items() if k in valid_params}
+        else:
+            call_kwargs = {}
 
         return await handler(**call_kwargs)
 
@@ -172,7 +177,7 @@ def discover_module_tools():
                         "inputSchema", {"type": "object", "properties": {}}
                     ),
                     handler=handler,
-                    toolset=tool_def.get("toolset", "both"),
+                    toolset=tool_def.get("toolset", "legacy"),
                     module=tool_def.get("module", item.name),
                     enabled=tool_def.get("enabled", True),
                 )
@@ -195,7 +200,16 @@ def list_tools(toolset: str | None = None) -> list[dict]:
     Args:
         toolset: If provided, filter to tools whose `toolset` is this value
                  OR "both". If None, return all tools.
+
+    Tool descriptions are augmented with health warnings from the stats
+    tracker when error rates are elevated (≥3 calls, >50% error rate).
     """
+    from app.mcp_tracker import get_stats
+    import time
+
+    stats = get_stats()
+    now = time.time()
+
     out = []
     for t in _tools.values():
         if not t.get("enabled", True):
@@ -203,10 +217,24 @@ def list_tools(toolset: str | None = None) -> list[dict]:
         if toolset is not None and toolset != "both":
             if t.get("toolset", "both") not in (toolset, "both"):
                 continue
+
+        desc = t["description"]
+
+        # Augment description with health warning if error rate is high.
+        name = t["name"]
+        s = stats.get(name)
+        if s and s["calls"] >= 3:
+            error_rate = s["errors"] / s["calls"]
+            if error_rate > 0.5:
+                # Only show if the last error was recent (within 1 hour)
+                if s["last_error_ts"] and (now - s["last_error_ts"]) < 3600:
+                    pct = int(error_rate * 100)
+                    desc = f"{desc} ⚠️ {pct}% error rate ({s['errors']}/{s['calls']} calls) — may be broken."
+
         out.append(
             {
-                "name": t["name"],
-                "description": t["description"],
+                "name": name,
+                "description": desc,
                 "inputSchema": t["inputSchema"],
             }
         )
