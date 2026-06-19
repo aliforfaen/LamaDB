@@ -1,0 +1,123 @@
+.home-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.home-today-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.home-today-card .greeting {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+}
+
+.home-today-card .date {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.home-today-card .presence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+}
+
+.home-today-card .presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.home-summary-card {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.home-summary-item {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.home-summary-item:hover { background: var(--surface-3); }
+
+.home-summary-item .value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+}
+
+.home-summary-item .label {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.home-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+
+.home-quick-actions .action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.home-quick-actions .action:hover { background: var(--surface-3); }
+
+.home-quick-actions .action .icon {
+  font-size: var(--text-xl);
+  color: var(--accent);
+}
+
+.home-quick-actions .action .label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.home-headlines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.home-headline {
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+}
+
+.home-headline .title {
+  font-weight: 500;
+  font-size: var(--text-sm);
+}
+
+.home-headline .meta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  margin-top: var(--space-1);
+}
