@@ -41,6 +41,19 @@
   }
   window.api = api;
 
+  window.LlamaApp = {
+    getApiKey: getApiKey,
+    setApiKey: setApiKey,
+    clearApiKey: clearApiKey,
+    showAuthModal: showAuthModal,
+    hideAuthModal: hideAuthModal,
+    connectSSE: connectSSE,
+    applyTheme: applyTheme,
+    applyAccent: applyAccent,
+    fetchAndApplyTheme: fetchAndApplyTheme,
+    showError: showError
+  };
+
   function showAuthModal() {
     document.getElementById('auth-modal').style.display = 'flex';
     document.getElementById('api-key-input').value = '';
@@ -364,29 +377,18 @@
   };
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
-  var pages = {
-    'overview':  document.getElementById('page-overview'),
-    'feeds':     document.getElementById('page-feeds'),
-    'uptime':    document.getElementById('page-uptime'),
-    'events':    document.getElementById('page-events'),
-    'wiki':      document.getElementById('page-wiki'),
-    'documents':  document.getElementById('page-documents'),
-    'ntfy':       document.getElementById('page-ntfy'),
-    'dozzle':     document.getElementById('page-dozzle'),
-    'freshrss':   document.getElementById('page-freshrss'),
-    'agentboard': document.getElementById('page-agentboard'),
-    'kanban':     document.getElementById('page-kanban'),
-    'notflix':    document.getElementById('page-notflix'),
-    'homeassistant': document.getElementById('page-homeassistant'),
-    'hermes':     document.getElementById('page-hermes'),
-    'settings':   document.getElementById('page-settings'),
-    'notifications': document.getElementById('page-notifications'),
-    'search':     document.getElementById('page-search'),
-    'secrets':    document.getElementById('page-secrets'),
-    'access-requests': document.getElementById('page-access-requests'),
-    'groups':     document.getElementById('page-groups')
-  };
+  var newPages = Array.from(document.querySelectorAll('.app-page')).reduce(function(acc, el) {
+    acc[el.dataset.page] = el;
+    return acc;
+  }, {});
+
+  var legacyPages = Array.from(document.querySelectorAll('.legacy-page')).reduce(function(acc, el) {
+    acc[el.dataset.page] = el;
+    return acc;
+  }, {});
+
   var titles = {
+    'home': 'Home',
     'overview': 'Overview',
     'feeds': 'Feeds',
     'uptime': 'Uptime',
@@ -408,7 +410,7 @@
     'access-requests': 'Access Requests',
     'groups': 'Groups'
   };
-  var currentPage = 'overview';
+  var currentPage = 'home';
 
   window.navigateTo = function(pageId) {
     if (pageId === currentPage) return;
@@ -416,21 +418,28 @@
       showAuthModal();
       return;
     }
-    document.querySelectorAll('.nav-item').forEach(function(el) {
+
+    document.querySelectorAll('.app-sidebar .nav-item, .mobile-nav .nav-item').forEach(function(el) {
       el.classList.toggle('active', el.dataset.page === pageId);
     });
-    document.querySelectorAll('.mobile-nav-item').forEach(function(el) {
-      el.classList.toggle('active', el.dataset.page === pageId);
+
+    Object.keys(newPages).forEach(function(key) {
+      newPages[key].classList.toggle('active', key === pageId);
     });
-    Object.keys(pages).forEach(function(key) {
-      if (pages[key]) pages[key].classList.toggle('page-active', key === pageId);
+    Object.keys(legacyPages).forEach(function(key) {
+      legacyPages[key].classList.toggle('active', key === pageId);
+      var inner = legacyPages[key].querySelector('.page');
+      if (inner) inner.classList.toggle('page-active', key === pageId);
     });
+
     var titleEl = document.getElementById('page-title');
     if (titleEl) titleEl.textContent = titles[pageId] || pageId;
     currentPage = pageId;
     window._currentPage = pageId;
-    // Route to page loader
-    if (pageId === 'overview') window.loadOverview && window.loadOverview();
+
+    if (pageId === 'home') window.loadHome && window.loadHome();
+    else if (pageId === 'overview') window.loadOverview && window.loadOverview();
+    else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
     else if (pageId === 'feeds') window.loadFeeds && window.loadFeeds();
     else if (pageId === 'uptime') window.loadUptime && window.loadUptime();
     else if (pageId === 'events') window.loadEvents && window.loadEvents();
@@ -450,8 +459,8 @@
     else if (pageId === 'secrets') window.loadSecrets && window.loadSecrets();
     else if (pageId === 'access-requests') window.loadAccessRequestsPage && window.loadAccessRequestsPage();
     else if (pageId === 'groups') window.loadGroups && window.loadGroups();
+
     window.updateSidebarBadges && window.updateSidebarBadges();
-    window.updateFooter && window.updateFooter();
   };
 
   // ─── Modals ─────────────────────────────────────────────────────────────────
@@ -466,7 +475,7 @@
 
   // ─── Mobile bottom nav ──────────────────────────────────────────────────────
   function initMobileNav() {
-    document.querySelectorAll('.mobile-nav-item').forEach(function(el) {
+    document.querySelectorAll('.mobile-nav .nav-item').forEach(function(el) {
       el.addEventListener('click', function() {
         var pageId = this.dataset.page;
         if (pageId === 'events') {
@@ -474,7 +483,7 @@
         } else {
           window.navigateTo(pageId);
         }
-        document.querySelectorAll('.mobile-nav-item').forEach(function(n) {
+        document.querySelectorAll('.mobile-nav .nav-item').forEach(function(n) {
           n.classList.toggle('active', n.dataset.page === pageId);
         });
       });
