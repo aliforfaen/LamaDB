@@ -11,5 +11,6 @@ entities.json
 mempalace.yaml
 .superpowers/
 raw/
+.worktrees/
 dogfood-output/
 dogfood-screenshots/
