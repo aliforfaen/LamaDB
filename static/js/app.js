@@ -382,11 +382,6 @@
     return acc;
   }, {});
 
-  var legacyPages = Array.from(document.querySelectorAll('.legacy-page')).reduce(function(acc, el) {
-    acc[el.dataset.page] = el;
-    return acc;
-  }, {});
-
   var titles = {
     'home': 'Home',
     'overview': 'Overview',
@@ -423,14 +418,24 @@
       el.classList.toggle('active', el.dataset.page === pageId);
     });
 
+    // New pages
+    var isNewPage = pageId === 'home' || pageId === 'notifications';
     Object.keys(newPages).forEach(function(key) {
       newPages[key].classList.toggle('active', key === pageId);
     });
-    Object.keys(legacyPages).forEach(function(key) {
-      legacyPages[key].classList.toggle('active', key === pageId);
-      var inner = legacyPages[key].querySelector('.page');
-      if (inner) inner.classList.toggle('page-active', key === pageId);
-    });
+
+    // Legacy pages
+    var legacyWrapper = document.querySelector('.legacy-page');
+    if (legacyWrapper) {
+      legacyWrapper.classList.toggle('active', !isNewPage);
+      legacyWrapper.querySelectorAll('.page').forEach(function(el) {
+        el.classList.remove('page-active');
+      });
+      if (!isNewPage) {
+        var target = document.getElementById('page-' + pageId);
+        if (target) target.classList.add('page-active');
+      }
+    }
 
     var titleEl = document.getElementById('page-title');
     if (titleEl) titleEl.textContent = titles[pageId] || pageId;
