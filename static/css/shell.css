@@ -197,3 +197,6 @@
   .app-main { padding: var(--space-3); padding-bottom: calc(var(--space-4) + 64px + var(--safe-bottom)); }
   .mobile-nav { display: block; }
 }
+
+/* Prevent Alpine flicker */
+[x-cloak] { display: none !important; }
