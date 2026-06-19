@@ -1,0 +1,156 @@
+/* ─── Buttons ─── */
+.ll-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: var(--surface-2);
+  color: var(--fg);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+  min-height: 36px;
+}
+.ll-button:hover { background: var(--surface-3); }
+.ll-button:active { transform: translateY(1px); }
+.ll-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.ll-button.primary { background: var(--accent); color: white; }
+.ll-button.primary:hover { filter: brightness(1.1); }
+
+.ll-button.secondary { background: transparent; border-color: var(--border); }
+
+.ll-button.ghost { background: transparent; }
+.ll-button.ghost:hover { background: var(--accent-dim); }
+
+.ll-button.danger { background: var(--error); color: white; }
+
+.ll-button.sm { padding: var(--space-1) var(--space-3); min-height: 28px; font-size: var(--text-xs); }
+.ll-button.lg { padding: var(--space-3) var(--space-6); min-height: 48px; font-size: var(--text-base); }
+
+/* ─── Cards ─── */
+.ll-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+
+.ll-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.ll-card-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin: 0;
+}
+
+/* ─── Lists ─── */
+.ll-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ll-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ll-list-item:hover { background: var(--surface-3); }
+
+.ll-list-item .leading { flex-shrink: 0; color: var(--muted); }
+.ll-list-item .content { flex: 1; min-width: 0; }
+.ll-list-item .title { font-weight: 500; color: var(--fg); }
+.ll-list-item .subtitle { font-size: var(--text-xs); color: var(--muted); }
+.ll-list-item .trailing { flex-shrink: 0; }
+
+/* ─── Badges ─── */
+.ll-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.ll-badge.critical { background: rgba(239, 68, 68, 0.15); color: var(--error); }
+.ll-badge.warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+.ll-badge.info { background: rgba(59, 130, 246, 0.15); color: var(--info); }
+.ll-badge.success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+
+/* ─── Empty state ─── */
+.ll-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+  color: var(--muted);
+}
+.ll-empty-state .icon { font-size: var(--text-3xl); margin-bottom: var(--space-3); }
+.ll-empty-state .title { font-size: var(--text-lg); font-weight: 600; color: var(--fg); margin-bottom: var(--space-1); }
+
+/* ─── Bottom sheet ─── */
+.ll-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.ll-sheet-overlay.open { opacity: 1; pointer-events: auto; }
+
+.ll-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--surface-1);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: var(--space-4) var(--space-4) calc(var(--space-6) + var(--safe-bottom));
+  box-shadow: var(--shadow-sheet);
+  transform: translateY(100%);
+  transition: transform 0.25s ease-out;
+  z-index: 101;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.ll-sheet.open { transform: translateY(0); }
+
+/* ─── Skeleton ─── */
+.ll-skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: ll-skeleton-pulse 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+@keyframes ll-skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── Touch targets ─── */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
