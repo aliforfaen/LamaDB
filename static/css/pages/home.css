@@ -121,3 +121,10 @@
   color: var(--muted);
   margin-top: var(--space-1);
 }
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .home-summary-card { flex-direction: column; }
+  .home-summary-item { width: 100%; }
+  .home-quick-actions { grid-template-columns: repeat(2, 1fr); }
+}

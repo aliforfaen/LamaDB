@@ -167,6 +167,7 @@
   gap: var(--space-1);
   flex: 1;
   height: 100%;
+  min-height: 44px;
   color: var(--muted);
   background: transparent;
   border: none;
