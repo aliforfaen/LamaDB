@@ -2,15 +2,220 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>LamaDB — Management Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/shell.css" />
+  <link rel="stylesheet" href="/css/legacy.css" />
+  <link rel="stylesheet" href="/css/pages/home.css" />
+  <link rel="stylesheet" href="/css/pages/notifications.css" />
   <link rel="stylesheet" href="/css/dashboard.css" />
   <link rel="stylesheet" href="/css/kanban.css" />
 </head>
 <body>
+
+<div class="app-root" x-data="shell()" x-init="init()">
+  <!-- ═══ HEADER ═══ -->
+  <header class="app-header">
+    <div class="title" id="page-title">Home</div>
+    <div class="actions">
+      <button class="icon-btn touch-target" @click="openPalette()" aria-label="Command palette" title="Cmd+K">&#x2318;</button>
+      <button class="icon-btn touch-target" @click="toggleTheme()" aria-label="Toggle theme" title="Toggle theme">&#x1F313;</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="app-sidebar">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 7V4h16v3" stroke="var(--accent)"/>
+          <path d="M9 20h6" stroke="var(--accent)"/>
+          <path d="M12 4v16" stroke="var(--muted)"/>
+          <circle cx="12" cy="12" r="2" fill="var(--accent)" stroke="none"/>
+        </svg>
+        <div class="name">Lama<span>DB</span></div>
+      </div>
+      <nav>
+        <div class="nav-section">
+          <div class="nav-section-title">Life-OS</div>
+          <button class="nav-item active" data-page="home" @click="go('home')">&#x1F3E0; Home</button>
+          <button class="nav-item" data-page="notifications" @click="go('notifications')">&#x1F514; Notifications</button>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Legacy</div>
+          <button class="nav-item" data-page="overview" @click="go('overview')">&#x1F4CA; Overview</button>
+          <button class="nav-item" data-page="documents" @click="go('documents')">&#x1F4DD; Documents</button>
+          <button class="nav-item" data-page="events" @click="go('events')">&#x1F4E1; Events</button>
+          <button class="nav-item" data-page="search" @click="go('search')">&#x1F50D; Search</button>
+          <button class="nav-item" data-page="uptime" @click="go('uptime')">&#x1F5A5; Uptime</button>
+          <button class="nav-item" data-page="dozzle" @click="go('dozzle')">&#x1F433; Dozzle</button>
+          <button class="nav-item" data-page="hermes" @click="go('hermes')">&#x1F9E0; Hermes</button>
+          <button class="nav-item" data-page="agentboard" @click="go('agentboard')">&#x1F916; Agent Board</button>
+          <button class="nav-item" data-page="kanban" @click="go('kanban')">&#x1F4CB; Kanban</button>
+          <button class="nav-item" data-page="feeds" @click="go('feeds')">&#x1F4F0; Feeds</button>
+          <button class="nav-item" data-page="freshrss" @click="go('freshrss')">&#x1F4D1; FreshRSS</button>
+          <button class="nav-item" data-page="ntfy" @click="go('ntfy')">&#x1F514; Ntfy</button>
+          <button class="nav-item" data-page="notflix" @click="go('notflix')">&#x1F3AC; Notflix</button>
+          <button class="nav-item" data-page="wiki" @click="go('wiki')">&#x1F4DA; Wiki</button>
+          <button class="nav-item" data-page="homeassistant" @click="go('homeassistant')">&#x1F3E0; Home Assistant</button>
+          <button class="nav-item" data-page="settings" @click="go('settings')">&#x2699;&#xFE0F; Settings</button>
+          <button class="nav-item" data-page="secrets" @click="go('secrets')">&#x1F510; Secrets</button>
+          <button class="nav-item" data-page="access-requests" @click="go('access-requests')">&#x1F511; Access Requests</button>
+          <button class="nav-item" data-page="groups" @click="go('groups')">&#x1F465; Groups</button>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="app-main">
+      <!-- ═══ HOME PAGE ═══ -->
+      <section class="app-page active" data-page="home" x-data="homePage()" x-init="init()" x-cloak>
+        <div class="home-page">
+          <div class="ll-card home-today-card" style="margin-bottom: var(--space-4);">
+            <div class="greeting" x-text="greeting"></div>
+            <div class="date" x-text="today"></div>
+            <div class="presence" x-show="presence">
+              <span class="presence-dot"></span>
+              <span x-text="presence"></span>
+            </div>
+            <div x-show="brief" style="margin-top: var(--space-2); font-size: var(--text-sm); color: var(--fg-2);">
+              <strong>Brief:</strong> <span x-text="brief ? brief.title : ''"></span>
+            </div>
+          </div>
+
+          <div class="ll-card home-summary-card" style="margin-bottom: var(--space-4);" @click="navigateToNotifications()">
+            <div class="home-summary-item">
+              <span class="value" x-text="summary.critical"></span>
+              <span class="label">Critical</span>
+            </div>
+            <div class="home-summary-item">
+              <span class="value" x-text="summary.notifications"></span>
+              <span class="label">Notifications</span>
+            </div>
+            <div class="home-summary-item">
+              <span class="value" x-text="summary.tasks"></span>
+              <span class="label">Tasks</span>
+            </div>
+          </div>
+
+          <div class="ll-card" style="margin-bottom: var(--space-4);">
+            <div class="ll-card-header">
+              <h3 class="ll-card-title">Quick Actions</h3>
+            </div>
+            <div class="home-quick-actions">
+              <button class="action" @click="quickAction('event')">
+                <span class="icon">&#x1F4DD;</span>
+                <span class="label">Log Event</span>
+              </button>
+              <button class="action" @click="quickAction('scene')">
+                <span class="icon">&#x1F4A1;</span>
+                <span class="label">Toggle Scene</span>
+              </button>
+              <button class="action" @click="quickAction('task')">
+                <span class="icon">&#x2705;</span>
+                <span class="label">Create Task</span>
+              </button>
+              <button class="action" @click="quickAction('note')">
+                <span class="icon">&#x1F4D3;</span>
+                <span class="label">Add Note</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="ll-card" style="margin-bottom: var(--space-4);" x-show="status.length">
+            <div class="ll-card-header">
+              <h3 class="ll-card-title">Status</h3>
+            </div>
+            <div class="home-summary-card">
+              <template x-for="s in status" :key="s.label">
+                <div class="home-summary-item">
+                  <span class="value" x-text="s.value"></span>
+                  <span class="label" x-text="s.label"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="ll-card" x-show="headlines.length">
+            <div class="ll-card-header">
+              <h3 class="ll-card-title">Recent Headlines</h3>
+            </div>
+            <div class="home-headlines">
+              <template x-for="h in headlines" :key="h.title">
+                <div class="home-headline">
+                  <div class="title" x-text="h.title"></div>
+                  <div class="meta" x-text="h.date"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div x-show="loading" class="ll-empty-state">
+            <div class="ll-skeleton" style="width: 100%; height: 120px; margin-bottom: var(--space-4);"></div>
+            <div class="ll-skeleton" style="width: 100%; height: 80px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ NOTIFICATIONS PAGE ═══ -->
+      <section class="app-page" data-page="notifications" x-data="notificationsPage()" x-init="init()" x-cloak>
+        <div class="notifications-page">
+          <div class="notif-filters">
+            <select x-model="filterSeverity">
+              <option value="">All severities</option>
+              <option value="critical">Critical</option>
+              <option value="error">Error</option>
+              <option value="warn">Warning</option>
+              <option value="info">Info</option>
+            </select>
+            <select x-model="filterSource">
+              <option value="">All sources</option>
+              <template x-for="s in sources" :key="s">
+                <option :value="s" x-text="s"></option>
+              </template>
+            </select>
+            <label style="display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2);">
+              <input type="checkbox" x-model="showProcessed" @change="load()" />
+              Show processed
+            </label>
+          </div>
+
+          <div x-show="loading" class="ll-skeleton" style="width: 100%; height: 200px;"></div>
+
+          <div x-show="!loading &amp;&amp; filteredGroups().length === 0" class="ll-empty-state">
+            <div class="icon">&#x2705;</div>
+            <div class="title">All caught up</div>
+            <div>No notifications match your filters.</div>
+          </div>
+
+          <template x-for="group in filteredGroups()" :key="group.key || group.id || group.title">
+            <div class="notif-group">
+              <div class="leading" x-text="groupIcon(group.source)"></div>
+              <div class="content">
+                <div class="title">
+                  <span x-text="group.title"></span>
+                  <span class="ll-badge" :class="group.severity" x-text="group.severity" style="margin-left: var(--space-2);"></span>
+                </div>
+                <div class="meta">
+                  <span x-text="group.source"></span> &middot;
+                  <span x-text="formatTime(group.last_seen)"></span>
+                </div>
+              </div>
+              <div class="count" x-show="group.count > 1" x-text="'×' + group.count"></div>
+              <div class="actions">
+                <button class="ll-button ghost sm" @click="dismissGroup(group, $event)">Dismiss</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- ═══ LEGACY PAGES WRAPPER ═══ -->
+      <div class="legacy-page active" data-page="overview">
 
 <!-- ════════════════════ COMMAND CENTER HEADER ════════════════════ -->
 <header class="header-bar">
@@ -1914,6 +2119,57 @@
     </div>
   </div>
 </div>
+
+    </div><!-- /legacy-page -->
+
+    </main><!-- /app-main -->
+  </div><!-- /app-body -->
+
+  <!-- ═══ MOBILE BOTTOM NAV ═══ -->
+  <nav class="mobile-nav">
+    <div class="nav-items">
+      <button class="nav-item active" data-page="home" @click="go('home')">&#x1F3E0; Home</button>
+      <button class="nav-item" data-page="notifications" @click="go('notifications')">&#x1F514; Notifications</button>
+      <button class="nav-item" @click="sheetOpen = true">&#x2630; More</button>
+    </div>
+  </nav>
+
+  <!-- ═══ MOBILE MORE SHEET ═══ -->
+  <div class="ll-sheet-overlay" :class="{ open: sheetOpen }" @click="sheetOpen = false"></div>
+  <div class="ll-sheet" :class="{ open: sheetOpen }">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+      <strong>All pages</strong>
+      <button class="ll-button ghost sm" @click="sheetOpen = false">Close</button>
+    </div>
+    <div class="ll-list">
+      <template x-for="p in morePages" :key="p.id">
+        <button class="ll-list-item" @click="go(p.id)">
+          <span class="content">
+            <span class="title" x-text="p.label"></span>
+            <span class="subtitle" x-text="p.section"></span>
+          </span>
+        </button>
+      </template>
+    </div>
+  </div>
+
+</div><!-- /app-root -->
+
+<!-- ═══ NEW SCRIPTS (Alpine.js + shell) ═══ -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+<script>
+  window.addEventListener('error', function(e) {
+    if (e.target && e.target.src && e.target.src.indexOf('alpinejs') !== -1) {
+      var s = document.createElement('script');
+      s.src = '/js/lib/alpine.min.js';
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+  }, true);
+</script>
+<script src="/js/shell.js"></script>
+<script src="/js/pages/home.js"></script>
+<script src="/js/pages/notifications.js"></script>
 
 </body>
 </html>
