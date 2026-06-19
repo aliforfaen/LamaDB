@@ -938,37 +938,48 @@ document.addEventListener('alpine:init', function() {
       async load() {
         this.loading = true;
         try {
-          var overview = await window.api('/api/dashboard/overview');
+          // /api/dashboard/overview requires admin; fall back to public header if 403
+          var overview = {};
+          try {
+            overview = await window.api('/api/dashboard/overview');
+          } catch (e) {
+            if (e.status !== 403) throw e;
+            var header = await window.api('/api/dashboard/header');
+            overview = {
+              monitors: header.monitors || { up: 0, down: 0, unknown: 0 },
+              events: header.events || { today: 0 },
+              documents: {},
+              cache: {}
+            };
+          }
           var notifications = await window.api('/api/notifications/unread?aggregate=true&limit=5');
           var uptime = await window.api('/api/uptime/status');
-          var feeds = await window.api('/api/feeds');
 
           this.summary.critical = (uptime || []).filter(function(m) { return m.status === 0; }).length;
-          this.summary.notifications = (notifications || []).reduce(function(sum, g) { return sum + (g.count || 1); }, 0);
-          this.summary.tasks = 0; // future: agent board pending tasks
+          this.summary.notifications = (notifications.items || notifications || []).reduce(function(sum, g) { return sum + (g.count || 1); }, 0);
+          this.summary.tasks = (overview.agent_tasks || {}).pending || 0;
 
           this.status = [
             { label: 'Services', value: this.summary.critical > 0 ? this.summary.critical + ' down' : 'All up', ok: this.summary.critical === 0 },
             { label: 'Cache', value: ((overview.cache || {}).hit_rate || '0') + '%', ok: true },
-            { label: 'Documents', value: String((overview.documents || 0)), ok: true }
+            { label: 'Documents', value: String(((overview.documents || {}).total || 0)), ok: true }
           ];
 
-          // Try to load briefing feed; ignore errors
+          // Try to load latest briefing document; ignore errors
           try {
-            var briefing = await window.api('/api/feeds/briefing');
-            if (briefing && briefing.latest) this.brief = briefing.latest;
+            var briefingDocs = await window.api('/api/documents?tag=briefing&limit=1');
+            var items = briefingDocs.items || briefingDocs || [];
+            if (items.length) this.brief = items[0];
           } catch (e) { this.brief = null; }
 
-          // Load first feed headlines for now; future: dedicated endpoint
+          // Load latest feed headlines via documents
           this.headlines = [];
-          if (feeds && feeds.length) {
-            try {
-              var docResp = await window.api('/api/documents?source_type=agent_feed&limit=5');
-              this.headlines = (docResp.items || docResp || []).slice(0, 5).map(function(d) {
-                return { title: d.title, date: d.created_at };
-              });
-            } catch (e) {}
-          }
+          try {
+            var docResp = await window.api('/api/documents?source_type=agent_feed&limit=5');
+            this.headlines = (docResp.items || docResp || []).slice(0, 5).map(function(d) {
+              return { title: d.title, date: d.created_at };
+            });
+          } catch (e) {}
         } catch (e) {
           window.LlamaApp.showError('Failed to load home data');
         } finally {
@@ -1155,10 +1166,13 @@ document.addEventListener('alpine:init', function() {
       async dismissGroup(group, event) {
         if (event) event.stopPropagation();
         try {
-          await window.api('/api/notifications/dismiss', {
-            method: 'POST',
-            body: JSON.stringify({ event_ids: group.event_ids })
-          });
+          // No batch dismiss endpoint exists; PATCH each event as processed
+          for (var i = 0; i < group.event_ids.length; i++) {
+            await window.api('/api/events/' + group.event_ids[i], {
+              method: 'PATCH',
+              body: JSON.stringify({ processed: true })
+            });
+          }
           this.groups = this.groups.filter(function(g) { return g !== group; });
         } catch (e) {
           window.LlamaApp.showError('Failed to dismiss notification group');
@@ -1441,7 +1455,9 @@ git commit -m "feat(frontend): complete Life-OS shell phase 1"
 - [x] No placeholders: every task has concrete code/commands.
 - [x] Type consistency: `window.api` used throughout; `LlamaApp` helpers consistent.
 - [ ] Potential gap: index.html rewrite is described at a high level because the existing file is large. The implementing agent should preserve all existing legacy sections.
-- [ ] Potential gap: `/api/notifications/dismiss` endpoint may not exist. If it doesn't, implement as `POST /api/events/{id}/processed` per event_id.
+- [x] API research confirmed: `/api/notifications/dismiss` does not exist; use `PATCH /api/events/{id}` with `{processed: true}` per event_id.
+- [x] API research confirmed: `/api/feeds/briefing` does not exist; fetch latest brief via `GET /api/documents?tag=briefing&limit=1`.
+- [x] API research confirmed: `/api/dashboard/overview` requires admin role; Home page falls back to public `GET /api/dashboard/header` for non-admin users.
 - [ ] Potential gap: Home page RSS headlines use `/api/documents?source_type=agent_feed` as a pragmatic fallback. Adjust if a better endpoint exists.
 
 ---
