@@ -1,4 +1,4 @@
-:root {
+html:root {
   /* Colors - dark default */
   --fg: #f1f5f9;
   --fg-2: #cbd5e1;
@@ -56,7 +56,7 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
-[data-theme="light"] {
+html[data-theme="light"] {
   --fg: #0f172a;
   --fg-2: #334155;
   --muted: #64748b;

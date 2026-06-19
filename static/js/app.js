@@ -408,6 +408,7 @@
   var currentPage = 'home';
 
   window.navigateTo = function(pageId) {
+    if (!pageId) return;
     if (pageId === currentPage) return;
     if (!getApiKey()) {
       showAuthModal();
@@ -460,7 +461,6 @@
     else if (pageId === 'homeassistant') window.loadHomeAssistantPage && window.loadHomeAssistantPage();
     else if (pageId === 'settings') window.loadSettings && window.loadSettings();
     else if (pageId === 'search') window.loadSearch && window.loadSearch();
-    else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
     else if (pageId === 'secrets') window.loadSecrets && window.loadSecrets();
     else if (pageId === 'access-requests') window.loadAccessRequestsPage && window.loadAccessRequestsPage();
     else if (pageId === 'groups') window.loadGroups && window.loadGroups();
@@ -483,11 +483,7 @@
     document.querySelectorAll('.mobile-nav .nav-item').forEach(function(el) {
       el.addEventListener('click', function() {
         var pageId = this.dataset.page;
-        if (pageId === 'events') {
-          window.navigateTo('events');
-        } else {
-          window.navigateTo(pageId);
-        }
+        window.navigateTo(pageId);
         document.querySelectorAll('.mobile-nav .nav-item').forEach(function(n) {
           n.classList.toggle('active', n.dataset.page === pageId);
         });
@@ -502,7 +498,13 @@
     if (existing) existing.remove();
     var banner = document.createElement('div');
     banner.className = 'error-banner';
-    banner.innerHTML = '<span>⚠ ' + message + '</span><button onclick="this.parentElement.remove()">✕</button>';
+    var span = document.createElement('span');
+    span.textContent = '⚠ ' + message;
+    banner.appendChild(span);
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.onclick = function() { banner.remove(); };
+    banner.appendChild(closeBtn);
     var mainContent = document.querySelector('.main-body');
     if (mainContent) mainContent.prepend(banner);
   };
@@ -784,7 +786,7 @@
       showAuthModal();
     } else {
       api('/api/dashboard/overview').then(function() {
-        if (window.loadOverview) window.loadOverview();
+        window.navigateTo('home');
         connectSSE();
         fetchAndApplyTheme();
       }).catch(function() {

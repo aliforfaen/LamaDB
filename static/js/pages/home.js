@@ -82,9 +82,9 @@ document.addEventListener('alpine:init', function() {
 
       quickAction(name) {
         if (name === 'event') window.navigateTo('events');
-        if (name === 'scene') window.navigateTo('homeassistant');
-        if (name === 'task') window.navigateTo('kanban');
-        if (name === 'note') window.navigateTo('wiki');
+        else if (name === 'scene') window.navigateTo('homeassistant');
+        else if (name === 'task') window.navigateTo('kanban');
+        else if (name === 'note') window.navigateTo('wiki');
       }
     };
   });

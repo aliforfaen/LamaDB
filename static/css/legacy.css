@@ -28,3 +28,8 @@
 .legacy-page .main-header {
   display: none !important;
 }
+
+/* Hide old mobile bottom nav in legacy pages (new shell has its own) */
+.legacy-page .mobile-bottom-nav {
+  display: none !important;
+}
