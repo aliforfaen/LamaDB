@@ -42,6 +42,25 @@
   }
   window.api = api;
 
+  // ─── Error banner ───────────────────────────────────────────────────────────
+  function showError(message) {
+    console.error('[LamaDB]', message);
+    var existing = document.querySelector('.error-banner');
+    if (existing) existing.remove();
+    var banner = document.createElement('div');
+    banner.className = 'error-banner';
+    var span = document.createElement('span');
+    span.textContent = '⚠ ' + message;
+    banner.appendChild(span);
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.onclick = function() { banner.remove(); };
+    banner.appendChild(closeBtn);
+    var mainContent = document.querySelector('.main-body');
+    if (mainContent) mainContent.prepend(banner);
+  }
+  window.showError = showError;
+
   window.LlamaApp = {
     getApiKey: getApiKey,
     setApiKey: setApiKey,
@@ -76,7 +95,7 @@
       hideAuthModal();
       connectSSE();
       fetchAndApplyTheme();
-      navigateTo(currentPage || 'home');
+      navigateTo(currentPage || 'home', true);
     } catch (e) {
       document.getElementById('api-key-error').textContent = 'Invalid API key — access denied.';
       document.getElementById('api-key-error').style.display = 'block';
@@ -410,9 +429,9 @@
   };
   var currentPage = 'home';
 
-  window.navigateTo = function(pageId) {
+  window.navigateTo = function(pageId, force) {
     if (!pageId) return;
-    if (pageId === currentPage) return;
+    if (pageId === currentPage && !force) return;
     if (!getApiKey()) {
       showAuthModal();
       return;
@@ -493,24 +512,6 @@
       });
     });
   }
-
-  // ─── Error banner ───────────────────────────────────────────────────────────
-  window.showError = function(message) {
-    console.error('[LamaDB]', message);
-    var existing = document.querySelector('.error-banner');
-    if (existing) existing.remove();
-    var banner = document.createElement('div');
-    banner.className = 'error-banner';
-    var span = document.createElement('span');
-    span.textContent = '⚠ ' + message;
-    banner.appendChild(span);
-    var closeBtn = document.createElement('button');
-    closeBtn.textContent = '✕';
-    closeBtn.onclick = function() { banner.remove(); };
-    banner.appendChild(closeBtn);
-    var mainContent = document.querySelector('.main-body');
-    if (mainContent) mainContent.prepend(banner);
-  };
 
   // ─── Sidebar quick search ───────────────────────────────────────────────────
   window.handleSidebarSearch = function(e) {

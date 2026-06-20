@@ -2007,23 +2007,6 @@
   </div>
 </div>
 
-<!-- ════════════════════ AUTH MODAL ════════════════════ -->
-<div class="modal-overlay" id="auth-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>Connect to LamaDB</h3>
-    </div>
-    <div class="modal-body">
-      <p style="color:var(--fg-2);font-size:13px;margin-bottom:16px;">Enter your admin API key to access the dashboard.</p>
-      <input type="password" id="api-key-input" placeholder="lamadb_live_..." style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);font-family:var(--font-mono);" />
-      <p id="api-key-error" class="error" style="display:none;color:var(--danger);font-size:13px;margin-top:8px;"></p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" id="api-key-submit" style="width:100%;">Connect</button>
-    </div>
-  </div>
-</div>
-
 <!-- ════════════════════ CREATE API KEY MODAL ════════════════════ -->
 <div class="modal-overlay" id="modal-apikey">
   <div class="modal">
@@ -2121,6 +2104,23 @@
 </div>
 
     </div><!-- /legacy-page -->
+
+    <!-- ════════════════════ AUTH MODAL ════════════════════ -->
+    <div class="modal-overlay" id="auth-modal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Connect to LamaDB</h3>
+        </div>
+        <div class="modal-body">
+          <p style="color:var(--fg-2);font-size:13px;margin-bottom:16px;">Enter your admin API key to access the dashboard.</p>
+          <input type="password" id="api-key-input" placeholder="lamadb_live_..." style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);font-family:var(--font-mono);" />
+          <p id="api-key-error" class="error" style="display:none;color:var(--danger);font-size:13px;margin-top:8px;"></p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="api-key-submit" style="width:100%;">Connect</button>
+        </div>
+      </div>
+    </div>
 
     </main><!-- /app-main -->
   </div><!-- /app-body -->
