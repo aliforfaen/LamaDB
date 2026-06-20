@@ -31,7 +31,7 @@
   <div class="app-body">
     <!-- ═══ SIDEBAR ═══ -->
     <aside class="app-sidebar">
-      <div class="brand">
+      <div class="brand" @click="go('home')" role="button" aria-label="Go to Home" title="Home">
         <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M4 7V4h16v3" stroke="var(--accent)"/>
           <path d="M9 20h6" stroke="var(--accent)"/>
@@ -2123,6 +2123,9 @@
     </div>
 
     </main><!-- /app-main -->
+
+    <!-- ═══ SCROLL TO TOP BUTTON ═══ -->
+    <button class="scroll-to-top" id="scroll-to-top" aria-label="Scroll to top" title="Scroll to top">↑</button>
   </div><!-- /app-body -->
 
   <!-- ═══ MOBILE BOTTOM NAV ═══ -->

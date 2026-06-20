@@ -64,10 +64,17 @@
 .app-sidebar .brand {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border);
+  gap: 0.75rem;
+  padding: 0 0.75rem;
+  margin-bottom: var(--space-4);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease;
 }
+.app-sidebar .brand:hover { background-color: var(--surface-2); }
+.app-sidebar .brand:active { background-color: var(--surface-3); }
 
 .app-sidebar .brand .logo {
   width: 32px;
@@ -192,11 +199,45 @@
   display: block;
 }
 
-/* Responsive */
+/* Scroll-to-top button */
+.scroll-to-top {
+  position: fixed;
+  bottom: calc(24px + var(--safe-bottom));
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  z-index: 90;
+}
+.scroll-to-top.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.scroll-to-top:hover { background: var(--accent-hover, var(--accent)); }
+.scroll-to-top:active { transform: scale(0.95); }
+
 @media (max-width: 768px) {
   .app-sidebar { display: none; }
   .app-main { padding: var(--space-3); padding-bottom: calc(var(--space-4) + 64px + var(--safe-bottom)); }
   .mobile-nav { display: block; }
+  .scroll-to-top {
+    bottom: calc(80px + var(--safe-bottom));
+    right: 16px;
+  }
 }
 
 /* Prevent Alpine flicker */

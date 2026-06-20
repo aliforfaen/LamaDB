@@ -3,6 +3,7 @@
   'use strict';
 
   var POLL_INTERVALS = { health: 30000, modules: 60000, rss: 120000, agents: 60000 };
+  var _overviewLoadedOnce = false;
 
   // Tracked timers for cleanup on navigation
   var _timers = [];
@@ -19,7 +20,10 @@
   };
 
   window.loadOverview = async function() {
-    // Fire all widget loaders in parallel — each handles its own errors
+    if (!window.LlamaApp || !window.LlamaApp.getApiKey || !window.LlamaApp.getApiKey()) return;
+    // Stop any leftover polls from a previous visit
+    window.stopOverviewPolling();
+    _overviewLoadedOnce = true;
     await Promise.all([
       loadHealthBar(),
       loadModuleCards(),

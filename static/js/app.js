@@ -452,6 +452,7 @@
       return;
     }
     clearErrorBanners();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     document.querySelectorAll('.app-sidebar .nav-item, .mobile-nav .nav-item').forEach(function(el) {
       el.classList.toggle('active', el.dataset.page === pageId);
     });
@@ -472,6 +473,8 @@
       if (!isNewPage) {
         var target = document.getElementById('page-' + pageId);
         if (target) target.classList.add('page-active');
+      } else {
+        if (window.stopOverviewPolling) window.stopOverviewPolling();
       }
     }
 
@@ -690,6 +693,26 @@
     }
   });
 
+  // ─── Scroll-to-top button ───────────────────────────────────────────────────
+  function initScrollToTop() {
+    var btn = document.getElementById('scroll-to-top');
+    if (!btn) return;
+    var main = document.querySelector('.app-main');
+    if (!main) return;
+    btn.addEventListener('click', function() {
+      main.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    var onScroll = function() {
+      var threshold = 300;
+      var scrolled = (main.scrollTop > threshold) || (window.scrollY > threshold) || (document.documentElement.scrollTop > threshold) || (document.body.scrollTop > threshold);
+      btn.classList.toggle('visible', scrolled);
+    };
+    main.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+  window.initScrollToTop = initScrollToTop;
+
   // ─── Bootstrap ──────────────────────────────────────────────────────────────
   function bootstrap() {
     // Theme init
@@ -697,6 +720,9 @@
 
     // Mobile nav
     initMobileNav();
+
+    // Scroll-to-top
+    initScrollToTop();
 
     // Nav items
     document.querySelectorAll('.nav-item').forEach(function(item) {
