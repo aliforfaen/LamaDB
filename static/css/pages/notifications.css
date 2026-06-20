@@ -76,6 +76,105 @@
   flex-shrink: 0;
 }
 
+/* ─── Time Buckets ─── */
+.notification-bucket {
+  margin-bottom: var(--space-4);
+}
+
+.bucket-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-3);
+  margin: 0 0 var(--space-2) 0;
+}
+
+/* ─── SmartNote-Style Notification Items ─── */
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  margin-bottom: var(--space-2);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.notification-item:hover {
+  border-color: var(--accent-dim);
+  transform: translateX(4px);
+}
+
+.notification-item.severity-critical,
+.notification-item.severity-error {
+  border-left: 3px solid var(--danger);
+}
+
+.notification-item.severity-warning,
+.notification-item.severity-warn {
+  border-left: 3px solid var(--warning);
+}
+
+.notification-item.severity-info {
+  border-left: 3px solid var(--accent);
+}
+
+.notification-severity {
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.notification-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.notification-meta {
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  margin-top: 2px;
+}
+
+/* ─── Detail Modal ─── */
+.notification-detail-meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  margin-bottom: var(--space-3);
+}
+
+#notification-detail-body {
+  background: var(--surface-0);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.notification-detail-ids {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  word-break: break-all;
+}
+
+.notification-detail-ids .label {
+  font-weight: 600;
+  margin-right: var(--space-2);
+}
+
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .notif-group { align-items: flex-start; }
