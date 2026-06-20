@@ -154,3 +154,102 @@
   min-height: 44px;
   min-width: 44px;
 }
+
+/* ─── SmartNote ─── */
+.smart-note {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: var(--space-3);
+  background: var(--surface-1);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.smart-note:hover {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.smart-note-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 14px;
+}
+.smart-note-content { flex: 1; }
+.smart-note-title {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  margin-bottom: 2px;
+}
+.smart-note-body {
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+.smart-note.alert { border-left: 3px solid var(--error); }
+.smart-note.heads-up { border-left: 3px solid var(--accent); }
+.smart-note.insight { border-left: 3px solid var(--muted); }
+.smart-note.empty { border-left: 3px solid var(--border); }
+
+/* ─── LED status indicator ─── */
+.led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  position: relative;
+}
+.led.on { background: var(--success); }
+.led.warn { background: var(--warning); }
+.led.error { background: var(--error); }
+.led.pulse::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.5;
+  animation: pulse-ring 2s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* ─── Key-cap button ─── */
+.key-cap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--fg);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.key-cap:hover {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+.key-cap:active { transform: translateY(1px); }
+.key-cap .key-cap-icon { font-size: 20px; color: var(--accent); }
+
+/* ─── Focus ring ─── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
