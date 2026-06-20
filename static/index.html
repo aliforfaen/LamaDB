@@ -22,6 +22,10 @@
   <!-- ═══ HEADER ═══ -->
   <header class="app-header">
     <div class="title" id="page-title">Home</div>
+    <div class="connection-status" id="connection-status">
+      <span class="sse-led" id="sse-led"></span>
+      <span class="sse-label" id="sse-label">Connecting...</span>
+    </div>
     <div class="actions">
       <button class="icon-btn touch-target" @click="openPalette()" aria-label="Command palette" title="Cmd+K">&#x2318;</button>
       <button class="icon-btn touch-target" @click="toggleTheme()" aria-label="Toggle theme" title="Toggle theme">&#x1F313;</button>

@@ -134,8 +134,10 @@
           void led.offsetWidth;
           led.classList.add('pulse');
         }
+        dispatchSse('events', e.data ? JSON.parse(e.data) : {});
         if (window.loadHomeRecentActivity) window.loadHomeRecentActivity();
         if (window.loadHomeAttention) window.loadHomeAttention();
+        if (window.loadNotifications) window.loadNotifications();
       } catch(ex) {}
     });
     _sseSource.addEventListener('task_update', function(e) {
@@ -197,12 +199,42 @@
         if (window._currentPage === 'access-requests' && window.loadAccessRequests) window.loadAccessRequests();
       } catch(ex) {}
     });
+    _sseSource.onopen = function() {
+      setSseStatus(true);
+    };
     _sseSource.onerror = function() {
+      setSseStatus(false);
       if (_sseSource && _sseSource.readyState === EventSource.CLOSED) {
         _sseSource = null;
       }
     };
   }
+
+  // ─── SSE status indicator ────────────────────────────────────────────────────
+  function setSseStatus(connected) {
+    var led = document.getElementById('sse-led');
+    var label = document.getElementById('sse-label');
+    if (!led || !label) return;
+    led.className = 'sse-led ' + (connected ? 'connected' : 'disconnected');
+    label.textContent = connected ? 'Connected' : 'Disconnected';
+  }
+  window.setSseStatus = setSseStatus;
+
+  // ─── Generic SSE channel dispatcher ──────────────────────────────────────────
+  function dispatchSse(channel, data) {
+    try {
+      if (window._sseCallbacks && window._sseCallbacks[channel]) {
+        window._sseCallbacks[channel](data);
+      }
+      // Auto-refresh home and notifications on the events channel
+      if (channel === 'events') {
+        if (window.loadHomeRecentActivity) window.loadHomeRecentActivity();
+        if (window.loadHomeAttention) window.loadHomeAttention();
+        if (window.loadNotifications) window.loadNotifications();
+      }
+    } catch(ex) {}
+  }
+  window.dispatchSse = dispatchSse;
 
   // ─── Theme system ──────────────────────────────────────────────────────────
   var _currentTheme = null;
