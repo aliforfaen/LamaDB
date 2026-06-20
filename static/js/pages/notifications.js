@@ -1,3 +1,11 @@
+function safeShowError(msg) {
+  if (window.LlamaApp && window.LlamaApp.showError) {
+    window.LlamaApp.showError(msg);
+  } else {
+    console.error('[LamaDB]', msg);
+  }
+}
+
 document.addEventListener('alpine:init', function() {
   Alpine.data('notificationsPage', function() {
     return {
@@ -38,7 +46,7 @@ document.addEventListener('alpine:init', function() {
           this.groups.forEach(function(g) { sourceSet[g.source] = true; });
           this.sources = Object.keys(sourceSet).sort();
         } catch (e) {
-          window.LlamaApp.showError('Failed to load notifications');
+          safeShowError('Failed to load notifications');
         } finally {
           this.loading = false;
         }
@@ -70,7 +78,7 @@ document.addEventListener('alpine:init', function() {
           }
           this.groups = this.groups.filter(function(g) { return g !== group; });
         } catch (e) {
-          window.LlamaApp.showError('Failed to dismiss notification group');
+          safeShowError('Failed to dismiss notification group');
         }
       },
 

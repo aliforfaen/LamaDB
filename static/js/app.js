@@ -29,6 +29,7 @@
     var resp = await fetch(path, Object.assign({ headers: headers }, options));
     if (resp.status === 401) {
       clearApiKey();
+      document.body.classList.remove('authenticated');
       showAuthModal();
       throw new Error('Unauthorized');
     }
@@ -55,6 +56,7 @@
   };
 
   function showAuthModal() {
+    document.body.classList.remove('authenticated');
     document.getElementById('auth-modal').style.display = 'flex';
     document.getElementById('api-key-input').value = '';
     document.getElementById('api-key-error').style.display = 'none';
@@ -69,11 +71,12 @@
     if (!key) return;
     setApiKey(key);
     try {
-      await api('/api/dashboard/overview');
+      await api('/api/dashboard/header');
+      document.body.classList.add('authenticated');
       hideAuthModal();
       connectSSE();
       fetchAndApplyTheme();
-      navigateTo(currentPage || 'overview');
+      navigateTo(currentPage || 'home');
     } catch (e) {
       document.getElementById('api-key-error').textContent = 'Invalid API key — access denied.';
       document.getElementById('api-key-error').style.display = 'block';
@@ -785,7 +788,8 @@
     if (!getApiKey()) {
       showAuthModal();
     } else {
-      api('/api/dashboard/overview').then(function() {
+      api('/api/dashboard/header').then(function() {
+        document.body.classList.add('authenticated');
         window.navigateTo('home');
         connectSSE();
         fetchAndApplyTheme();

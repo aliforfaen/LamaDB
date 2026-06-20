@@ -1,3 +1,11 @@
+function safeShowError(msg) {
+  if (window.LlamaApp && window.LlamaApp.showError) {
+    window.LlamaApp.showError(msg);
+  } else {
+    console.error('[LamaDB]', msg);
+  }
+}
+
 document.addEventListener('alpine:init', function() {
   Alpine.data('homePage', function() {
     return {
@@ -70,7 +78,7 @@ document.addEventListener('alpine:init', function() {
             });
           } catch (e) {}
         } catch (e) {
-          window.LlamaApp.showError('Failed to load home data');
+          safeShowError('Failed to load home data');
         } finally {
           this.loading = false;
         }

@@ -201,3 +201,9 @@
 
 /* Prevent Alpine flicker */
 [x-cloak] { display: none !important; }
+
+/* Hide app pages until authenticated */
+body:not(.authenticated) .app-page,
+body:not(.authenticated) .legacy-page {
+  display: none !important;
+}
