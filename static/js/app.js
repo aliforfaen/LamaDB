@@ -124,7 +124,19 @@
     if (!key) return;
     _sseSource = new EventSource('/api/dashboard/stream?key=' + encodeURIComponent(key));
     _sseSource.addEventListener('event_created', function(e) {
-      try { if (window.updateHeader) window.updateHeader(); } catch(ex) {}
+      try {
+        if (window.updateHeader) window.updateHeader();
+        // Pulse the home page activity LED and refresh feeds
+        var led = document.getElementById('activity-led');
+        if (led) {
+          led.classList.remove('pulse');
+          // Force reflow so the animation restarts
+          void led.offsetWidth;
+          led.classList.add('pulse');
+        }
+        if (window.loadHomeRecentActivity) window.loadHomeRecentActivity();
+        if (window.loadHomeAttention) window.loadHomeAttention();
+      } catch(ex) {}
     });
     _sseSource.addEventListener('task_update', function(e) {
       try {

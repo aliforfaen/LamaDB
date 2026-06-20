@@ -83,91 +83,105 @@
     <main class="app-main">
       <!-- ═══ HOME PAGE ═══ -->
       <section class="app-page" data-page="home" x-data="homePage()" x-init="init()" x-cloak>
-        <div class="home-page">
-          <div class="ll-card home-today-card" style="margin-bottom: var(--space-4);">
-            <div class="greeting" x-text="greeting"></div>
-            <div class="date" x-text="today"></div>
-            <div class="presence" x-show="presence">
-              <span class="presence-dot"></span>
-              <span x-text="presence"></span>
+          <div class="home-page">
+            <!-- Today card -->
+            <div class="ll-card home-today-card" style="margin-bottom: var(--space-4);">
+              <div class="greeting" x-text="greeting"></div>
+              <div class="date" x-text="today"></div>
+              <div class="presence" x-show="presence">
+                <span class="presence-dot"></span>
+                <span x-text="presence"></span>
+              </div>
+              <div x-show="brief" style="margin-top: var(--space-2); font-size: var(--text-sm); color: var(--fg-2);">
+                <strong>Brief:</strong> <span x-text="brief ? brief.title : ''"></span>
+              </div>
             </div>
-            <div x-show="brief" style="margin-top: var(--space-2); font-size: var(--text-sm); color: var(--fg-2);">
-              <strong>Brief:</strong> <span x-text="brief ? brief.title : ''"></span>
-            </div>
-          </div>
 
-          <div class="ll-card home-summary-card" style="margin-bottom: var(--space-4);" @click="navigateToNotifications()">
-            <div class="home-summary-item">
-              <span class="value" x-text="summary.critical"></span>
-              <span class="label">Critical</span>
-            </div>
-            <div class="home-summary-item">
-              <span class="value" x-text="summary.notifications"></span>
-              <span class="label">Notifications</span>
-            </div>
-            <div class="home-summary-item">
-              <span class="value" x-text="summary.tasks"></span>
-              <span class="label">Tasks</span>
-            </div>
-          </div>
-
-          <div class="ll-card" style="margin-bottom: var(--space-4);">
-            <div class="ll-card-header">
-              <h3 class="ll-card-title">Quick Actions</h3>
-            </div>
-            <div class="home-quick-actions">
-              <button class="action" @click="quickAction('event')">
-                <span class="icon">&#x1F4DD;</span>
-                <span class="label">Log Event</span>
-              </button>
-              <button class="action" @click="quickAction('scene')">
-                <span class="icon">&#x1F4A1;</span>
-                <span class="label">Toggle Scene</span>
-              </button>
-              <button class="action" @click="quickAction('task')">
-                <span class="icon">&#x2705;</span>
-                <span class="label">Create Task</span>
-              </button>
-              <button class="action" @click="quickAction('note')">
-                <span class="icon">&#x1F4D3;</span>
-                <span class="label">Add Note</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="ll-card" style="margin-bottom: var(--space-4);" x-show="status.length">
-            <div class="ll-card-header">
-              <h3 class="ll-card-title">Status</h3>
-            </div>
-            <div class="home-summary-card">
-              <template x-for="s in status" :key="s.label">
-                <div class="home-summary-item">
-                  <span class="value" x-text="s.value"></span>
-                  <span class="label" x-text="s.label"></span>
+            <!-- Attention Grid: SmartNotes from kanban, alerts, warnings -->
+            <div class="attention-grid" style="margin-bottom: var(--space-4);">
+              <template x-for="note in attentionNotes" :key="note.id">
+                <div class="smart-note" :class="note.type" @click="note.click">
+                  <div class="smart-note-icon" x-text="note.icon"></div>
+                  <div class="smart-note-content">
+                    <div class="smart-note-title" x-text="note.title"></div>
+                    <div class="smart-note-body" x-text="note.meta"></div>
+                  </div>
+                  <div class="note-action" x-show="note.cta">
+                    <button class="ll-button ghost sm" x-text="note.cta" @click.stop="note.click"></button>
+                  </div>
                 </div>
               </template>
-            </div>
-          </div>
-
-          <div class="ll-card" x-show="headlines.length">
-            <div class="ll-card-header">
-              <h3 class="ll-card-title">Recent Headlines</h3>
-            </div>
-            <div class="home-headlines">
-              <template x-for="h in headlines" :key="h.title">
-                <div class="home-headline">
-                  <div class="title" x-text="h.title"></div>
-                  <div class="meta" x-text="h.date"></div>
+              <!-- Fallback when nothing needs attention -->
+              <div class="smart-note empty" x-show="!attentionNotes.length">
+                <div class="smart-note-icon">&#x2705;</div>
+                <div class="smart-note-content">
+                  <div class="smart-note-title">All clear</div>
+                  <div class="smart-note-body">No items need your attention right now</div>
                 </div>
-              </template>
+              </div>
+            </div>
+
+            <!-- Quick Links: key-cap buttons -->
+            <div class="ll-card" style="margin-bottom: var(--space-4);">
+              <div class="ll-card-header">
+                <h3 class="ll-card-title">Quick Links</h3>
+              </div>
+              <div class="quick-links">
+                <button class="key-cap" @click="quickAction('event')">
+                  <span class="key-cap-icon">&#x1F4DD;</span>
+                  <span>Log Event</span>
+                </button>
+                <button class="key-cap" @click="quickAction('scene')">
+                  <span class="key-cap-icon">&#x1F4A1;</span>
+                  <span>Toggle Scene</span>
+                </button>
+                <button class="key-cap" @click="quickAction('task')">
+                  <span class="key-cap-icon">&#x2705;</span>
+                  <span>Create Task</span>
+                </button>
+                <button class="key-cap" @click="quickAction('note')">
+                  <span class="key-cap-icon">&#x1F4D3;</span>
+                  <span>Add Note</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="ll-card" id="home-recent-activity">
+              <div class="ll-card-header">
+                <h3 class="ll-card-title">Recent Activity</h3>
+                <div class="live-indicator">
+                  <span class="activity-led" id="activity-led"></span>
+                  <span class="live-label">LIVE</span>
+                </div>
+              </div>
+              <div class="activity-list">
+                <template x-for="item in activityItems" :key="item.id">
+                  <div class="activity-item" @click="item.click || null">
+                    <div class="activity-icon" x-text="item.icon"></div>
+                    <div class="activity-body">
+                      <div class="activity-title" x-text="item.title"></div>
+                      <div class="activity-meta">
+                        <span class="activity-source" x-text="item.source"></span>
+                        <span class="activity-time" x-text="item.timeAgo"></span>
+                      </div>
+                    </div>
+                    <div class="activity-sev" :class="item.severity" x-text="item.severity" x-show="item.showBadge"></div>
+                  </div>
+                </template>
+                <div x-show="!activityItems.length" class="ll-empty-state">
+                  <div class="icon">&#x1F4ED;</div>
+                  <div class="title">No recent activity</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Loading skeleton -->
+            <div x-show="loading" class="ll-empty-state">
+              <div class="ll-skeleton" style="width: 100%; height: 120px; margin-bottom: var(--space-4);"></div>
+              <div class="ll-skeleton" style="width: 100%; height: 80px;"></div>
             </div>
           </div>
-
-          <div x-show="loading" class="ll-empty-state">
-            <div class="ll-skeleton" style="width: 100%; height: 120px; margin-bottom: var(--space-4);"></div>
-            <div class="ll-skeleton" style="width: 100%; height: 80px;"></div>
-          </div>
-        </div>
       </section>
 
       <!-- ═══ NOTIFICATIONS PAGE ═══ -->
