@@ -124,8 +124,8 @@
 
 /* ─── Attention Grid ─── */
 .attention-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-3);
 }
 
@@ -294,4 +294,14 @@
   .home-summary-item { width: 100%; }
   .home-quick-actions { grid-template-columns: repeat(2, 1fr); }
   .quick-links { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Narrow mobile: stack attention grid, keep quick-links at 2 cols */
+@media (max-width: 640px) {
+  .attention-grid {
+    grid-template-columns: 1fr;
+  }
+  .quick-links {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
