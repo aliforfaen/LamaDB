@@ -218,6 +218,8 @@
   function initTheme() {
     var theme = getPreferredTheme();
     applyTheme(theme);
+    var storedHue = localStorage.getItem('lamadb_accent_hue');
+    if (storedHue) applyAccentHue(storedHue);
     // Apply stored accent on init
     var storedAccent = localStorage.getItem('lamadb_accent');
     if (storedAccent) applyAccent(storedAccent);
@@ -237,6 +239,34 @@
     document.documentElement.style.setProperty('--accent-glow', accent + '40');
   }
   window.applyAccent = applyAccent;
+
+  function applyAccentHue(hue) {
+    document.documentElement.style.setProperty('--accent-h', String(hue));
+  }
+  window.applyAccentHue = applyAccentHue;
+
+  var THEME_PRESETS = [
+    { id: 'emerald', hue: 152, label: 'Operator' },
+    { id: 'cyan',    hue: 190, label: 'Sysop' },
+    { id: 'amber',   hue: 38,  label: 'Console' },
+    { id: 'magenta', hue: 320, label: 'Neon' },
+    { id: 'indigo',  hue: 245, label: 'Lama' }
+  ];
+  window.THEME_PRESETS = THEME_PRESETS;
+
+  window.setThemePreset = function(presetId) {
+    var preset = THEME_PRESETS.find(function(p) { return p.id === presetId; });
+    if (!preset) return;
+    applyAccentHue(preset.hue);
+    localStorage.setItem('lamadb_accent_hue', String(preset.hue));
+    localStorage.setItem('lamadb_accent_preset', presetId);
+    var accent = localStorage.getItem('lamadb_accent') || '#6366f1';
+    var scheme = _currentTheme;
+    api('/api/users/me/theme', {
+      method: 'PUT',
+      body: JSON.stringify({ scheme: scheme, accent: accent })
+    }).catch(function() {});
+  };
 
   async function fetchAndApplyTheme() {
     try {

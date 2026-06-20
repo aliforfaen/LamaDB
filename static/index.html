@@ -25,6 +25,15 @@
     <div class="actions">
       <button class="icon-btn touch-target" @click="openPalette()" aria-label="Command palette" title="Cmd+K">&#x2318;</button>
       <button class="icon-btn touch-target" @click="toggleTheme()" aria-label="Toggle theme" title="Toggle theme">&#x1F313;</button>
+      <div class="theme-picker" x-data="{ open: false }">
+        <button class="icon-btn touch-target" @click="open = !open" aria-label="Choose accent color" title="Accent">&#x25CF;</button>
+        <div class="theme-picker-menu" x-show="open" @click.away="open = false" x-cloak>
+          <template x-for="p in window.THEME_PRESETS" :key="p.id">
+            <button class="theme-preset-dot" :data-preset="p.id" :title="p.label" @click="window.setThemePreset(p.id); open = false"
+              :style="'background: hsl(' + p.hue + ' 100% 50%)'"></button>
+          </template>
+        </div>
+      </div>
     </div>
   </header>
 

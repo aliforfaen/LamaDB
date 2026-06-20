@@ -8,9 +8,13 @@ html:root {
   --surface-2: #334155;
   --surface-3: #475569;
   --border: #334155;
-  --accent: #6366f1;
-  --accent-dim: rgba(99, 102, 241, 0.12);
-  --accent-glow: rgba(99, 102, 241, 0.25);
+  --accent-h: 152;
+  --accent-s: 100%;
+  --accent-l: 50%;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --accent-glow: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.40);
+  --accent-text: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 10%));
   --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
@@ -82,4 +86,12 @@ html, body {
   color: var(--fg);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
