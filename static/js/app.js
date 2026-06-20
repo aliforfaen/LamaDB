@@ -22,8 +22,13 @@
   async function api(path, options) {
     options = options || {};
     var key = getApiKey();
+    if (!key) {
+      var err = new Error('Unauthorized');
+      err.noAuth = true;
+      throw err;
+    }
     var headers = { 'Content-Type': 'application/json' };
-    if (key) headers['Authorization'] = 'Bearer ' + key;
+    headers['Authorization'] = 'Bearer ' + key;
     Object.assign(headers, options.headers || {});
 
     var resp = await fetch(path, Object.assign({ headers: headers }, options));
@@ -45,6 +50,7 @@
   // ─── Error banner ───────────────────────────────────────────────────────────
   function showError(message) {
     console.error('[LamaDB]', message);
+    if (!document.body.classList.contains('authenticated')) return;
     var existing = document.querySelector('.error-banner');
     if (existing) existing.remove();
     var banner = document.createElement('div');
@@ -60,6 +66,11 @@
     if (mainContent) mainContent.prepend(banner);
   }
   window.showError = showError;
+
+  function clearErrorBanners() {
+    document.querySelectorAll('.error-banner').forEach(function(el) { el.remove(); });
+  }
+  window.clearErrorBanners = clearErrorBanners;
 
   window.LlamaApp = {
     getApiKey: getApiKey,
@@ -92,9 +103,11 @@
     try {
       await api('/api/dashboard/header');
       document.body.classList.add('authenticated');
+      clearErrorBanners();
       hideAuthModal();
       connectSSE();
       fetchAndApplyTheme();
+      window.dispatchEvent(new CustomEvent('lamadb:authenticated'));
       navigateTo(currentPage || 'home', true);
     } catch (e) {
       document.getElementById('api-key-error').textContent = 'Invalid API key — access denied.';
@@ -306,6 +319,8 @@
     document.getElementById('modal-palette').classList.remove('open');
     _paletteOpen = false;
   }
+  window.openPalette = openPalette;
+  window.closePalette = closePalette;
 
   function renderPaletteResults(items) {
     var el = document.getElementById('palette-results');
@@ -436,7 +451,7 @@
       showAuthModal();
       return;
     }
-
+    clearErrorBanners();
     document.querySelectorAll('.app-sidebar .nav-item, .mobile-nav .nav-item').forEach(function(el) {
       el.classList.toggle('active', el.dataset.page === pageId);
     });
@@ -791,9 +806,11 @@
     } else {
       api('/api/dashboard/header').then(function() {
         document.body.classList.add('authenticated');
-        window.navigateTo('home');
+        clearErrorBanners();
+        window.navigateTo('home', true);
         connectSSE();
         fetchAndApplyTheme();
+        window.dispatchEvent(new CustomEvent('lamadb:authenticated'));
       }).catch(function() {
         showAuthModal();
       });

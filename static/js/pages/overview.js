@@ -497,9 +497,11 @@
       }
 
       list.innerHTML = articles.slice(0, 5).map(function(a) {
+        var source = a.feed_title || a.source;
+        var sourceHtml = source && source !== 'RSS' ? '<span class="rss-source">' + window.escHtml(source) + '</span>' : '';
         return '<div class="rss-item">' +
-          '<span class="rss-source">' + (a.feed_title || a.source || 'RSS') + '</span>' +
-          '<span class="rss-title">' + (a.title || 'Untitled') + '</span>' +
+          sourceHtml +
+          '<span class="rss-title">' + window.escHtml(a.title || 'Untitled') + '</span>' +
         '</div>';
       }).join('');
     } catch (e) {

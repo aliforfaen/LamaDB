@@ -25,7 +25,13 @@ document.addEventListener('alpine:init', function() {
       async init() {
         this.setGreeting();
         this.today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-        await this.load();
+        if (window.LlamaApp && window.LlamaApp.getApiKey && window.LlamaApp.getApiKey()) {
+          await this.load();
+        }
+        var self = this;
+        window.addEventListener('lamadb:authenticated', function() {
+          self.load();
+        }, { once: true });
       },
 
       setGreeting() {

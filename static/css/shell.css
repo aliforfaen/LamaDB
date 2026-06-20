@@ -214,6 +214,14 @@ body:not(.authenticated) .legacy-page .main,
 body:not(.authenticated) .legacy-page .main-body {
   display: block !important;
 }
+body:not(.authenticated) .app-header,
+body:not(.authenticated) .app-sidebar,
+body:not(.authenticated) .mobile-nav,
+body:not(.authenticated) .mobile-bottom-nav,
+body:not(.authenticated) .ll-sheet,
+body:not(.authenticated) .ll-sheet-overlay {
+  display: none !important;
+}
 body:not(.authenticated) #auth-modal {
   display: flex !important;
 }

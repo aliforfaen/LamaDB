@@ -17,7 +17,13 @@ document.addEventListener('alpine:init', function() {
       sources: [],
 
       async init() {
-        await this.load();
+        if (window.LlamaApp && window.LlamaApp.getApiKey && window.LlamaApp.getApiKey()) {
+          await this.load();
+        }
+        var self = this;
+        window.addEventListener('lamadb:authenticated', function() {
+          self.load();
+        }, { once: true });
       },
 
       async load() {

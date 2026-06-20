@@ -1719,23 +1719,6 @@
   </div><!-- /main -->
 </div><!-- /app-shell -->
 
-<!-- ════════════════════ COMMAND PALETTE ════════════════════ -->
-<div class="modal-overlay" id="modal-palette">
-  <div class="palette-modal">
-    <div class="palette-input-wrap">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="palette-input" placeholder="Search pages, documents, or type a command…" autocomplete="off" spellcheck="false" />
-      <kbd class="palette-esc-hint">ESC</kbd>
-    </div>
-    <div class="palette-results" id="palette-results"></div>
-    <div class="palette-footer">
-      <span><kbd>↑↓</kbd> Navigate</span>
-      <span><kbd>↵</kbd> Open</span>
-      <span><kbd>⌘K</kbd> Toggle</span>
-    </div>
-  </div>
-</div>
-
 <!-- ════════════════════ MOBILE BOTTOM NAV ════════════════════ -->
 <nav class="mobile-bottom-nav" id="mobile-bottom-nav" role="navigation" aria-label="Mobile navigation">
   <button class="mobile-nav-item active" data-page="overview" aria-current="page">
@@ -1944,69 +1927,6 @@
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <script src="/js/lib/dragdrop.js"></script>
 
-<!-- ════════════════════ SHORTCUT HELP OVERLAY ════════════════════ -->
-<div class="shortcut-overlay" id="shortcut-overlay">
-  <div class="shortcut-modal">
-    <div class="shortcut-modal-header">
-      <h3>Keyboard Shortcuts</h3>
-      <button class="shortcut-modal-close" onclick="closeShortcutHelp()">×</button>
-    </div>
-    <div class="shortcut-modal-body">
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Documents</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>d</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Events</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>e</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Settings</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>s</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Overview</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>o</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Uptime</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>u</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Feeds</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>f</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Wiki</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>w</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Hermes</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>h</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Agent Board</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>a</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Notifications</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>n</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Focus quick search</span>
-        <span class="shortcut-keys"><kbd>/</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Show this help</span>
-        <span class="shortcut-keys"><kbd>?</kbd></span>
-      </div>
-    </div>
-    <div class="shortcut-footer-hint">
-      Press <kbd>g</kbd> then another key to navigate. Press <kbd>?</kbd> anytime to see this help.
-    </div>
-  </div>
-</div>
-
 <!-- ════════════════════ CREATE API KEY MODAL ════════════════════ -->
 <div class="modal-overlay" id="modal-apikey">
   <div class="modal">
@@ -2104,6 +2024,86 @@
 </div>
 
     </div><!-- /legacy-page -->
+
+    <!-- ════════════════════ COMMAND PALETTE ════════════════════ -->
+    <div class="modal-overlay" id="modal-palette">
+      <div class="palette-modal">
+        <div class="palette-input-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="palette-input" placeholder="Search pages, documents, or type a command…" autocomplete="off" spellcheck="false" />
+          <kbd class="palette-esc-hint">ESC</kbd>
+        </div>
+        <div class="palette-results" id="palette-results"></div>
+        <div class="palette-footer">
+          <span><kbd>↑↓</kbd> Navigate</span>
+          <span><kbd>↵</kbd> Open</span>
+          <span><kbd>⌘K</kbd> Toggle</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ SHORTCUT HELP OVERLAY ════════════════════ -->
+    <div class="shortcut-overlay" id="shortcut-overlay">
+      <div class="shortcut-modal">
+        <div class="shortcut-modal-header">
+          <h3>Keyboard Shortcuts</h3>
+          <button class="shortcut-modal-close" onclick="closeShortcutHelp()">×</button>
+        </div>
+        <div class="shortcut-modal-body">
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Documents</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>d</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Events</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>e</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Settings</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>s</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Overview</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>o</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Uptime</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>u</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Feeds</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>f</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Wiki</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>w</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Hermes</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>h</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Agent Board</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>a</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Notifications</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>n</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Focus quick search</span>
+            <span class="shortcut-keys"><kbd>/</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Show this help</span>
+            <span class="shortcut-keys"><kbd>?</kbd></span>
+          </div>
+        </div>
+        <div class="shortcut-footer-hint">
+          Press <kbd>g</kbd> then another key to navigate. Press <kbd>?</kbd> anytime to see this help.
+        </div>
+      </div>
+    </div>
 
     <!-- ════════════════════ AUTH MODAL ════════════════════ -->
     <div class="modal-overlay" id="auth-modal">

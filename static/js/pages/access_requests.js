@@ -8,6 +8,7 @@
 
   window.loadAccessRequests = async function(filter) {
     if (filter) currentFilter = filter;
+    if (!window.LlamaApp || !window.LlamaApp.getApiKey || !window.LlamaApp.getApiKey()) return;
     var table = document.getElementById('requests-table-body');
     if (!table) return;
 
