@@ -2188,12 +2188,11 @@
 </div><!-- /app-root -->
 
 <!-- ═══ NOTIFICATION DETAIL MODAL ═══ -->
-<div id="notification-detail-modal" class="modal" style="display:none;">
-  <div class="modal-backdrop" onclick="window.closeNotificationDetail()"></div>
-  <div class="modal-card">
+<div id="notification-detail-modal" class="modal-overlay open" style="display:none;">
+  <div class="modal" style="max-width: 600px;">
     <div class="modal-header">
       <h3 id="notification-detail-title">Alert</h3>
-      <button class="icon-btn" onclick="window.closeNotificationDetail()" aria-label="Close">&times;</button>
+      <button class="modal-close" onclick="window.closeNotificationDetail()" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body">
       <div class="notification-detail-meta" id="notification-detail-meta"></div>
@@ -2204,7 +2203,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn primary" onclick="window.dismissSelectedNotifications()">Dismiss</button>
+      <button class="btn btn-primary" onclick="window.dismissSelectedNotifications()">Dismiss</button>
     </div>
   </div>
 </div>

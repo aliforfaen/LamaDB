@@ -264,9 +264,8 @@
     applyTheme(theme);
     var storedHue = localStorage.getItem('lamadb_accent_hue');
     if (storedHue) applyAccentHue(storedHue);
-    // Apply stored accent on init
-    var storedAccent = localStorage.getItem('lamadb_accent');
-    if (storedAccent) applyAccent(storedAccent);
+    // Clear legacy accent hex — CSS tokens derive from --accent-h
+    localStorage.removeItem('lamadb_accent');
     if (window.matchMedia) {
       window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
         var stored = localStorage.getItem('lamadb_theme');
@@ -286,6 +285,11 @@
 
   function applyAccentHue(hue) {
     document.documentElement.style.setProperty('--accent-h', String(hue));
+    // Remove inline accent overrides so CSS HSL-derived values in tokens.css win
+    document.documentElement.style.removeProperty('--accent');
+    document.documentElement.style.removeProperty('--accent-dim');
+    document.documentElement.style.removeProperty('--accent-glow');
+    document.documentElement.style.removeProperty('--accent-text');
   }
   window.applyAccentHue = applyAccentHue;
 
@@ -304,11 +308,11 @@
     applyAccentHue(preset.hue);
     localStorage.setItem('lamadb_accent_hue', String(preset.hue));
     localStorage.setItem('lamadb_accent_preset', presetId);
-    var accent = localStorage.getItem('lamadb_accent') || '#6366f1';
+    localStorage.removeItem('lamadb_accent');
     var scheme = _currentTheme;
     api('/api/users/me/theme', {
       method: 'PUT',
-      body: JSON.stringify({ scheme: scheme, accent: accent })
+      body: JSON.stringify({ scheme: scheme })
     }).catch(function() {});
   };
 
@@ -320,12 +324,14 @@
         localStorage.setItem('lamadb_theme', theme.scheme);
       }
       if (theme && theme.accent) {
-        applyAccent(theme.accent);
-        localStorage.setItem('lamadb_accent', theme.accent);
+        // Clear inline accent — CSS tokens derive from --accent-h
+        document.documentElement.style.removeProperty('--accent');
+        document.documentElement.style.removeProperty('--accent-dim');
+        document.documentElement.style.removeProperty('--accent-glow');
+        document.documentElement.style.removeProperty('--accent-text');
       }
     } catch (e) {
-      var storedAccent = localStorage.getItem('lamadb_accent');
-      if (storedAccent) applyAccent(storedAccent);
+      // Fallback: nothing to do, CSS defaults handle it
     }
   }
 
@@ -333,10 +339,9 @@
     var newTheme = _currentTheme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('lamadb_theme', newTheme);
     applyTheme(newTheme);
-    var accent = localStorage.getItem('lamadb_accent') || '#6366f1';
     api('/api/users/me/theme', {
       method: 'PUT',
-      body: JSON.stringify({ scheme: newTheme, accent: accent })
+      body: JSON.stringify({ scheme: newTheme })
     }).catch(function() {});
   };
 

@@ -45,10 +45,12 @@ window.closeNotificationDetail = function() {
 window.dismissSelectedNotifications = async function() {
   if (!_selectedNotificationIds.length) return;
   try {
-    await window.api('/api/notifications/mark-read', {
-      method: 'POST',
-      body: JSON.stringify({ event_ids: _selectedNotificationIds })
-    });
+    await Promise.all(_selectedNotificationIds.map(function(id) {
+      return window.api('/api/events/' + id, {
+        method: 'PATCH',
+        body: JSON.stringify({ processed: true })
+      });
+    }));
     window.closeNotificationDetail();
     if (window.loadNotifications) window.loadNotifications();
   } catch (e) {

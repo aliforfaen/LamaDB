@@ -126,6 +126,10 @@
 .notification-severity {
   padding-top: 2px;
   flex-shrink: 0;
+  min-width: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .notification-body {
