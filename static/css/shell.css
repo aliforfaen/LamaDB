@@ -191,7 +191,18 @@
   display: block;
 }
 
-/* Page visibility */
+/* ─── Page transitions (legacy pages) ─── */
+.page {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.page.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Page visibility (new pages, Alpine-managed) */
 .app-page {
   display: none;
 }
@@ -200,41 +211,37 @@
 }
 
 /* Scroll-to-top button */
-.scroll-to-top {
+.scroll-top {
   position: fixed;
-  bottom: calc(24px + var(--safe-bottom));
+  bottom: 24px;
   right: 24px;
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--fg);
+  font-size: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  cursor: pointer;
   opacity: 0;
-  visibility: hidden;
-  transform: translateY(10px);
-  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
-  z-index: 90;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.15s ease, border-color 0.15s ease;
+  z-index: 50;
 }
-.scroll-to-top.visible {
+.scroll-top.visible {
   opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
+  pointer-events: auto;
 }
-.scroll-to-top:hover { background: var(--accent-hover, var(--accent)); }
-.scroll-to-top:active { transform: scale(0.95); }
+.scroll-top:hover { border-color: var(--accent-dim); transform: translateY(-2px); }
 
 @media (max-width: 768px) {
   .app-sidebar { display: none; }
   .app-main { padding: var(--space-3); padding-bottom: calc(var(--space-4) + 64px + var(--safe-bottom)); }
   .mobile-nav { display: block; }
-  .scroll-to-top {
+  .scroll-top {
     bottom: calc(80px + var(--safe-bottom));
     right: 16px;
   }

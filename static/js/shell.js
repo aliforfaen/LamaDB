@@ -31,11 +31,6 @@ document.addEventListener('alpine:init', function() {
         if (hash && this.pageExists(hash)) this.currentPage = hash;
         this.$watch('currentPage', function(page) {
           window.navigateTo(page);
-          if (history.pushState) {
-            var url = page === 'home' ? window.location.pathname : ('#' + page);
-            history.pushState({ page: page }, '', url);
-          }
-          window.scrollTo({ top: 0, behavior: 'smooth' });
         });
         var self = this;
         window.addEventListener('popstate', function(e) {
