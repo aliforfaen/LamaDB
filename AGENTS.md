@@ -532,6 +532,7 @@ docker logs lamadb_api --tail 20
 | Migration runner applies migration but doesn't record it in `migration_history` | The migration_history INSERT is in the same try-block as the statements; if any statement errors and the runner logs it as a warning, the file is still marked applied. If INSERT itself fails, the row is lost. Check `SELECT * FROM migration_history` after a migration with non-trivial statements. |
 | API key test fixtures must place random part inside first 16 chars | `_hash_prefix(token) = sha256(token[:16])` is the O(1) lookup key. If all test keys share the same first 16 chars (e.g. `"test-notif-admin-" + uuid`), every key collides on `key_prefix`, the lookup returns 100+ rows, and bcrypt-verifying each (~30ms) causes 10s+ timeouts. Fix: `"lamadb_t_" + uuid4().hex` puts randomness inside the prefix window. |
 | LATERAL JOIN with regex normalization on large tables is O(n*m) death | The aggregated `/api/notifications/unread` query normalizes titles via 5 nested `regexp_replace()` calls. A LATERAL JOIN to fetch the latest event per group ran this regex on all 16k rows per group. Fix: two-query approach — aggregate first, then batch-fetch details via `WHERE id = ANY($1)` using `max(event_ids)` per group. |
+| Auth modal hidden on unauthenticated load | The auth modal was placed inside `.legacy-page`, which is `display:none` until a legacy page is active. Move `#auth-modal` outside `.legacy-page` (e.g., into `app-main`) and use `body:not(.authenticated) #auth-modal { display: flex !important; }`. |
 
 ## Important Notes
 
