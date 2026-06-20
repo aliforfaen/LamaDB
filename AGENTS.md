@@ -533,6 +533,8 @@ docker logs lamadb_api --tail 20
 | API key test fixtures must place random part inside first 16 chars | `_hash_prefix(token) = sha256(token[:16])` is the O(1) lookup key. If all test keys share the same first 16 chars (e.g. `"test-notif-admin-" + uuid`), every key collides on `key_prefix`, the lookup returns 100+ rows, and bcrypt-verifying each (~30ms) causes 10s+ timeouts. Fix: `"lamadb_t_" + uuid4().hex` puts randomness inside the prefix window. |
 | LATERAL JOIN with regex normalization on large tables is O(n*m) death | The aggregated `/api/notifications/unread` query normalizes titles via 5 nested `regexp_replace()` calls. A LATERAL JOIN to fetch the latest event per group ran this regex on all 16k rows per group. Fix: two-query approach — aggregate first, then batch-fetch details via `WHERE id = ANY($1)` using `max(event_ids)` per group. |
 | Auth modal hidden on unauthenticated load | The auth modal was placed inside `.legacy-page`, which is `display:none` until a legacy page is active. Move `#auth-modal` outside `.legacy-page` (e.g., into `app-main`) and use `body:not(.authenticated) #auth-modal { display: flex !important; }`. |
+| `api()` fires unauthorized requests before auth | Scripts loaded at the bottom of `index.html` call `window.api()` synchronously. Either guard `api()` to return early when no key is stored, or guard each page's `init()` / `load()` function with `if (!window.LlamaApp.getApiKey()) return;`. |
+| Command palette button click does nothing after moving `#modal-palette` | The button's `@click="openPalette()"` calls `shell.js:openPalette()` which delegates to `window.openPalette`. Ensure `app.js` exports `window.openPalette = openPalette` after defining the function. |
 
 ## Important Notes
 
