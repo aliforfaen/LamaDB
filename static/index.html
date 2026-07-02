@@ -1156,16 +1156,26 @@
       </section>
 
 
-      <!-- ════════════════════ HOME ASSISTANT PAGE ════════════════════ -->
+      <!-- ════════════════════ HOME ASSISTANT / THINGS PAGE ════════════════════ -->
       <section id="page-homeassistant" class="page" aria-label="Home Assistant">
-        <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <h2 style="font-size:15px;font-weight:600;color:var(--fg);margin:0;">Home Assistant</h2>
-          <span id="ha-status" style="font-size:12px;color:var(--muted);"></span>
+        <div class="things-header">
+          <div class="things-header-top">
+            <h2>Things</h2>
+            <div class="things-header-actions">
+              <span id="ha-status" class="things-timestamp"></span>
+              <button class="btn btn-ghost btn-sm" onclick="window.loadHomeAssistantPage()" title="Refresh">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
+            </div>
+          </div>
+          <div id="ha-config" class="things-connection-bar"></div>
         </div>
-        <div id="ha-config" class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-bottom:16px;">
-          <p class="loading">Connecting…</p>
-        </div>
-        <div id="ha-entities"><p class="loading">Loading entity states…</p></div>
+
+        <div id="ha-scenes" class="things-scenes"></div>
+
+        <div id="ha-rooms" class="things-rooms"><p class="loading">Loading…</p></div>
+
+        <div id="ha-other" class="things-other"></div>
       </section>
 
       <!-- ════════════════════ HERMES PAGE ════════════════════ -->

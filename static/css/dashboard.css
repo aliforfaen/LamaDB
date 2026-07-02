@@ -3259,84 +3259,99 @@ table td.nowrap { white-space: nowrap; }
   font-size: 14px;
 }
 
-/* ─── Home Assistant Page ──────────────────────────────────── */
-.ha-snapshot-bar {
+/* ─── Things / Home Assistant — Life-OS Control Panel ─────────── */
+
+.things-header {
+  margin-bottom: 16px;
+}
+.things-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.things-header-top h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0;
+}
+.things-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.things-timestamp {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Connection bar */
+.things-connection-bar {
+  margin-bottom: 0;
+}
+.things-conn {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
-  margin-bottom: 16px;
-  font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.ha-snapshot-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 4px var(--accent);
-  flex-shrink: 0;
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-/* Config / connection status card */
-.ha-config-card {
-  padding: 12px 16px;
-  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 16px;
-  transition: border-color var(--transition);
+  background: var(--surface);
+  flex-wrap: wrap;
 }
-.ha-config-card.connected { border-left: 3px solid var(--accent); }
-.ha-config-card.disconnected { border-left: 3px solid var(--danger); }
-.ha-config-status-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.ha-config-dot {
-  width: 10px; height: 10px;
+.things-conn-on .things-conn-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 5px var(--accent-glow);
   flex-shrink: 0;
 }
-.ha-config-card.connected .ha-config-dot {
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent-glow);
-}
-.ha-config-card.disconnected .ha-config-dot {
+.things-conn-off .things-conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   background: var(--danger);
-  box-shadow: 0 0 6px var(--danger);
+  box-shadow: 0 0 5px var(--danger);
+  flex-shrink: 0;
 }
-.ha-config-label {
-  font-size: 13px;
+.things-conn-label {
   font-weight: 600;
   color: var(--fg);
 }
-.ha-config-status {
+.things-conn-status {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 600;
-}
-.ha-config-card.connected .ha-config-status { color: var(--accent); }
-.ha-config-card.disconnected .ha-config-status { color: var(--danger); }
-.ha-config-reason {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--accent);
+}
+.things-conn-off .things-conn-status {
+  color: var(--danger);
+}
+.things-conn-location {
   font-family: var(--font-mono);
-  margin-top: 6px;
-  padding-top: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  width: 100%;
+}
+.things-conn-reason {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  width: 100%;
+  padding-top: 4px;
   border-top: 1px solid var(--border-light);
 }
 
-/* Domain group headers */
-.ha-domain-group { margin-bottom: 20px; }
-.ha-domain-header {
+/* Section (room / scenes) */
+.things-section {
+  margin-bottom: 20px;
+}
+.things-section-header {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3345,20 +3360,27 @@ table td.nowrap { white-space: nowrap; }
   border-bottom: 1px solid var(--border);
   color: var(--fg-2);
 }
-.ha-domain-header .ha-domain-icon {
-  width: 18px; height: 18px;
-  color: var(--ha-domain-color, var(--muted));
-  display: flex;
-  align-items: center;
+.things-section-header svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-cyan);
   flex-shrink: 0;
 }
-.ha-domain-header .ha-domain-name {
-  font-size: 13px;
+.things-section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  flex-shrink: 0;
+}
+.things-section-name {
+  font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: var(--fg);
 }
-.ha-domain-header .ha-domain-count {
+.things-section-count {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 11px;
@@ -3366,181 +3388,202 @@ table td.nowrap { white-space: nowrap; }
   background: var(--surface-2);
   padding: 1px 8px;
   border-radius: 10px;
-  font-variant-numeric: tabular-nums;
 }
 
-/* Entity card grid */
-.ha-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+/* Scene grid */
+.things-scene-grid {
+  display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
-
-/* Individual entity card */
-.ha-card {
-  background: var(--surface);
+.things-scene-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-radius: 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
-  position: relative;
-  overflow: hidden;
-}
-/* Domain-colored left accent bar */
-.ha-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 3px;
-  height: 100%;
-  background: var(--ha-domain-color, var(--muted));
-  opacity: 0.4;
-  transition: opacity var(--transition), box-shadow var(--transition);
-}
-.ha-card:hover {
-  border-color: var(--border-light);
-  background: var(--surface-2);
-}
-/* ON state — glow the accent bar, tint border */
-.ha-card.on::before {
-  opacity: 1;
-  box-shadow: 0 0 8px var(--ha-domain-color, transparent);
-}
-.ha-card.on {
-  border-color: var(--ha-domain-color, var(--border));
-}
-/* OFF state — subtly dimmed */
-.ha-card.off { opacity: .85; }
-/* Unavailable / unknown */
-.ha-card.unavailable {
-  opacity: .65;
-}
-.ha-card.unavailable::before {
-  background: var(--warn);
-  opacity: 1;
-  box-shadow: 0 0 8px var(--warn-dim);
-}
-
-/* Card top: icon + name */
-.ha-card .ha-card-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.ha-card .ha-icon {
-  width: 16px; height: 16px;
-  flex-shrink: 0;
-  color: var(--ha-domain-color, var(--muted));
-  opacity: .6;
-  display: flex;
-  align-items: center;
-}
-.ha-card.on .ha-icon { opacity: 1; }
-.ha-card .ha-name {
-  font-size: 12px;
-  color: var(--fg-2);
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+  transition: all var(--transition);
+  min-height: 52px;
+  min-width: 120px;
+  font-family: var(--font-display);
+  font-size: 14px;
   font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+}
+.things-scene-btn:hover {
+  border-color: var(--accent-cyan);
+  background: var(--accent-cyan-dim);
+}
+.things-scene-btn:active {
+  transform: scale(0.96);
+}
+.things-scene-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--accent-cyan);
+  flex-shrink: 0;
+}
+.things-scene-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.things-scene-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Primary state value */
-.ha-card .ha-state {
-  font-family: var(--font-mono);
-  font-size: 17px;
+/* Entity card grid */
+.things-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+/* Individual cards — large tappable */
+.things-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  min-height: 100px;
+}
+.things-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--things-accent, var(--muted));
+  opacity: 0.5;
+  transition: opacity var(--transition), box-shadow var(--transition);
+}
+.things-card:hover {
+  border-color: var(--border-light);
+  background: var(--surface-2);
+}
+.things-card:active {
+  transform: scale(0.97);
+}
+
+/* On state */
+.things-card-on {
+  border-color: var(--things-accent, var(--accent));
+}
+.things-card-on::before {
+  opacity: 1;
+  box-shadow: 0 0 12px var(--things-accent, transparent);
+}
+.things-card-on .things-card-icon {
+  color: var(--things-accent, var(--accent));
+  opacity: 1;
+}
+.things-card-on .things-card-state {
+  color: var(--accent);
+  text-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* Off state */
+.things-card-off {
+  opacity: 0.85;
+}
+.things-card-off .things-card-state {
+  color: var(--muted);
+}
+
+/* Unavailable */
+.things-card-unavailable {
+  opacity: 0.6;
+}
+.things-card-unavailable::before {
+  background: var(--warn);
+  opacity: 1;
+  box-shadow: 0 0 8px var(--warn-dim);
+}
+.things-card-unavailable .things-card-state {
+  color: var(--warn);
+}
+
+/* Card icon */
+.things-card-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+  opacity: 0.6;
+  flex-shrink: 0;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+}
+.things-card-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* Card body */
+.things-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.things-card-name {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.things-card-state {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
-  word-break: break-all;
 }
-.ha-card.on .ha-state {
-  color: var(--accent);
-  text-shadow: 0 0 12px var(--accent-glow);
-}
-.ha-card.off .ha-state { color: var(--muted); }
-.ha-card.unavailable .ha-state { color: var(--warn); }
-.ha-card .ha-state .ha-unit {
-  font-size: 11px;
+.things-unit {
+  font-size: 12px;
   font-weight: 400;
   color: var(--muted);
   font-family: var(--font-display);
 }
-
-/* Relative timestamp */
-.ha-card .ha-last-change {
+.things-card-meta {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--muted);
-  padding-top: 2px;
+  margin-top: 2px;
 }
-
-/* Action buttons row */
-.ha-card .ha-actions {
-  margin-top: 5px;
-  display: flex;
-  gap: 5px;
-}
-.ha-card .ha-btn {
-  flex: 1;
-  padding: 5px 8px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  transition: all var(--transition);
+.things-card-domain {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 9px;
+  color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: .5px;
-  text-align: center;
-  line-height: 1.3;
-}
-.ha-card .ha-btn-on {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-dim);
-}
-.ha-card .ha-btn-on:hover {
-  background: var(--accent);
-  color: #000;
-  box-shadow: 0 0 10px var(--accent-glow);
-}
-.ha-card .ha-btn-off {
-  color: var(--fg-2);
-  border-color: var(--border);
-}
-.ha-card .ha-btn-off:hover {
-  background: var(--danger-dim);
-  color: var(--danger);
-  border-color: var(--danger);
-}
-.ha-card .ha-btn-scene {
-  color: var(--accent-cyan);
-  border-color: var(--accent-cyan);
-  background: var(--accent-cyan-dim);
-  flex: 1;
-}
-.ha-card .ha-btn-scene:hover {
-  background: var(--accent-cyan);
-  color: #000;
-  box-shadow: 0 0 10px var(--accent-cyan);
+  letter-spacing: 0.5px;
+  opacity: 0.5;
+  font-family: var(--font-mono);
 }
 
-/* Empty / error states */
-.ha-empty {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--muted);
-  font-size: 14px;
-}
-.ha-error {
+/* Error state */
+.things-error {
   background: var(--danger-dim);
   border: 1px solid var(--danger);
   color: var(--danger);
@@ -3549,20 +3592,73 @@ table td.nowrap { white-space: nowrap; }
   font-size: 13px;
   font-family: var(--font-mono);
 }
+.things-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
-  .ha-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  .things-card-grid {
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
-  .ha-card .ha-state { font-size: 15px; }
+  .things-card {
+    padding: 14px;
+    min-height: 90px;
+  }
+  .things-card-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .things-card-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+  .things-card-state {
+    font-size: 18px;
+  }
+  .things-card-name {
+    font-size: 12px;
+  }
+  .things-scene-btn {
+    padding: 12px 16px;
+    min-height: 48px;
+    font-size: 13px;
+  }
+  .things-scene-icon svg {
+    width: 20px;
+    height: 20px;
+  }
 }
 @media (max-width: 480px) {
-  .ha-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .ha-card { padding: 10px 12px; }
-  .ha-card .ha-state { font-size: 14px; }
-  .ha-card .ha-btn { font-size: 9px; padding: 4px 6px; }
+  .things-card-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .things-card {
+    padding: 12px;
+    min-height: 80px;
+  }
+  .things-card-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .things-card-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  .things-card-state {
+    font-size: 16px;
+  }
+  .things-card-domain {
+    display: none;
+  }
+  .things-section-name {
+    font-size: 12px;
+  }
 }
 
 /* ─── MCP Control Pane ─── */
