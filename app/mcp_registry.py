@@ -247,13 +247,83 @@ def get_tool(name: str) -> dict | None:
 
 
 def toggle_tool(name: str, enabled: bool) -> bool:
-    """Enable or disable a tool. Returns True if the tool was found."""
+    """Enable or disable a tool (in-memory only).
+
+    Returns True if the tool was found. For DB persistence, use
+    `set_tool_enabled(conn, name, enabled)` instead — it both updates
+    this in-memory cache and writes the row to `mcp_tool_config`.
+    """
     tool = _tools.get(name)
     if tool is None:
         return False
     tool["enabled"] = enabled
     logger.info(f"MCP tool {'enabled' if enabled else 'disabled'}: {name}")
     return True
+
+
+async def set_tool_enabled(conn, name: str, enabled: bool) -> bool:
+    """Persist a tool's enabled flag to `mcp_tool_config` and update cache.
+
+    Upserts the row (so the first toggle for a tool creates it) and updates
+    the in-memory `_tools[name]["enabled"]` so subsequent calls in the same
+    process see the change without re-reading from DB.
+
+    Args:
+        conn: An asyncpg connection (transactional with the caller).
+        name: Tool name. Must match a registered tool — we return False
+              if the tool isn't known to avoid persisting garbage rows.
+        enabled: New enabled state.
+
+    Returns:
+        True if the tool was found (and the row was upserted). False if no
+        tool with that name is registered, in which case the row is NOT
+        written.
+    """
+    if name not in _tools:
+        return False
+
+    await conn.execute(
+        """
+        INSERT INTO mcp_tool_config (name, enabled, updated_at)
+        VALUES ($1, $2, now())
+        ON CONFLICT (name) DO UPDATE
+            SET enabled = EXCLUDED.enabled,
+                updated_at = now()
+        """,
+        name, enabled,
+    )
+    _tools[name]["enabled"] = enabled
+    logger.info(f"MCP tool {'enabled' if enabled else 'disabled'} (persisted): {name}")
+    return True
+
+
+async def load_persisted_state(conn) -> int:
+    """Hydrate `_tools[name]["enabled"]` from `mcp_tool_config`.
+
+    Called once during application startup, after migrations have run.
+    Tools registered after this call that have no row in the table default
+    to `enabled=True` (which is what `register_tool()` already sets).
+
+    Args:
+        conn: An asyncpg connection (read-only is fine).
+
+    Returns:
+        Number of tools whose enabled state was restored from the DB.
+    """
+    rows = await conn.fetch("SELECT name, enabled FROM mcp_tool_config")
+    restored = 0
+    for row in rows:
+        tool = _tools.get(row["name"])
+        if tool is None:
+            # Stale row for a tool that no longer exists. Leave it alone —
+            # admins may re-register the tool later and we'd want to keep
+            # their preference. Skip silently rather than warn loudly.
+            continue
+        tool["enabled"] = row["enabled"]
+        restored += 1
+    if restored:
+        logger.info(f"Restored MCP tool enabled state for {restored} tool(s) from DB")
+    return restored
 
 
 def get_all_tools_with_metadata() -> list[dict]:
