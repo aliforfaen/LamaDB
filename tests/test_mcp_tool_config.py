@@ -9,6 +9,7 @@ the in-memory `_tools` dict from the table on startup.
 Run:
     docker exec lamadb_api python3 -m pytest tests/test_mcp_tool_config.py -q
 """
+import app.main  # noqa: F401  — triggers MCP tool registration at import time
 from uuid import uuid4
 
 import httpx
