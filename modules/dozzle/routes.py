@@ -1,6 +1,8 @@
 """Dozzle container log routes."""
 import asyncio
 import json
+import re
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -17,6 +19,35 @@ from .webhook import process_webhook_payload
 
 router = APIRouter(tags=["dozzle"])
 public_router = APIRouter(tags=["dozzle-webhook"])
+
+
+_SINCE_RE = re.compile(r"^(\d+)\s*([smhdw])$")
+
+
+def _parse_since(since: str, default_minutes: int = 30):
+    """Parse a short duration string like '30m', '1h', '2d' into a timedelta.
+
+    Accepted units: s, m, h, d, w. Returns the default when input is empty or
+    malformed so a single bad query param doesn't break the dashboard.
+    """
+    if not since:
+        return timedelta(minutes=default_minutes)
+    m = _SINCE_RE.match(since.strip())
+    if not m:
+        return timedelta(minutes=default_minutes)
+    n = int(m.group(1))
+    unit = m.group(2)
+    if unit == "s":
+        return timedelta(seconds=n)
+    if unit == "m":
+        return timedelta(minutes=n)
+    if unit == "h":
+        return timedelta(hours=n)
+    if unit == "d":
+        return timedelta(days=n)
+    if unit == "w":
+        return timedelta(weeks=n)
+    return timedelta(minutes=default_minutes)
 
 
 # ----------------------------------------------------------------------
@@ -224,16 +255,25 @@ async def get_logs(
             )
 
     levels_params = "&".join(f"levels={lvl}" for lvl in ["error", "warn", "info", "debug"])
+    # Translate the user-facing `since` window (e.g. "30m", "1h") into Dozzle's
+    # from/to bound so we don't ask Dozzle to walk back through the container's
+    # full history. The Dozzle handler otherwise walks by doubling delta until
+    # the response exceeds the read timeout for noisy containers.
+    now_utc = datetime.now(timezone.utc)
+    window = _parse_since(since, default_minutes=30)
+    from_ts = (now_utc - window).isoformat()
+    to_ts = now_utc.isoformat()
     log_url = (
         f"{settings.dozzle_url}/api/hosts/{host}/containers/{container_id}/logs"
         f"?stdout=1&stderr=1&{levels_params}"
+        f"&from={from_ts}&to={to_ts}"
     )
 
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 log_url,
-                timeout=httpx.Timeout(connect=3.0, read=10.0, write=5.0, pool=3.0),
+                timeout=httpx.Timeout(connect=3.0, read=30.0, write=5.0, pool=3.0),
                 follow_redirects=True,
             )
             resp.raise_for_status()
@@ -262,7 +302,6 @@ async def get_logs(
         timestamp = data.get("ts", "")
         # Convert millisecond timestamp to ISO format if present
         if isinstance(timestamp, (int, float)) and timestamp > 0:
-            from datetime import datetime, timezone
             timestamp = datetime.fromtimestamp(timestamp / 1000, tz=timezone.utc).isoformat()
 
         # Dozzle v10 can return m as:
