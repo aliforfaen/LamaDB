@@ -370,15 +370,10 @@
     btn.disabled = true;
     btn.textContent = '...';
     try {
-      // Patch each event in the group. Failures on individual events are
-      // ignored — the group is considered dismissed as long as the lead id
-      // is processed.
-      await Promise.all(allIds.map(function(id) {
-        return window.api('/api/events/' + id, {
-          method: 'PATCH',
-          body: JSON.stringify({ processed: true })
-        }).catch(function() { return null; });
-      }));
+      await window.api('/api/events/bulk-dismiss', {
+        method: 'POST',
+        body: JSON.stringify({ event_ids: allIds })
+      });
       if (item) {
         item.style.opacity = '0.3';
         setTimeout(function() {
