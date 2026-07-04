@@ -170,6 +170,14 @@ async def lifespan(app: FastAPI):
         await run_migrations(pool)
         logger.info("Migrations run")
 
+    # Hydrate MCP tool enabled state from `mcp_tool_config` so toggles
+    # survive container restarts. Safe in test mode too — the table will
+    # simply be empty if the migration hasn't been applied yet.
+    from app.mcp_registry import load_persisted_state
+    async with pool.acquire() as conn:
+        await load_persisted_state(conn)
+    logger.info("MCP tool config loaded from DB")
+
     # Track all background tasks for clean shutdown
     background_tasks: set[asyncio.Task] = set()
 
