@@ -1,5 +1,26 @@
 # LamaDB — Agent Coding Guide
 
+## ⛔ DO NOT RUN LOCALLY
+
+This project is deployed on a Proxmox LXC — **not** on your local machine. Do NOT run `docker compose up`, `docker compose build`, `docker exec`, or any other command that targets the local Docker daemon.
+
+**Canonical environment:**
+- **Host**: `192.168.68.26` (Proxmox LXC)
+- **SSH**: `ssh lamadb-dev`
+- **Repo path**: `/home/messhias/projects/lamadb` (on LXC)
+- **Branch**: `feat/life-os-frontend-phase1`
+- **Dashboard**: `http://192.168.68.26:8000`
+- **Swagger**: `http://192.168.68.26:8000/docs`
+- **Admin key**: `lamadb_test_key_2026`
+
+**All commands MUST be run on the LXC via SSH:**
+
+```bash
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && <command>"
+```
+
+If a command would target the local machine instead of the LXC, **stop and ask** — do NOT execute it.
+
 ## What This Is
 
 LamaDB is a self-hosted central data layer / Life OS. It stores documents, events, and relationships in PostgreSQL, exposes a FastAPI REST API, and serves RSS feeds generated from its data.
@@ -352,28 +373,27 @@ MCP tools are declared via `MODULE_MCP_TOOLS` list in `__init__.py` and auto-reg
 
 ## Development Workflow
 
+**⚠️ See ⛔ DO NOT RUN LOCALLY at the top of this file. All commands MUST be run on the LXC via `ssh lamadb-dev`.**
+
 **This is a for-fun learning project. Keep it simple.**
 
 ```bash
-# Start
-docker compose up -d
+# Rebuild after code changes (run on LXC)
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose restart api"
 
-# Develop — edit code, then rebuild
-docker compose build api && docker compose restart api
+# Swagger UI for manual testing
+# Open http://192.168.68.26:8000/docs in browser
 
-# Test — use Swagger UI
-# Open http://localhost:8000/docs in browser
+# Run a specific test (only when needed, run on LXC)
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker exec lamadb_api python3 -m pytest tests/test_feeds.py -q"
 
-# Run a specific test (only when needed)
-docker exec lamadb_api python3 -m pytest tests/test_feeds.py -q
-
-# Check logs
-docker logs lamadb_api --tail 20
+# Check logs (run on LXC)
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker logs lamadb_api --tail 20"
 ```
 
 **Don't:** Run the full test suite after every change. Don't build elaborate test infrastructure. Don't spend more time testing than building.
 
-**Do:** Use Swagger UI (`/docs`) for manual testing. Write a test only when verifying something complex. Keep the fun ratio high.
+**Do:** Use Swagger UI (`http://192.168.68.26:8000/docs`) for manual testing. Write a test only when verifying something complex. Keep the fun ratio high.
 
 ## What to Build — Completed Phases
 
@@ -491,7 +511,7 @@ docker logs lamadb_api --tail 20
 | Module `__init__.py` imports `from .routes import router` | Module auto-discovery calls `get_router()` which imports routes; use lazy import pattern |
 | Migration runner splits on `;` before stripping comments | Strip `--` comment lines first, THEN split on `;` |
 | `openWikiPage` not found (onclick fails silently) | IIFE scoping: functions used in `onclick` must be exported as `window.fnName = fnName;`. Same bug hit `openWikiPage` and `switchUptimeTab`. |
-| Static file changes don't appear | Static files are COPY'd into the image, not volume-mounted. Rebuild: `docker compose build api && docker compose up -d api` |
+| Static file changes don't appear | Static files are COPY'd into the image, not volume-mounted. Rebuild (on LXC): `ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"` |
 | Docker healthcheck fails | curl not installed in python:3.12-slim. Added `apt-get install curl` to Dockerfile. |
 | Migration runner splits inside `$$` dollar-quoted blocks | Use `_split_sql()` state machine in `app/main.py` — only splits on `;` outside `$$` blocks. Also avoid nested `$$` in DO blocks — use bare `CREATE OR REPLACE FUNCTION` instead. |
 | Page loader functions inside inner IIFE can't access `api()` | Define page loaders in the outer IIFE scope (before `(function() {` at `// ─── HEADER + TICKER`), alongside `loadOverview`, `loadFeeds`, etc. Export to `window` for `onclick` handlers. |
@@ -502,7 +522,7 @@ docker logs lamadb_api --tail 20
 | JSONB metadata in tests is a string, not dict | asyncpg returns JSONB as string. Use `json.loads(row["metadata"])` before accessing keys. |
 | `@cached` decorator returns `no-request` key for handlers without `request: Request` param | The decorator extracts the Starlette `Request` from `kwargs["request"]`. Route handlers that don't declare `request: Request` as a parameter share one cache key. For endpoints with query params, declare the request parameter. |
 | Cache invalidation uses tags — misspelled tags silently do nothing | Double-check tag names. `cache_manager.invalidate("documents")` must match the `invalidate_tags=["documents"]` on the `@cached` decorator. |
-| `docker compose build --no-cache api` doesn't always invalidate COPY layers | Use `docker build -t lamadb-api:latest -f Dockerfile . && docker compose up -d api --force-recreate` for guaranteed fresh builds. |
+| `docker compose build --no-cache api` doesn't always invalidate COPY layers | Use (on LXC): `ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker build -t lamadb-api:latest -f Dockerfile . && docker compose up -d api --force-recreate"` for guaranteed fresh builds. |
 | MCP tools in MODULE_MCP_TOOLS use `handler` key with dotted path `module.path:func_name` | The `_import_handler()` function splits on `:` and imports. Double-check the module path and function name. |
 | Consolidated MCP tools use `action` parameter to dispatch to existing handlers | The dispatcher in `app/mcp_consolidated.py` uses `inspect.signature()` to filter kwargs. Extra params (like `action` itself) are silently dropped. No handler modifications needed. |
 | MCP `toggle_tool()` is in-memory only — resets on container restart | Tool enable/disable state lives in `_tools` dict, not in DB. Use for operational toggling, not permanent configuration. |
