@@ -16,7 +16,11 @@
 
 **If you are reading this as an AI agent: your working directory is a local checkout of the repo. Do NOT attempt to start Docker. Connect to the already-running instance at `http://192.168.68.26:8000`.**
 
----
+For quick one-liner commands without interactive SSH:
+
+```bash
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && <command>"
+```
 
 ## What This Is
 
@@ -370,19 +374,15 @@ MCP tools are declared via `MODULE_MCP_TOOLS` list in `__init__.py` and auto-reg
 
 ## Development Workflow
 
+**⚠️ See ⛔ DO NOT RUN LOCALLY at the top of this file. All commands MUST be run on the LXC via `ssh lamadb-dev`.**
+
 **This is a for-fun learning project. Keep it simple.**
 
 LamaDB runs on a Proxmox LXC at `192.168.68.26`. All development is done against that remote instance — never run Docker locally.
 
 ```bash
-# SSH into the LXC (primary dev environment)
-ssh lamadb-dev
-
-# Repo path on LXC: /home/messhias/projects/lamadb
-
 # Deploy after code changes (run on the LXC):
-cd /home/messhias/projects/lamadb
-docker compose build api && docker compose up -d api
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"
 
 # Run a specific test on the LXC (only when needed):
 ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose exec api python3 -m pytest tests/test_feeds.py -q"
@@ -530,7 +530,7 @@ ssh lamadb-dev "docker logs lamadb_api --tail 20"
 | Module `__init__.py` imports `from .routes import router` | Module auto-discovery calls `get_router()` which imports routes; use lazy import pattern |
 | Migration runner splits on `;` before stripping comments | Strip `--` comment lines first, THEN split on `;` |
 | `openWikiPage` not found (onclick fails silently) | IIFE scoping: functions used in `onclick` must be exported as `window.fnName = fnName;`. Same bug hit `openWikiPage` and `switchUptimeTab`. |
-| Static file changes don't appear | Static files are COPY'd into the image, not volume-mounted. Rebuild: `docker compose build api && docker compose up -d api` |
+| Static file changes don't appear | Static files are COPY'd into the image, not volume-mounted. Rebuild (on LXC): `ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"` |
 | Docker healthcheck fails | curl not installed in python:3.12-slim. Added `apt-get install curl` to Dockerfile. |
 | Migration runner splits inside `$$` dollar-quoted blocks | Use `_split_sql()` state machine in `app/main.py` — only splits on `;` outside `$$` blocks. Also avoid nested `$$` in DO blocks — use bare `CREATE OR REPLACE FUNCTION` instead. |
 | Page loader functions inside inner IIFE can't access `api()` | Define page loaders in the outer IIFE scope (before `(function() {` at `// ─── HEADER + TICKER`), alongside `loadOverview`, `loadFeeds`, etc. Export to `window` for `onclick` handlers. |
@@ -541,7 +541,7 @@ ssh lamadb-dev "docker logs lamadb_api --tail 20"
 | JSONB metadata in tests is a string, not dict | asyncpg returns JSONB as string. Use `json.loads(row["metadata"])` before accessing keys. |
 | `@cached` decorator returns `no-request` key for handlers without `request: Request` param | The decorator extracts the Starlette `Request` from `kwargs["request"]`. Route handlers that don't declare `request: Request` as a parameter share one cache key. For endpoints with query params, declare the request parameter. |
 | Cache invalidation uses tags — misspelled tags silently do nothing | Double-check tag names. `cache_manager.invalidate("documents")` must match the `invalidate_tags=["documents"]` on the `@cached` decorator. |
-| `docker compose build --no-cache api` doesn't always invalidate COPY layers | Use `docker build -t lamadb-api:latest -f Dockerfile . && docker compose up -d api --force-recreate` for guaranteed fresh builds. |
+| `docker compose build --no-cache api` doesn't always invalidate COPY layers | Use (on LXC): `ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker build -t lamadb-api:latest -f Dockerfile . && docker compose up -d api --force-recreate"` for guaranteed fresh builds. |
 | MCP tools in MODULE_MCP_TOOLS use `handler` key with dotted path `module.path:func_name` | The `_import_handler()` function splits on `:` and imports. Double-check the module path and function name. |
 | Consolidated MCP tools use `action` parameter to dispatch to existing handlers | The dispatcher in `app/mcp_consolidated.py` uses `inspect.signature()` to filter kwargs. Extra params (like `action` itself) are silently dropped. No handler modifications needed. |
 | MCP `toggle_tool()` is in-memory only — resets on container restart | Tool enable/disable state lives in `_tools` dict, not in DB. Use for operational toggling, not permanent configuration. |
