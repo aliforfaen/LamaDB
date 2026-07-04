@@ -9,7 +9,13 @@ from pydantic import BaseModel, ConfigDict
 from app.auth import AuthUser, get_current_user
 from app.cache import cache_manager
 from app.db import get_pool
-from app.models.events import Event, EventCreate, EventPatch
+from app.models.events import (
+    BulkDismissRequest,
+    BulkDismissResponse,
+    Event,
+    EventCreate,
+    EventPatch,
+)
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 logger = logging.getLogger(__name__)
@@ -317,29 +323,46 @@ async def patch_event(
         return _event_from_row(row)
 
 
-class BulkDismissRequest(BaseModel):
-    event_ids: list[int]
-
-
-@router.post("/bulk-dismiss")
+@router.post("/bulk-dismiss", response_model=BulkDismissResponse)
 async def bulk_dismiss_events(
     body: BulkDismissRequest,
     user: Annotated[AuthUser, Depends(get_current_user)],
-):
-    """Dismiss (mark as processed) a batch of events by ID."""
+) -> BulkDismissResponse:
+    """Mark many events processed=true in a single UPDATE.
+
+    Replaces the N+1 `PATCH /api/events/{id}` loop the notifications page
+    used to run for every event in a collapsed group. Returns the number of
+    rows actually transitioned (events that were already processed or did
+    not exist are silently skipped — they appear in `event_ids` only when
+    `processed` flips from false to true).
+    """
     if user.role not in ("admin", "agent"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",
         )
 
-    if not body.event_ids:
-        return {"dismissed": 0}
-
     pool = get_pool()
     async with pool.acquire() as conn:
+        # RETURNING gives us exactly the rows that flipped. The
+        # `WHERE processed = false` is what makes `count` reflect a real
+        # transition (otherwise re-dismissing a group would inflate the
+        # count).
         rows = await conn.fetch(
-            "UPDATE events SET processed = true WHERE id = ANY($1) RETURNING id",
+            """
+            UPDATE events
+            SET processed = true
+            WHERE id = ANY($1::bigint[])
+              AND processed = false
+            RETURNING id
+            """,
             body.event_ids,
         )
-        return {"dismissed": len(rows)}
+
+    if rows:
+        cache_manager.invalidate("events")
+
+    return BulkDismissResponse(
+        count=len(rows),
+        event_ids=[row["id"] for row in rows],
+    )

@@ -37,3 +37,30 @@ class EventPatch(BaseModel):
     """Model for patching an event (mark processed)."""
 
     processed: bool = Field(default=True, description="Mark event as processed")
+
+
+class BulkDismissRequest(BaseModel):
+    """Request body for POST /api/events/bulk-dismiss."""
+
+    event_ids: list[int] = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Event IDs to mark processed (1-500 entries).",
+    )
+
+
+class BulkDismissResponse(BaseModel):
+    """Response for POST /api/events/bulk-dismiss.
+
+    `count` is the number of rows actually transitioned to processed=true
+    (i.e. were not already processed). `event_ids` is the subset of the
+    request that was updated — useful for the frontend to know which ids
+    were no-ops (unknown or already dismissed).
+    """
+
+    count: int = Field(..., ge=0, description="Number of events marked processed")
+    event_ids: list[int] = Field(
+        default_factory=list,
+        description="Subset of input event_ids actually updated",
+    )

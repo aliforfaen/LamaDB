@@ -1,6 +1,8 @@
 """LamaDB FastAPI application with module auto-discovery."""
 import asyncio
+import hashlib
 import logging
+import time
 import faulthandler
 import signal
 from contextlib import asynccontextmanager
@@ -31,10 +33,19 @@ MIGRATIONS_DIR = Path(__file__).parent.parent / "migrations"
 async def run_migrations(pool) -> None:
     """Execute pending migration files, tracking each in migration_history.
 
-    Each migration is only recorded in `migration_history` after every
-    statement in the file has executed without a non-idempotent error.
-    If any statement raises a real error, the file is left unmarked so the
-    next startup will retry it.
+    Contract:
+      * A migration is recorded in ``migration_history`` only after every
+        statement in its file succeeds. If any statement raises a
+        non-idempotent error, the entire file is rolled back and no row is
+        inserted (so the next startup will retry it).
+      * Idempotent failures (``already exists`` / ``duplicate ...``) are
+        tolerated and logged at INFO — they do not roll back the file.
+      * Already-applied files are skipped via the ``migration_history``
+        primary key.
+      * On a legacy database that predates ``migration_history`` (table
+        empty but legacy tables present), every existing migration file is
+        backfilled into ``migration_history`` with a NULL checksum so the
+        files are not re-executed.
     """
     migration_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
 
@@ -53,13 +64,41 @@ async def run_migrations(pool) -> None:
         rows = await conn.fetch("SELECT filename FROM migration_history")
         applied = {row["filename"] for row in rows}
 
+        # Backfill legacy databases: if the tracking table is empty but a
+        # core legacy table exists, mark every current migration file as
+        # already-applied so we don't re-run their statements. Backfilled
+        # rows get checksum=NULL and execution_ms=0 to distinguish them
+        # from real runs.
+        if not applied:
+            legacy_exists = await conn.fetchval(
+                "SELECT EXISTS ("
+                "  SELECT 1 FROM information_schema.tables "
+                "  WHERE table_schema = 'public' AND table_name = 'documents'"
+                ")"
+            )
+            if legacy_exists and migration_files:
+                logger.info(
+                    "Backfilling migration_history for legacy database "
+                    f"({len(migration_files)} files)"
+                )
+                async with conn.transaction():
+                    for mf in migration_files:
+                        await conn.execute(
+                            "INSERT INTO migration_history "
+                            "(filename, checksum, execution_ms) "
+                            "VALUES ($1, NULL, 0) "
+                            "ON CONFLICT (filename) DO NOTHING",
+                            mf.name,
+                        )
+                rows = await conn.fetch("SELECT filename FROM migration_history")
+                applied = {row["filename"] for row in rows}
+
     for migration_file in migration_files:
         fname = migration_file.name
         if fname in applied:
             continue  # already applied — skip
 
         logger.info(f"Running migration: {fname}")
-        import time, hashlib
         sql = await asyncio.to_thread(migration_file.read_text, "utf-8")
         checksum = hashlib.sha256(sql.encode()).hexdigest()[:16]
 
@@ -68,34 +107,42 @@ async def run_migrations(pool) -> None:
         statements = _split_sql(clean)
 
         t0 = time.monotonic()
-        had_error = False
-        async with pool.acquire() as conn:
-            for stmt in statements:
-                try:
-                    await conn.execute(stmt)
-                except Exception as e:
-                    msg = str(e).lower()
-                    if "already exists" in msg or "duplicate" in msg:
-                        logger.info(f"  Statement skipped (idempotent): {e}")
-                    else:
-                        had_error = True
-                        logger.warning(f"  Statement error: {e}")
+        try:
+            async with pool.acquire() as conn:
+                async with conn.transaction():
+                    for stmt in statements:
+                        try:
+                            # Nested transaction = savepoint. If this
+                            # statement raises an idempotent error we
+                            # roll back to the savepoint and continue;
+                            # the outer transaction stays alive.
+                            async with conn.transaction():
+                                await conn.execute(stmt)
+                        except Exception as stmt_err:
+                            msg = str(stmt_err).lower()
+                            if "already exists" in msg or "duplicate" in msg:
+                                logger.info(
+                                    f"  Statement skipped (idempotent): {stmt_err}"
+                                )
+                                continue
+                            # Fatal: re-raise so the outer transaction
+                            # rolls back the whole migration. The file
+                            # will be retried on the next startup.
+                            raise
 
-            elapsed_ms = int((time.monotonic() - t0) * 1000)
-
-            if had_error:
-                # Don't record this file — leave it pending so the next
-                # startup retries it after the underlying issue is fixed.
-                logger.warning(
-                    f"  Skipping migration_history insert for {fname}: "
-                    f"{elapsed_ms}ms, had non-idempotent error(s)"
-                )
-                continue
-
-            await conn.execute(
-                "INSERT INTO migration_history (filename, checksum, execution_ms) VALUES ($1, $2, $3)",
-                fname, checksum, elapsed_ms
+                    elapsed_ms = int((time.monotonic() - t0) * 1000)
+                    await conn.execute(
+                        "INSERT INTO migration_history "
+                        "(filename, checksum, execution_ms) "
+                        "VALUES ($1, $2, $3) "
+                        "ON CONFLICT (filename) DO NOTHING",
+                        fname, checksum, elapsed_ms,
+                    )
+        except Exception as e:
+            logger.error(
+                f"Migration {fname} FAILED — not recorded, will retry on next startup: {e}"
             )
+            raise
         logger.info(f"  Applied {fname} ({elapsed_ms}ms)")
 
     logger.info("Migrations completed")
