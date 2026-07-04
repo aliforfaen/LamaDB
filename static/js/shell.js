@@ -18,6 +18,7 @@ document.addEventListener('alpine:init', function() {
         { id: 'freshrss', label: 'FreshRSS', section: 'Data Sources' },
         { id: 'ntfy', label: 'Ntfy', section: 'Data Sources' },
         { id: 'notflix', label: 'Notflix', section: 'Data Sources' },
+        { id: 'audiobookshelf', label: 'Audiobooks', section: 'Data Sources' },
         { id: 'wiki', label: 'Wiki', section: 'Data Sources' },
         { id: 'homeassistant', label: 'Home Assistant', section: 'Data Sources' },
         { id: 'settings', label: 'Settings', section: 'Admin' },

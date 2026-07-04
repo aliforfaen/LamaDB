@@ -365,6 +365,7 @@
       { id: 'freshrss', label: 'FreshRSS', icon: 'rss' },
       { id: 'ntfy', label: 'Ntfy', icon: 'bell' },
       { id: 'notflix', label: 'Notflix', icon: 'film' },
+      { id: 'audiobookshelf', label: 'Audiobooks', icon: 'headphones' },
       { id: 'homeassistant', label: 'Home Assistant', icon: 'home' },
       { id: 'wiki', label: 'Wiki', icon: 'book' },
       { id: 'notifications', label: 'Notifications', icon: 'bell' },
@@ -512,6 +513,7 @@
     'agentboard': 'Agent Board',
     'kanban': 'Kanban',
     'notflix': 'Notflix',
+    'audiobookshelf': 'Audiobooks',
     'homeassistant': 'Home Assistant',
     'hermes': 'Hermes',
     'settings': 'Settings',
@@ -598,6 +600,7 @@
     else if (pageId === 'agentboard') window.loadAgentBoardPage && window.loadAgentBoardPage();
     else if (pageId === 'kanban') window.loadKanbanPage && window.loadKanbanPage();
     else if (pageId === 'notflix') window.loadNotflixPage && window.loadNotflixPage();
+    else if (pageId === 'audiobookshelf') window.loadAudiobookshelfPage && window.loadAudiobookshelfPage();
     else if (pageId === 'homeassistant') window.loadHomeAssistantPage && window.loadHomeAssistantPage();
     else if (pageId === 'settings') window.loadSettings && window.loadSettings();
     else if (pageId === 'search') window.loadSearch && window.loadSearch();

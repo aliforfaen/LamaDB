@@ -35,6 +35,11 @@ SMOKE_ENDPOINTS = [
     ("GET", "/api/notflix/status"),
     ("GET", "/api/notflix/activity"),
     ("GET", "/api/notflix/health"),
+    # Audiobookshelf page
+    ("GET", "/api/audiobookshelf/status"),
+    ("GET", "/api/audiobookshelf/libraries"),
+    ("GET", "/api/audiobookshelf/books"),
+    ("GET", "/api/audiobookshelf/health"),
     # Hermes page
     ("GET", "/api/hermes/health"),
     ("GET", "/api/hermes/system"),

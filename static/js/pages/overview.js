@@ -225,7 +225,7 @@
 
         var freshness = m.last_event ? window.relativeTime(m.last_event) : 'never';
         var errorCount = (m.recent_errors || []).length;
-        var isPollable = ['uptime', 'freshrss', 'hermes', 'ntfy', 'dozzle', 'notflix'].indexOf(m.name) !== -1;
+        var isPollable = ['uptime', 'freshrss', 'hermes', 'ntfy', 'dozzle', 'notflix', 'audiobookshelf'].indexOf(m.name) !== -1;
 
         var errorListHtml = '';
         if (errorCount > 0) {
@@ -247,6 +247,7 @@
           var pageMap = {
             uptime: 'uptime', hermes: 'hermes', freshrss: 'freshrss',
             ntfy: 'ntfy', dozzle: 'dozzle', notflix: 'notflix',
+            audiobookshelf: 'audiobookshelf',
             wiki: 'wiki', feeds: 'feeds', notifications: 'notifications',
             agent_board: 'agent_board'
           };

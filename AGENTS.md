@@ -26,7 +26,7 @@ ssh lamadb-dev "cd /home/messhias/projects/lamadb && <command>"
 
 LamaDB is a self-hosted central data layer / Life OS. It stores documents, events, and relationships in PostgreSQL, exposes a FastAPI REST API, and serves RSS feeds generated from its data.
 
-**Current phase: Phase 17 — MCP Architecture + RSS Feeds.** 15 modules. ~92 commits, 290+ tests. MCP server refactored: 29 flat tools → 11 consolidated action-based dispatchers, split into `/mcp/admin` (11 tools) and `/mcp/worker` (10 tools) endpoints with legacy `/mcp` (39 tools) for backward compat. Trimmed tool descriptions (~10 tokens each), 4 domain skills (`lamadb-kanban`, `lamadb-agent`, `lamadb-docs`, `lamadb-admin`) for on-demand tool education. Stats-aware descriptions append ⚠️ warnings for tools with high error rates. `user_id` auto-injected from auth context. `type_` renamed to `event_type`. RSS feeds: 4 agent-driven feeds (lamalab, media, life, briefing), `POST /api/feeds/{slug}/publish` endpoint, morning brief generator, feed pruning with configurable retention.
+**Current phase: Phase 19 — Audiobookshelf Module.** 16 modules. MCP server refactored: 29 flat tools → 11 consolidated action-based dispatchers, split into `/mcp/admin` (11 tools) and `/mcp/worker` (10 tools) endpoints with legacy `/mcp` (39 tools) for backward compat. Trimmed tool descriptions (~10 tokens each), 4 domain skills (`lamadb-kanban`, `lamadb-agent`, `lamadb-docs`, `lamadb-admin`) for on-demand tool education. Stats-aware descriptions append ⚠️ warnings for tools with high error rates. `user_id` auto-injected from auth context. `type_` renamed to `event_type`. RSS feeds: 4 agent-driven feeds (lamalab, media, life, briefing), `POST /api/feeds/{slug}/publish` endpoint, morning brief generator, feed pruning with configurable retention.
 
 Hermes Agent integration live — polls session stats, token usage, system health, and gateway status from Hermes API (v0.16.0). Dashboard tab shows health, system metrics, session stats, and recent sessions table. Ingest pipeline for push-based lifecycle hooks. MCP server exposes LamaDB as callable tools for AI agents via consolidated action-based endpoints.
 
@@ -168,6 +168,16 @@ lamadb/
 │   │   ├── routes.py
 │   │   ├── models.py
 │   │   └── collector.py   # Background poller (every 30m)
+│   ├── youtube/            # YouTube Data API v3 integration
+│   │   ├── __init__.py
+│   │   ├── routes.py      # /api/youtube/*
+│   │   ├── models.py
+│   │   └── collector.py   # Background poller (every 3600s)
+│   ├── audiobookshelf/    # Audiobookshelf audio library + listening progress
+│   │   ├── __init__.py
+│   │   ├── routes.py      # /api/audiobookshelf/*
+│   │   ├── models.py
+│   │   └── collector.py   # Background poller (every 1800s)
 │   └── notifications/     # Smart notification routing
 │       ├── __init__.py
 │       ├── routes.py
@@ -201,7 +211,18 @@ lamadb/
 │   ├── 019_kanban_task_metadata.sql
 │   ├── 019_migration_history.sql
 │   ├── 020_local_embeddings_384.sql  # vector(1536)→vector(384), drop+recreate HNSW
-│   └── 021_wiki_sync_state.sql       # Wiki collector CouchDB _changes seq tracker
+│   ├── 021_wiki_sync_state.sql       # Wiki collector CouchDB _changes seq tracker
+│   ├── 022_normalize_dozzle_dedup.sql
+│   ├── 023_backfill_dozzle_dedup.sql
+│   ├── 024_pg_stat_statements.sql
+│   ├── 025_dedup_mon_dd_yyyy.sql
+│   ├── 026_kanban_tags.sql
+│   ├── 027_kanban_templates.sql
+│   ├── 028_source_config.sql
+│   ├── 029_feed_publishing.sql
+│   ├── 031_mcp_tool_config.sql
+│   ├── 032_youtube_module.sql        # YouTube partial unique index for video upserts
+│   └── 033_audiobookshelf_module.sql # Audiobookshelf partial unique index for book upserts
 ├── benchmarks/
 │   └── bench_all_endpoints.py
 ├── tests/
@@ -518,6 +539,20 @@ ssh lamadb-dev "docker logs lamadb_api --tail 20"
 - [x] `HERMES_URL` and `DOZZLE_URL` are now env-configurable in `docker-compose.yml`
 - [x] `FEEDS_BASE_URL` and YouTube env vars wired through `docker-compose.yml` / `.env.example`
 
+### Phase 19: Audiobookshelf Module ✅ (2026-07-05)
+- [x] New module `modules/audiobookshelf/` for self-hosted audiobook + podcast library
+- [x] Polls `/api/libraries` and recent items per library via Bearer-token auth
+- [x] Upserts each book into `documents` keyed by `(source_type='audiobookshelf', metadata->>'item_id')`
+- [x] Routes: status, libraries, books, health, force poll (`/api/audiobookshelf/*`)
+- [x] Books endpoint accepts `library_id` and `progress` (`in_progress`/`finished`/`unstarted`) filters
+- [x] Per-poll `abs_snapshot` event with library counts, finished/in-progress totals, and recent adds
+- [x] Migration 033: partial unique index for Audiobookshelf upserts
+- [x] Background poller wired into `app/main.py` (1800s) and `FORCE_POLL_REGISTRY`
+- [x] Dashboard "Audiobooks" tab with health card, library grid, and progress-bar table
+- [x] Module added to settings UI (URL + token, configurable poll interval + per-library limit)
+- [x] 15 module/collector/route tests pass
+- [x] `AUDIOBOOKSHELF_*` env vars wired through `docker-compose.yml` / `.env.example`
+
 ## Known Pitfalls
 
 | Pitfall | Fix |
@@ -597,6 +632,9 @@ HERMES_URL=http://dev-vm:9119     # Hermes Agent API
 UPTIME_KUMA_URL=...               # Uptime Kuma API URL
 DOZZLE_URL=...                    # Dozzle API URL
 SONARR_URL=... / RADARR_URL=... / TAUTULLI_URL=...
+AUDIOBOOKSHELF_URL=...            # Audiobookshelf base URL
+AUDIOBOOKSHELF_TOKEN=...          # Audiobookshelf Bearer token
+YOUTUBE_API_KEY=...               # YouTube Data API v3 key
 ```
 
 
