@@ -357,6 +357,7 @@
       { id: 'documents', label: 'Documents', icon: 'file' },
       { id: 'events', label: 'Events', icon: 'activity' },
       { id: 'feeds', label: 'Feeds', icon: 'rss' },
+      { id: 'briefing', label: 'Briefing', icon: 'coffee' },
       { id: 'uptime', label: 'Uptime', icon: 'monitor' },
       { id: 'dozzle', label: 'Dozzle Logs', icon: 'terminal' },
       { id: 'hermes', label: 'Hermes AI', icon: 'cpu' },
@@ -502,6 +503,7 @@
     'home': 'Home',
     'overview': 'Overview',
     'feeds': 'Feeds',
+    'briefing': 'Briefing',
     'uptime': 'Uptime',
     'events': 'Events',
     'wiki': 'Wiki',
@@ -587,6 +589,7 @@
     else if (pageId === 'overview') window.loadOverview && window.loadOverview();
     else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
     else if (pageId === 'feeds') window.loadFeeds && window.loadFeeds();
+    else if (pageId === 'briefing') window.loadBriefing && window.loadBriefing();
     else if (pageId === 'uptime') window.loadUptime && window.loadUptime();
     else if (pageId === 'events') window.loadEvents && window.loadEvents();
     else if (pageId === 'hermes') window.loadHermesPage && window.loadHermesPage();
@@ -779,6 +782,7 @@
         's': 'settings',
         'u': 'uptime',
         'f': 'feeds',
+        'b': 'briefing',
         'o': 'overview',
         'w': 'wiki',
         'n': 'notifications',
