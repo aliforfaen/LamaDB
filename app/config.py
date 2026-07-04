@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     # Feeds module — public base URL for RSS feed links
     feeds_base_url: str = ""
 
+    # YouTube Data API v3
+    youtube_api_key: str = ""
+    youtube_channel_id: str = ""
+    youtube_watch_later_playlist_id: str = ""
+    youtube_poll_interval: int = 3600
 
 
     # Wiki — CouchDB-backed LiveSync collector

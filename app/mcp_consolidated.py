@@ -2,21 +2,25 @@
 
 Each consolidated tool is a single MCP tool that accepts an `action` enum
 parameter and dispatches to the underlying handler. This shrinks the tool
-catalog from 29 flat tools to 11 action-based tools while keeping all
-existing handlers untouched.
+catalog from 29 flat tools to 11 action-based tools (plus the three
+agent_hermes / agent_feeds / agent_dashboard wrappers added in Phase 18)
+while keeping all existing handlers untouched.
 
 Tool → Action → Handler map (see register_all() below):
-  agent_documents     search, get, create, update
-  agent_events        create, list
-  agent_wiki          search, scratch
-  agent_uptime        status, history
-  lamadb_docs         (passthrough — no action)
+  agent_documents       search, get, create, update
+  agent_events          create, list
+  agent_wiki            search, scratch
+  agent_uptime          status, history
+  lamadb_docs           (passthrough — no action)
   agent_kanban_tasks    my_tasks, find_work, get, create, create_from_template, update
   agent_kanban_workflow claim, start, complete, help_wanted
   agent_kanban_comments add
-  agent_kanban_meta    my_instructions
+  agent_kanban_meta     my_instructions
   agent_messages        list_tasks, send
   admin_secrets         list, metadata, reveal, request_access
+  agent_hermes          sessions, stats, health
+  agent_feeds           list, latest
+  agent_dashboard       header
 """
 import logging
 from app.mcp_registry import register_consolidated_tool, register_tool
@@ -109,17 +113,49 @@ def _secrets_handlers():
     }
 
 
+def _hermes_handlers():
+    from modules.hermes.mcp import (
+        hermes_sessions,
+        hermes_stats,
+        hermes_health,
+    )
+    return {
+        "hermes_sessions": hermes_sessions,
+        "hermes_stats": hermes_stats,
+        "hermes_health": hermes_health,
+    }
+
+
+def _feeds_handlers():
+    from modules.feeds.mcp import (
+        list_feeds,
+        latest_feed_entries,
+    )
+    return {
+        "list_feeds": list_feeds,
+        "latest_feed_entries": latest_feed_entries,
+    }
+
+
+def _dashboard_handlers():
+    from modules.dashboard.mcp import dashboard_header
+    return {"dashboard_header": dashboard_header}
+
+
 # ---------------------------------------------------------------------------
 # Consolidated tool registration
 # ---------------------------------------------------------------------------
 def register_all() -> None:
-    """Register all 11 consolidated tools."""
+    """Register all 14 consolidated tools (11 + hermes/feeds/dashboard)."""
     core = _core_handlers()
     wiki = _wiki_handlers()
     uptime = _uptime_handlers()
     kanban = _kanban_handlers()
     agent_board = _agent_board_handlers()
     secrets = _secrets_handlers()
+    hermes = _hermes_handlers()
+    feeds = _feeds_handlers()
+    dashboard = _dashboard_handlers()
 
     # 1. agent_documents — search/get/create/update documents
     register_consolidated_tool(
@@ -396,4 +432,63 @@ def register_all() -> None:
         module="secrets",
     )
 
-    logger.info("Registered 11 consolidated MCP tools")
+    # 12. agent_hermes — sessions/stats/health
+    register_consolidated_tool(
+        name="agent_hermes",
+        description="Hermes Agent telemetry. Actions: sessions, stats, health.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["sessions", "stats", "health"]},
+                "profile": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "required": ["action"],
+        },
+        actions={
+            "sessions": hermes["hermes_sessions"],
+            "stats": hermes["hermes_stats"],
+            "health": hermes["hermes_health"],
+        },
+        toolset="both",
+        module="hermes",
+    )
+
+    # 13. agent_feeds — list/latest
+    register_consolidated_tool(
+        name="agent_feeds",
+        description="RSS feeds. Actions: list, latest.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["list", "latest"]},
+                "slug": {"type": "string"},
+                "limit": {"type": "integer"},
+            },
+            "required": ["action"],
+        },
+        actions={
+            "list": feeds["list_feeds"],
+            "latest": feeds["latest_feed_entries"],
+        },
+        toolset="both",
+        module="feeds",
+    )
+
+    # 14. agent_dashboard — header
+    register_consolidated_tool(
+        name="agent_dashboard",
+        description="Dashboard command-center header. Actions: header.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["header"]},
+            },
+            "required": ["action"],
+        },
+        actions={"header": dashboard["dashboard_header"]},
+        toolset="both",
+        module="dashboard",
+    )
+
+    logger.info("Registered 14 consolidated MCP tools")

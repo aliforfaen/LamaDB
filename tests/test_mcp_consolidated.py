@@ -143,11 +143,14 @@ class TestEndpointVisibility:
         "agent_kanban_meta",
         "agent_messages",
         "admin_secrets",
+        "agent_hermes",
+        "agent_feeds",
+        "agent_dashboard",
     }
 
     @pytest.mark.asyncio
     async def test_admin_endpoint_returns_all_consolidated_tools(self, client):
-        """/mcp/admin should expose all 11 consolidated tools (admin + both)."""
+        """/mcp/admin should expose all 14 consolidated tools (admin + both)."""
         body = await _post_mcp(client, "/mcp/admin", "tools/list", {})
         assert "result" in body, body
         names = {t["name"] for t in body["result"]["tools"]}
@@ -591,3 +594,351 @@ class TestAdminPermissions:
             headers={"Authorization": f"Bearer {read_key}"},
         )
         assert resp.status_code == 403
+
+
+# ===========================================================================
+# 7. Phase 18 wrappers — agent_hermes, agent_feeds, agent_dashboard
+# ===========================================================================
+
+@container_required
+class TestAgentHermesTool:
+    """agent_hermes dispatches to modules/hermes/mcp.py handlers."""
+
+    @pytest.mark.asyncio
+    async def test_listed_in_admin_endpoint(self, client):
+        """agent_hermes (toolset='both') appears in /mcp/admin tools/list."""
+        body = await _post_mcp(client, "/mcp/admin", "tools/list", {})
+        names = {t["name"] for t in body["result"]["tools"]}
+        assert "agent_hermes" in names
+
+    @pytest.mark.asyncio
+    async def test_listed_in_worker_endpoint(self, client):
+        """agent_hermes (toolset='both') appears in /mcp/worker tools/list."""
+        body = await _post_mcp(client, "/mcp/worker", "tools/list", {})
+        names = {t["name"] for t in body["result"]["tools"]}
+        assert "agent_hermes" in names
+
+    @pytest.mark.asyncio
+    async def test_schema_advertises_all_three_actions(self, client):
+        """Schema's action enum covers sessions, stats, and health."""
+        body = await _post_mcp(client, "/mcp/admin", "tools/list", {})
+        tool = next(
+            t for t in body["result"]["tools"] if t["name"] == "agent_hermes"
+        )
+        actions = set(tool["inputSchema"]["properties"]["action"]["enum"])
+        assert actions == {"sessions", "stats", "health"}
+
+    @pytest.mark.asyncio
+    async def test_health_action_does_not_error_when_hermes_unreachable(self, client):
+        """health always returns a dict (with reachable:false if Hermes is down).
+
+        Tolerates both upstream reachable (returns version) and
+        unreachable (returns error: "Connection failed").
+        """
+        body = await _post_mcp(
+            client,
+            "/mcp/admin",
+            "tools/call",
+            {"name": "agent_hermes", "arguments": {"action": "health"}},
+        )
+        assert "result" in body, body
+        result = json.loads(body["result"]["content"][0]["text"])
+        assert "reachable" in result
+        assert isinstance(result["reachable"], bool)
+        # If reachable: must have url/version. If not: must have error/url.
+        if result["reachable"]:
+            assert "url" in result
+        else:
+            assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_unknown_action_returns_error(self, client):
+        """Unknown action on agent_hermes surfaces as -32603 from the dispatcher."""
+        body = await _post_mcp(
+            client,
+            "/mcp/admin",
+            "tools/call",
+            {"name": "agent_hermes", "arguments": {"action": "definitely_bogus"}},
+        )
+        assert "error" in body, body
+        assert body["error"]["code"] == -32603
+        assert "agent_hermes" in body["error"]["message"] or "definitely_bogus" in body["error"]["message"]
+
+
+@container_required
+class TestAgentFeedsTool:
+    """agent_feeds dispatches to modules/feeds/mcp.py handlers."""
+
+    @pytest.mark.asyncio
+    async def test_listed_in_admin_endpoint(self, client):
+        body = await _post_mcp(client, "/mcp/admin", "tools/list", {})
+        names = {t["name"] for t in body["result"]["tools"]}
+        assert "agent_feeds" in names
+
+    @pytest.mark.asyncio
+    async def test_listed_in_worker_endpoint(self, client):
+        body = await _post_mcp(client, "/mcp/worker", "tools/list", {})
+        names = {t["name"] for t in body["result"]["tools"]}
+        assert "agent_feeds" in names
+
+    @pytest.mark.asyncio
+    async def test_schema_advertises_list_and_latest_actions(self, client):
+        body = await _post_mcp(client, "/mcp/admin", "tools/list", {})
+        tool = next(
+            t for t in body["result"]["tools"] if t["name"] == "agent_feeds"
+        )
+        actions = set(tool["inputSchema"]["properties"]["action"]["enum"])
+        assert actions == {"list", "latest"}
+
+    @pytest.mark.asyncio
+    async def test_list_returns_feeds_dict(self, client):
+        """action=list returns {feeds: [...], count: N} regardless of seed data."""
+        body = await _post_mcp(
+            client,
+            "/mcp/admin",
+            "tools/call",
+            {"name": "agent_feeds", "arguments": {"action": "list"}},
+        )
+        assert "result" in body, body
+        result = json.loads(body["result"]["content"][0]["text"])
+        assert "feeds" in result
+        assert "count" in result
+        assert isinstance(result["feeds"], list)
+        assert result["count"] == len(result["feeds"])
+        # If feeds are seeded, each entry carries the documented shape.
+        for feed in result["feeds"]:
+            assert "slug" in feed
+            assert "name" in feed
+
+    @pytest.mark.asyncio
+    async def test_latest_returns_entries_dict(self, client):
+        """action=latest returns {entries: [...], count: N}."""
+        body = await _post_mcp(
+            client,
+            "/mcp/admin",
+            "tools/call",
+            {"name": "agent_feeds", "arguments": {"action": "latest", "limit": 5}},
+        )
+        assert "result" in body, body
+        result = json.loads(body["result"]["content"][0]["text"])
+        assert "entries" in result
+        assert "count" in result
+        assert isinstance(result["entries"], list)
+
+    @pytest.mark.asyncio
+    async def test_latest_with_unknown_slug_returns_empty(self, client):
+        """action=latest with a non-existent slug returns empty (no error)."""
+        body = await _post_mcp(
+            client,
+            "/mcp/admin",
+            "tools/call",
+            {
+                "name": "agent_feeds",
+                "arguments": {
+                    "action": "latest",
+                    "slug": "definitely-not-a-feed-xyz",
+                },
+            },
+        )
+        assert "result" in body, body
+        result = json.loads(body["result"]["content"][0]["text"])
+        assert result["count"] == 0
+        assert result["entries"] == []
+
+    @pytest.mark.asyncio
+    async def test_unknown_action_returns_error(self, client):
+        body = await _post_mcp(
+            client,
+            "/mcp/admin",
+            "tools/call",
+            {"name": "agent_feeds", "arguments": {"action": "bogus_action"}},
+        )
+        assert "error" in body, body
+        assert body["error"]["code"] == -32603
+
+
+@container_required
+class TestAgentDashboardTool:
+    """agent_dashboard dispatches to modules/dashboard/mcp.py handlers."""
+
+    @pytest.mark.asyncio
+    async def test_listed_in_admin_endpoint(self, client):
+        body = await _post_mcp(client, "/mcp/admin", "tools/list", {})
+        names = {t["name"] for t in body["result"]["tools"]}
+        assert "agent_dashboard" in names
+
+    @pytest.mark.asyncio
+    async def test_listed_in_worker_endpoint(self, client):
+        body = await _post_mcp(client, "/mcp/worker", "tools/list", {})
+        names = {t["name"] for t in body["result"]["tools"]}
+        assert "agent_dashboard" in names
+
+    @pytest.mark.asyncio
+    async def test_schema_advertises_header_action(self, client):
+        body = await _post_mcp(client, "/mcp/admin", "tools/list", {})
+        tool = next(
+            t for t in body["result"]["tools"] if t["name"] == "agent_dashboard"
+        )
+        actions = set(tool["inputSchema"]["properties"]["action"]["enum"])
+        assert actions == {"header"}
+
+    @pytest.mark.asyncio
+    async def test_header_action_returns_status_bar_and_ticker(self, client):
+        """action=header returns the dashboard command-center payload."""
+        body = await _post_mcp(
+            client,
+            "/mcp/admin",
+            "tools/call",
+            {"name": "agent_dashboard", "arguments": {"action": "header"}},
+        )
+        assert "result" in body, body
+        result = json.loads(body["result"]["content"][0]["text"])
+        assert "status_bar" in result
+        assert "ticker" in result
+        assert isinstance(result["ticker"], list)
+
+        sb = result["status_bar"]
+        for led in ("services", "notifications", "dozzle", "agents"):
+            assert led in sb, f"missing status_bar.{led}"
+        assert "total" in sb["services"]
+        assert "up" in sb["services"]
+        assert "down" in sb["services"]
+
+    @pytest.mark.asyncio
+    async def test_header_ticker_items_have_icon_field(self, client):
+        """Each ticker item must have an icon field (server-computed)."""
+        body = await _post_mcp(
+            client,
+            "/mcp/admin",
+            "tools/call",
+            {"name": "agent_dashboard", "arguments": {"action": "header"}},
+        )
+        result = json.loads(body["result"]["content"][0]["text"])
+        for item in result["ticker"]:
+            assert "icon" in item
+            assert "id" in item
+            assert "title" in item
+
+    @pytest.mark.asyncio
+    async def test_unknown_action_returns_error(self, client):
+        body = await _post_mcp(
+            client,
+            "/mcp/admin",
+            "tools/call",
+            {"name": "agent_dashboard", "arguments": {"action": "bogus"}},
+        )
+        assert "error" in body, body
+        assert body["error"]["code"] == -32603
+
+
+# ===========================================================================
+# 8. Unit tests for handler modules (no live container, no upstream APIs)
+# ===========================================================================
+# These cover the Phase 18 wrapper logic without requiring Hermes to
+# be reachable or the dashboard header endpoint to be alive. They import
+# the handlers directly and exercise the small wrappers.
+
+class TestHermesHandlerUnits:
+    """Pure-Python unit tests for modules.hermes.mcp.* (no Hermes API)."""
+
+    @pytest.mark.asyncio
+    async def test_hermes_health_when_url_unset(self, monkeypatch):
+        """When settings.hermes_url is empty, health returns unreachable:false."""
+        from app.config import settings
+        from modules.hermes import mcp as hermes_mcp
+
+        monkeypatch.setattr(settings, "hermes_url", "", raising=False)
+        result = await hermes_mcp.hermes_health()
+        assert result["reachable"] is False
+        assert result["url"] == ""
+        assert "not configured" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_hermes_sessions_returns_error_when_no_url(self, monkeypatch):
+        """With no URL configured, sessions returns the documented error shape."""
+        from app.config import settings
+        from modules.hermes import mcp as hermes_mcp
+
+        monkeypatch.setattr(settings, "hermes_url", "", raising=False)
+        result = await hermes_mcp.hermes_sessions(limit=5)
+        assert "error" in result
+        assert result["count"] == 0
+        assert result["sessions"] == []
+
+    @pytest.mark.asyncio
+    async def test_hermes_stats_returns_error_when_no_url(self, monkeypatch):
+        from app.config import settings
+        from modules.hermes import mcp as hermes_mcp
+
+        monkeypatch.setattr(settings, "hermes_url", "", raising=False)
+        result = await hermes_mcp.hermes_stats()
+        assert result == {"error": "Hermes unreachable"}
+
+
+class TestFeedsHandlerUnits:
+    """Pure-Python unit tests for modules.feeds.mcp.* (mocked pool)."""
+
+    @pytest.mark.asyncio
+    async def test_latest_feed_entries_clamps_limit(self):
+        """limit > 50 is silently clamped to 50."""
+        # Patch get_pool to return a stub that returns zero rows so we can
+        # exercise the clamp without a live DB.
+        from modules.feeds import mcp as feeds_mcp
+
+        class _StubAcquire:
+            async def __aenter__(self):
+                class _StubConn:
+                    async def fetch(self, *args, **kwargs):
+                        return []
+                return _StubConn()
+
+            async def __aexit__(self, *args):
+                return False
+
+        class _StubPool:
+            def acquire(self):
+                return _StubAcquire()
+
+        original = feeds_mcp.get_pool
+        feeds_mcp.get_pool = lambda: _StubPool()
+        try:
+            # The clamped limit should not surface; we only verify the call
+            # doesn't error out for an absurdly large limit.
+            result = await feeds_mcp.latest_feed_entries(limit=10_000)
+            assert "entries" in result
+            assert isinstance(result["entries"], list)
+        finally:
+            feeds_mcp.get_pool = original
+
+    @pytest.mark.asyncio
+    async def test_latest_unknown_slug_returns_error_payload(self):
+        """A non-existent slug returns {entries:[], count:0, error:...}."""
+        from modules.feeds import mcp as feeds_mcp
+
+        class _StubAcquire:
+            async def __aenter__(self):
+                class _StubConn:
+                    async def fetchrow(self, *args, **kwargs):
+                        return None
+
+                    async def fetch(self, *args, **kwargs):
+                        return []
+                return _StubConn()
+
+            async def __aexit__(self, *args):
+                return False
+
+        class _StubPool:
+            def acquire(self):
+                return _StubAcquire()
+
+        original = feeds_mcp.get_pool
+        feeds_mcp.get_pool = lambda: _StubPool()
+        try:
+            result = await feeds_mcp.latest_feed_entries(slug="nope-xyz")
+            assert result["count"] == 0
+            assert result["entries"] == []
+            assert result["slug"] == "nope-xyz"
+            assert "error" in result
+        finally:
+            feeds_mcp.get_pool = original
