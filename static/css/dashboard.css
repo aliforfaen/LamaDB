@@ -1840,6 +1840,8 @@ table td.nowrap { white-space: nowrap; }
   border: none;
   background: none;
   width: 100%;
+  min-width: 0;
+  overflow: hidden;
   text-align: left;
   transition: color var(--transition), background var(--transition);
   user-select: none;
