@@ -315,3 +315,31 @@ async def patch_event(
                 detail=f"Event {event_id} not found",
             )
         return _event_from_row(row)
+
+
+class BulkDismissRequest(BaseModel):
+    event_ids: list[int]
+
+
+@router.post("/bulk-dismiss")
+async def bulk_dismiss_events(
+    body: BulkDismissRequest,
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
+    """Dismiss (mark as processed) a batch of events by ID."""
+    if user.role not in ("admin", "agent"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    if not body.event_ids:
+        return {"dismissed": 0}
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE events SET processed = true WHERE id = ANY($1)",
+            body.event_ids,
+        )
+        return {"dismissed": len(body.event_ids)}

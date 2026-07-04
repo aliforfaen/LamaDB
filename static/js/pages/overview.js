@@ -3,6 +3,7 @@
   'use strict';
 
   var POLL_INTERVALS = { health: 30000, modules: 60000, rss: 120000, agents: 60000 };
+  var _overviewLoadedOnce = false;
 
   // Tracked timers for cleanup on navigation
   var _timers = [];
@@ -19,7 +20,10 @@
   };
 
   window.loadOverview = async function() {
-    // Fire all widget loaders in parallel — each handles its own errors
+    if (!window.LlamaApp || !window.LlamaApp.getApiKey || !window.LlamaApp.getApiKey()) return;
+    // Stop any leftover polls from a previous visit
+    window.stopOverviewPolling();
+    _overviewLoadedOnce = true;
     await Promise.all([
       loadHealthBar(),
       loadModuleCards(),
@@ -366,15 +370,10 @@
     btn.disabled = true;
     btn.textContent = '...';
     try {
-      // Patch each event in the group. Failures on individual events are
-      // ignored — the group is considered dismissed as long as the lead id
-      // is processed.
-      await Promise.all(allIds.map(function(id) {
-        return window.api('/api/events/' + id, {
-          method: 'PATCH',
-          body: JSON.stringify({ processed: true })
-        }).catch(function() { return null; });
-      }));
+      await window.api('/api/events/bulk-dismiss', {
+        method: 'POST',
+        body: JSON.stringify({ event_ids: allIds })
+      });
       if (item) {
         item.style.opacity = '0.3';
         setTimeout(function() {
@@ -497,9 +496,11 @@
       }
 
       list.innerHTML = articles.slice(0, 5).map(function(a) {
+        var source = a.feed_title || a.source;
+        var sourceHtml = source && source !== 'RSS' ? '<span class="rss-source">' + window.escHtml(source) + '</span>' : '';
         return '<div class="rss-item">' +
-          '<span class="rss-source">' + (a.feed_title || a.source || 'RSS') + '</span>' +
-          '<span class="rss-title">' + (a.title || 'Untitled') + '</span>' +
+          sourceHtml +
+          '<span class="rss-title">' + window.escHtml(a.title || 'Untitled') + '</span>' +
         '</div>';
       }).join('');
     } catch (e) {

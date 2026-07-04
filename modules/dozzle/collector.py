@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import re
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -14,6 +15,13 @@ logger = logging.getLogger(__name__)
 
 # Maximum events to insert per container per cycle to limit CPU/DB load
 MAX_EVENTS_PER_CONTAINER = 50
+
+# Window of logs to fetch per cycle. Must be >= the poller interval (300s in
+# main.py) so a container that logs once per cycle still surfaces. Bounded so
+# Dozzle's fetchLogsBetweenDates doesn't walk back through container history
+# for noisy containers (jellyseerr, affine), which used to exceed the read
+# timeout.
+DEFAULT_LOG_WINDOW_MINUTES = 10
 
 _ANSI_RE = re.compile(r'\x1b\[[0-9;]*m')
 
@@ -144,6 +152,16 @@ async def collect() -> dict:
     error_count = 0
     warn_count = 0
     containers_scanned = 0
+    # Track per-cycle timeout warnings so a single noisy container doesn't
+    # flood the log once per poller interval. Reset every collect() call.
+    warned_containers: set[str] = set()
+
+    # Bound the log window so Dozzle's fetchLogsBetweenDates doesn't walk
+    # back through all history for noisy containers (jellyseerr, affine).
+    # See DEFAULT_LOG_WINDOW_MINUTES comment for the rationale.
+    now_utc = datetime.now(timezone.utc)
+    from_ts = (now_utc - timedelta(minutes=DEFAULT_LOG_WINDOW_MINUTES)).isoformat()
+    to_ts = now_utc.isoformat()
 
     async with pool.acquire() as conn:
         for container in containers:
@@ -158,9 +176,11 @@ async def collect() -> dict:
             containers_scanned += 1
 
             try:
-                entries = await _fetch_container_logs(host, cid)
+                entries = await _fetch_container_logs(host, cid, from_ts=from_ts, to_ts=to_ts)
             except Exception as e:
-                logger.warning(f"Dozzle collector: log fetch error for {name}: {e}")
+                if cid not in warned_containers:
+                    logger.warning(f"Dozzle collector: log fetch error for {name}: {e}")
+                    warned_containers.add(cid)
                 continue
 
             # Fetch existing dedup keys for this container (last 500 events)
@@ -291,7 +311,12 @@ async def _fetch_containers() -> list[dict]:
     return containers
 
 
-async def _fetch_container_logs(host: str, container_id: str) -> list[dict]:
+async def _fetch_container_logs(
+    host: str,
+    container_id: str,
+    from_ts: str | None = None,
+    to_ts: str | None = None,
+) -> list[dict]:
     """
     Fetch parsed log entries for a container via Dozzle v10 API.
 
@@ -300,29 +325,43 @@ async def _fetch_container_logs(host: str, container_id: str) -> list[dict]:
     pool via asyncio.to_thread() to avoid blocking the event loop.
 
     Uses a 3s connect timeout so unreachable hosts fail fast — callers
-    skip the container and continue scanning the rest of the fleet.
+    skip the container and continue scanning the rest of the fleet. The
+    30s read timeout is generous enough for noisy containers (jellyseerr,
+    affine) over Tailscale, where a 500-line ring-buffer response can take
+    10–20s to serialize and transmit.
+
+    ``from_ts``/``to_ts`` (RFC3339) bound the log window so Dozzle's
+    fetchLogsBetweenDates doesn't walk back through container history for
+    noisy containers. Without bounds, a single ``levels=error&levels=warn``
+    query can hit a 500-event ceiling and keep doubling the search window
+    until the response exceeds the read timeout.
 
     Returns list of dicts with ``level`` and ``message`` keys, limited to
     first 500 lines per container.
     """
+    params = "stdout=1&stderr=1&levels=error&levels=warn"
+    if from_ts:
+        params += f"&from={from_ts}"
+    if to_ts:
+        params += f"&to={to_ts}"
     url = (
         f"{settings.dozzle_url}/api/hosts/{host}/containers/"
-        f"{container_id}/logs?stdout=1&stderr=1&levels=error&levels=warn"
+        f"{container_id}/logs?{params}"
     )
 
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 url,
-                timeout=httpx.Timeout(connect=3.0, read=10.0, write=5.0, pool=3.0),
+                timeout=httpx.Timeout(connect=3.0, read=30.0, write=5.0, pool=3.0),
             )
             response.raise_for_status()
             text = response.text
     except (httpx.HTTPError, httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
-        logger.warning(f"Dozzle collector: log fetch timeout/error for {container_id[:12]}: {e}")
+        logger.debug(f"Dozzle collector: log fetch timeout/error for {container_id[:12]}: {e}")
         return []
     except Exception as e:
-        logger.warning(f"Dozzle collector: log fetch error for {container_id[:12]}: {e}")
+        logger.debug(f"Dozzle collector: log fetch error for {container_id[:12]}: {e}")
         return []
 
     # Offload JSON parsing to thread pool to keep event loop responsive

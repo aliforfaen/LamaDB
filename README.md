@@ -32,21 +32,22 @@ LamaDB replaces scattered JSONL files, Telegram notification channels, paper not
 
 ## Quick Start
 
+**The canonical dev environment is a Proxmox LXC, not your local machine.** LamaDB is already running and accessible remotely.
+
 ```bash
-# Clone and start
+# Clone the repo (for local editing / code review)
 git clone <repo-url> lamadb
 cd lamadb
-cp .env.example .env
-# Edit .env with your API keys and URLs
 
-docker compose up -d
+# The running instance is at:
+# Dashboard:   http://192.168.68.26:8000
+# Swagger:     http://192.168.68.26:8000/docs
+# MCP:         http://192.168.68.26:8000/mcp
+# Admin key:   lamadb_test_key_2026
 
-# Dashboard: http://localhost:8000
-# Swagger docs: http://localhost:8000/docs
-# MCP endpoint: http://localhost:8000/mcp
+# To deploy changes, sync to the LXC and rebuild there:
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"
 ```
-
-Default API key for dashboard: `lamadb_test_key_2026` (admin, all scopes).
 
 ## Architecture
 
@@ -137,30 +138,35 @@ See `.env.example` for all 25+ variables. Key ones:
 
 ## Development
 
-```bash
-# Start
-docker compose up -d
+LamaDB is deployed on a Proxmox LXC at `192.168.68.26`. The Docker Compose stack runs inside the LXC — **do NOT run Docker locally.** Develop against the remote instance:
 
-# Rebuild after code changes
+```bash
+# SSH into the LXC
+ssh lamadb-dev
+
+# Repo path on LXC: /home/messhias/projects/lamadb
+
+# Rebuild after code changes (run on the LXC):
+cd /home/messhias/projects/lamadb
 docker compose build api && docker compose up -d api
 
-# Run a specific test
-docker exec lamadb_api python3 -m pytest tests/test_feeds.py -q
+# Run tests on the LXC:
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose exec api python3 -m pytest tests/test_feeds.py -q"
 
-# Run benchmarks
-docker exec lamadb_api python3 benchmarks/bench_all_endpoints.py
+# Run benchmarks on the LXC:
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose exec api python3 benchmarks/bench_all_endpoints.py"
 
-# Check logs
-docker logs lamadb_api --tail 20
+# Check logs on the LXC:
+ssh lamadb-dev "docker logs lamadb_api --tail 20"
 
-# DB access
-docker exec lamadb_postgres psql -U lamadb -d lamadb
+# DB access on the LXC:
+ssh lamadb-dev "docker exec lamadb_postgres psql -U lamadb -d lamadb"
 
-# Swagger UI
-open http://localhost:8000/docs
+# Swagger UI (open in browser):
+# http://192.168.68.26:8000/docs
 ```
 
-Static files are COPY'd into the Docker image — rebuild after any `static/`, `app/`, `modules/`, or `migrations/` changes.
+Static files are COPY'd into the Docker image — rebuild on the LXC after any `static/`, `app/`, `modules/`, or `migrations/` changes.
 
 ## MCP Server
 

@@ -1,0 +1,35 @@
+/* Make legacy page sections render reasonably inside the new shell */
+.legacy-page {
+  color: var(--fg);
+}
+
+.legacy-page .page {
+  display: none;
+}
+
+.legacy-page .page.page-active {
+  display: block;
+}
+
+/* Override old fixed heights that may clip in the new layout */
+.legacy-page .app-shell,
+.legacy-page .main {
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+}
+
+/* Hide old chrome inside legacy pages */
+.legacy-page .header-bar,
+.legacy-page .ticker-wrap,
+.legacy-page .sidebar,
+.legacy-page .main-header {
+  display: none !important;
+}
+
+/* Hide old mobile bottom nav in legacy pages (new shell has its own) */
+.legacy-page .mobile-bottom-nav {
+  display: none !important;
+}

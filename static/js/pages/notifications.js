@@ -1,4 +1,183 @@
-// Page: Notifications
+function safeShowError(msg) {
+  if (window.LlamaApp && window.LlamaApp.showError) {
+    window.LlamaApp.showError(msg);
+  } else {
+    console.error('[LamaDB]', msg);
+  }
+}
+
+function bucketNotifications(groups) {
+  var now = Date.now();
+  var buckets = { today: [], yesterday: [], week: [], older: [] };
+  (groups || []).forEach(function(g) {
+    var t = new Date(g.last_seen || g.first_seen).getTime();
+    var d = now - t;
+    if (d < 86400000) buckets.today.push(g);
+    else if (d < 172800000) buckets.yesterday.push(g);
+    else if (d < 604800000) buckets.week.push(g);
+    else buckets.older.push(g);
+  });
+  return buckets;
+}
+window.bucketNotifications = bucketNotifications;
+
+var _selectedNotificationIds = [];
+
+window.openNotificationDetail = function(group) {
+  _selectedNotificationIds = group.event_ids || [];
+  var titleEl = document.getElementById('notification-detail-title');
+  var metaEl = document.getElementById('notification-detail-meta');
+  var bodyEl = document.getElementById('notification-detail-body');
+  var idsEl = document.getElementById('notification-detail-ids');
+  if (!titleEl) return;
+  titleEl.textContent = group.title || 'Alert';
+  if (metaEl) metaEl.textContent = (group.source || '') + ' \u00b7 ' + (group.type || '') + ' \u00b7 ' + (group.severity || 'info');
+  if (bodyEl) bodyEl.textContent = group.body || '';
+  if (idsEl) idsEl.textContent = _selectedNotificationIds.join(', ');
+  document.getElementById('notification-detail-modal').style.display = 'flex';
+};
+
+window.closeNotificationDetail = function() {
+  document.getElementById('notification-detail-modal').style.display = 'none';
+  _selectedNotificationIds = [];
+};
+
+window.dismissSelectedNotifications = async function() {
+  if (!_selectedNotificationIds.length) return;
+  try {
+    await window.api('/api/events/bulk-dismiss', {
+      method: 'POST',
+      body: JSON.stringify({ event_ids: _selectedNotificationIds })
+    });
+    window.closeNotificationDetail();
+    if (window.loadNotifications) window.loadNotifications();
+  } catch (e) {
+    safeShowError('Failed to dismiss alerts');
+  }
+};
+
+document.addEventListener('alpine:init', function() {
+  Alpine.data('notificationsPage', function() {
+    return {
+      loading: true,
+      groups: [],
+      filterSeverity: '',
+      filterSource: '',
+      showProcessed: false,
+      sources: [],
+
+      async init() {
+        if (window.LlamaApp && window.LlamaApp.getApiKey && window.LlamaApp.getApiKey()) {
+          await this.load();
+        }
+        var self = this;
+        window.addEventListener('lamadb:authenticated', function() {
+          self.load();
+        }, { once: true });
+      },
+
+      async load() {
+        this.loading = true;
+        try {
+          if (this.showProcessed) {
+            var events = await window.api('/api/events?limit=100');
+            this.groups = (events || []).map(function(e) {
+              return {
+                key: e.id,
+                title: e.title,
+                source: e.source,
+                severity: e.severity,
+                count: 1,
+                first_seen: e.ts,
+                last_seen: e.ts,
+                event_ids: [e.id]
+              };
+            });
+          } else {
+            var resp = await window.api('/api/notifications/unread?aggregate=true');
+            this.groups = resp.items || resp || [];
+          }
+
+          var sourceSet = {};
+          this.groups.forEach(function(g) { sourceSet[g.source] = true; });
+          this.sources = Object.keys(sourceSet).sort();
+        } catch (e) {
+          safeShowError('Failed to load notifications');
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      filteredGroups() {
+        var self = this;
+        return this.groups.filter(function(g) {
+          if (self.filterSeverity && g.severity !== self.filterSeverity) return false;
+          if (self.filterSource && g.source !== self.filterSource) return false;
+          return true;
+        }).sort(function(a, b) {
+          var sevOrder = { critical: 0, error: 1, warning: 2, warn: 2, info: 3 };
+          var sa = sevOrder[a.severity] || 99;
+          var sb = sevOrder[b.severity] || 99;
+          if (sa !== sb) return sa - sb;
+          return new Date(b.last_seen) - new Date(a.last_seen);
+        });
+      },
+
+      sections() {
+        var buckets = bucketNotifications(this.filteredGroups());
+        var labels = { today: 'Today', yesterday: 'Yesterday', week: 'This week', older: 'Older' };
+        var result = [];
+        ['today', 'yesterday', 'week', 'older'].forEach(function(key) {
+          if (buckets[key].length) {
+            result.push({ label: labels[key], items: buckets[key] });
+          }
+        });
+        return result;
+      },
+
+      severityLedClass(sev) {
+        if (sev === 'critical' || sev === 'error') return 'error';
+        if (sev === 'warning' || sev === 'warn') return 'warn';
+        return 'on';
+      },
+
+      openDetail(group) {
+        window.openNotificationDetail(group);
+      },
+
+      async dismissGroup(group, event) {
+        if (event) event.stopPropagation();
+        try {
+          await window.api('/api/events/bulk-dismiss', {
+            method: 'POST',
+            body: JSON.stringify({ event_ids: group.event_ids })
+          });
+          this.groups = this.groups.filter(function(g) { return g !== group; });
+        } catch (e) {
+          safeShowError('Failed to dismiss notification group');
+        }
+      },
+
+      groupIcon(source) {
+        var map = {
+          'uptime_kuma': '📡',
+          'dozzle': '🐳',
+          'hermes': '🧠',
+          'ntfy': '🔔',
+          'freshrss': '📰'
+        };
+        return map[source] || '📎';
+      },
+
+      formatTime(ts) {
+        var d = new Date(ts);
+        return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+    };
+  });
+});
+
+// Legacy notification rules management (preserved during redesign)
 (function() {
   'use strict';
 

@@ -2,15 +2,248 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>LamaDB — Management Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/shell.css" />
+  <link rel="stylesheet" href="/css/legacy.css" />
+  <link rel="stylesheet" href="/css/pages/home.css" />
+  <link rel="stylesheet" href="/css/pages/notifications.css" />
   <link rel="stylesheet" href="/css/dashboard.css" />
   <link rel="stylesheet" href="/css/kanban.css" />
 </head>
 <body>
+
+<div class="app-root" x-data="shell()" x-init="init()">
+  <!-- ═══ HEADER ═══ -->
+  <header class="app-header">
+    <div class="title" id="page-title">Home</div>
+    <div class="connection-status" id="connection-status">
+      <span class="sse-led" id="sse-led"></span>
+      <span class="sse-label" id="sse-label">Connecting...</span>
+    </div>
+    <div class="actions">
+      <button class="icon-btn touch-target" @click="openPalette()" aria-label="Command palette" title="Cmd+K">&#x2318;</button>
+      <button class="icon-btn touch-target" @click="toggleTheme()" aria-label="Toggle theme" title="Toggle theme">&#x1F313;</button>
+      <div class="theme-picker" x-data="{ open: false }">
+        <button class="icon-btn touch-target" @click="open = !open" aria-label="Choose accent color" title="Accent">&#x25CF;</button>
+        <div class="theme-picker-menu" x-show="open" @click.away="open = false" x-cloak>
+          <template x-for="p in window.THEME_PRESETS" :key="p.id">
+            <button class="theme-preset-dot" :data-preset="p.id" :title="p.label" @click="window.setThemePreset(p.id); open = false"
+              :style="'background: hsl(' + p.hue + ' 100% 50%)'"></button>
+          </template>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-body">
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="app-sidebar">
+      <div class="brand" @click="go('home')" role="button" aria-label="Go to Home" title="Home">
+        <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 7V4h16v3" stroke="var(--accent)"/>
+          <path d="M9 20h6" stroke="var(--accent)"/>
+          <path d="M12 4v16" stroke="var(--muted)"/>
+          <circle cx="12" cy="12" r="2" fill="var(--accent)" stroke="none"/>
+        </svg>
+        <div class="name">Lama<span>DB</span></div>
+      </div>
+      <nav>
+        <div class="nav-section">
+          <div class="nav-section-title">Life-OS</div>
+          <button class="nav-item active" data-page="home" data-icon="&#x1F3E0;" @click="go('home')">&#x1F3E0; Home</button>
+          <button class="nav-item" data-page="notifications" data-icon="&#x1F514;" @click="go('notifications')">&#x1F514; Notifications</button>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Legacy</div>
+          <button class="nav-item" data-page="overview" data-icon="&#x1F4CA;" @click="go('overview')">&#x1F4CA; Overview</button>
+          <button class="nav-item" data-page="documents" data-icon="&#x1F4DD;" @click="go('documents')">&#x1F4DD; Documents</button>
+          <button class="nav-item" data-page="events" data-icon="&#x1F4E1;" @click="go('events')">&#x1F4E1; Events</button>
+          <button class="nav-item" data-page="search" data-icon="&#x1F50D;" @click="go('search')">&#x1F50D; Search</button>
+          <button class="nav-item" data-page="uptime" data-icon="&#x1F5A5;" @click="go('uptime')">&#x1F5A5; Uptime</button>
+          <button class="nav-item" data-page="dozzle" data-icon="&#x1F433;" @click="go('dozzle')">&#x1F433; Dozzle</button>
+          <button class="nav-item" data-page="hermes" data-icon="&#x1F9E0;" @click="go('hermes')">&#x1F9E0; Hermes</button>
+          <button class="nav-item" data-page="agentboard" data-icon="&#x1F916;" @click="go('agentboard')">&#x1F916; Agent Board</button>
+          <button class="nav-item" data-page="kanban" data-icon="&#x1F4CB;" @click="go('kanban')">&#x1F4CB; Kanban</button>
+          <button class="nav-item" data-page="feeds" data-icon="&#x1F4F0;" @click="go('feeds')">&#x1F4F0; Feeds</button>
+          <button class="nav-item" data-page="freshrss" data-icon="&#x1F4D1;" @click="go('freshrss')">&#x1F4D1; FreshRSS</button>
+          <button class="nav-item" data-page="ntfy" data-icon="&#x1F514;" @click="go('ntfy')">&#x1F514; Ntfy</button>
+          <button class="nav-item" data-page="notflix" data-icon="&#x1F3AC;" @click="go('notflix')">&#x1F3AC; Notflix</button>
+          <button class="nav-item" data-page="wiki" data-icon="&#x1F4DA;" @click="go('wiki')">&#x1F4DA; Wiki</button>
+          <button class="nav-item" data-page="homeassistant" data-icon="&#x1F3E0;" @click="go('homeassistant')">&#x1F3E0; Home Assistant</button>
+          <button class="nav-item" data-page="settings" data-icon="&#x2699;&#xFE0F;" @click="go('settings')">&#x2699;&#xFE0F; Settings</button>
+          <button class="nav-item" data-page="secrets" data-icon="&#x1F510;" @click="go('secrets')">&#x1F510; Secrets</button>
+          <button class="nav-item" data-page="access-requests" data-icon="&#x1F511;" @click="go('access-requests')">&#x1F511; Access Requests</button>
+          <button class="nav-item" data-page="groups" data-icon="&#x1F465;" @click="go('groups')">&#x1F465; Groups</button>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="app-main">
+      <!-- ═══ HOME PAGE ═══ -->
+      <section class="app-page" data-page="home" x-data="homePage()" x-init="init()" x-cloak>
+          <div class="home-page">
+            <!-- Today card -->
+            <div class="ll-card home-today-card" style="margin-bottom: var(--space-4);">
+              <div class="greeting" x-text="greeting"></div>
+              <div class="date" x-text="today"></div>
+              <div class="presence" x-show="presence">
+                <span class="presence-dot"></span>
+                <span x-text="presence"></span>
+              </div>
+              <div x-show="brief" style="margin-top: var(--space-2); font-size: var(--text-sm); color: var(--fg-2);">
+                <strong>Brief:</strong> <span x-text="brief ? brief.title : ''"></span>
+              </div>
+            </div>
+
+            <!-- Attention Grid: SmartNotes from kanban, alerts, warnings -->
+            <div class="attention-grid" style="margin-bottom: var(--space-4);">
+              <template x-for="note in attentionNotes" :key="note.id">
+                <div class="smart-note" :class="note.type" @click="note.click">
+                  <div class="smart-note-icon" x-text="note.icon"></div>
+                  <div class="smart-note-content">
+                    <div class="smart-note-title" x-text="note.title"></div>
+                    <div class="smart-note-body" x-text="note.meta"></div>
+                  </div>
+                  <div class="note-action" x-show="note.cta">
+                    <button class="ll-button ghost sm" x-text="note.cta" @click.stop="note.click"></button>
+                  </div>
+                </div>
+              </template>
+              <!-- Fallback when nothing needs attention -->
+              <div class="smart-note empty" x-show="!attentionNotes.length">
+                <div class="smart-note-icon">&#x2705;</div>
+                <div class="smart-note-content">
+                  <div class="smart-note-title">All clear</div>
+                  <div class="smart-note-body">No items need your attention right now</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Links: key-cap buttons -->
+            <div class="ll-card" style="margin-bottom: var(--space-4);">
+              <div class="ll-card-header">
+                <h3 class="ll-card-title">Quick Links</h3>
+              </div>
+              <div class="quick-links">
+                <button class="key-cap" @click="quickAction('event')">
+                  <span class="key-cap-icon">&#x1F4DD;</span>
+                  <span>Log Event</span>
+                </button>
+                <button class="key-cap" @click="quickAction('scene')">
+                  <span class="key-cap-icon">&#x1F4A1;</span>
+                  <span>Toggle Scene</span>
+                </button>
+                <button class="key-cap" @click="quickAction('task')">
+                  <span class="key-cap-icon">&#x2705;</span>
+                  <span>Create Task</span>
+                </button>
+                <button class="key-cap" @click="quickAction('note')">
+                  <span class="key-cap-icon">&#x1F4D3;</span>
+                  <span>Add Note</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="ll-card" id="home-recent-activity">
+              <div class="ll-card-header">
+                <h3 class="ll-card-title">Recent Activity</h3>
+                <div class="live-indicator">
+                  <span class="activity-led" id="activity-led"></span>
+                  <span class="live-label">LIVE</span>
+                </div>
+              </div>
+              <div class="activity-list">
+                <template x-for="item in activityItems" :key="item.id">
+                  <div class="activity-item" @click="item.click || null">
+                    <div class="activity-icon" x-text="item.icon"></div>
+                    <div class="activity-body">
+                      <div class="activity-title" x-text="item.title"></div>
+                      <div class="activity-meta">
+                        <span class="activity-source" x-text="item.source"></span>
+                        <span class="activity-time" x-text="item.timeAgo"></span>
+                      </div>
+                    </div>
+                    <div class="activity-sev" :class="item.severity" x-text="item.severity" x-show="item.showBadge"></div>
+                  </div>
+                </template>
+                <div x-show="!activityItems.length" class="ll-empty-state">
+                  <div class="icon">&#x1F4ED;</div>
+                  <div class="title">No recent activity</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Loading skeleton -->
+            <div x-show="loading" class="ll-empty-state">
+              <div class="ll-skeleton" style="width: 100%; height: 120px; margin-bottom: var(--space-4);"></div>
+              <div class="ll-skeleton" style="width: 100%; height: 80px;"></div>
+            </div>
+          </div>
+      </section>
+
+      <!-- ═══ NOTIFICATIONS PAGE ═══ -->
+      <section class="app-page" data-page="notifications" x-data="notificationsPage()" x-init="init()" x-cloak>
+        <div class="notifications-page">
+          <div class="notif-filters">
+            <select x-model="filterSeverity">
+              <option value="">All severities</option>
+              <option value="critical">Critical</option>
+              <option value="error">Error</option>
+              <option value="warn">Warning</option>
+              <option value="info">Info</option>
+            </select>
+            <select x-model="filterSource">
+              <option value="">All sources</option>
+              <template x-for="s in sources" :key="s">
+                <option :value="s" x-text="s"></option>
+              </template>
+            </select>
+            <label style="display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2);">
+              <input type="checkbox" x-model="showProcessed" @change="load()" />
+              Show processed
+            </label>
+          </div>
+
+          <div x-show="loading" class="ll-skeleton" style="width: 100%; height: 200px;"></div>
+
+          <div x-show="!loading &amp;&amp; filteredGroups().length === 0" class="ll-empty-state">
+            <div class="icon">&#x2705;</div>
+            <div class="title">All caught up</div>
+            <div>No notifications match your filters.</div>
+          </div>
+
+          <template x-for="section in sections()" :key="section.label">
+            <div class="notification-bucket">
+              <h4 class="bucket-label" x-text="section.label"></h4>
+              <template x-for="group in section.items" :key="group.key || group.id || group.title">
+                <div class="notification-item" :class="'severity-' + (group.severity || 'info')" @click="openDetail(group)">
+                  <div class="notification-severity">
+                    <span class="led" :class="severityLedClass(group.severity)"></span>
+                  </div>
+                  <div class="notification-body">
+                    <div class="notification-title" x-text="group.title"></div>
+                    <div class="notification-meta">
+                      <span x-text="group.source"></span> &middot;
+                      <span x-text="window.relativeTime(group.last_seen || group.first_seen)"></span>
+                      <span x-show="group.count > 1" x-text="' · ×' + group.count"></span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- ═══ LEGACY PAGES WRAPPER ═══ -->
+      <div class="legacy-page" data-page="overview">
 
 <!-- ════════════════════ COMMAND CENTER HEADER ════════════════════ -->
 <header class="header-bar">
@@ -229,7 +462,7 @@
   <!-- ════════════════════ MAIN ════════════════════ -->
   <div class="main">
     <header class="main-header">
-      <h2 id="page-title">Overview</h2>
+      <h2>Overview</h2>
       <div class="main-header-actions">
         <button class="btn btn-ghost btn-sm" onclick="window.location.reload()" title="Refresh data">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -246,7 +479,7 @@
     <div class="main-body">
 
       <!-- ════════════════════ OVERVIEW PAGE ════════════════════ -->
-      <section id="page-overview" class="page page-active" aria-label="Overview">
+      <section id="page-overview" class="page" aria-label="Overview">
 
         <!-- ═══ Health Bar ═══ -->
         <div id="health-bar" class="health-bar">
@@ -1514,42 +1747,25 @@
   </div><!-- /main -->
 </div><!-- /app-shell -->
 
-<!-- ════════════════════ COMMAND PALETTE ════════════════════ -->
-<div class="modal-overlay" id="modal-palette">
-  <div class="palette-modal">
-    <div class="palette-input-wrap">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="palette-input" placeholder="Search pages, documents, or type a command…" autocomplete="off" spellcheck="false" />
-      <kbd class="palette-esc-hint">ESC</kbd>
-    </div>
-    <div class="palette-results" id="palette-results"></div>
-    <div class="palette-footer">
-      <span><kbd>↑↓</kbd> Navigate</span>
-      <span><kbd>↵</kbd> Open</span>
-      <span><kbd>⌘K</kbd> Toggle</span>
-    </div>
-  </div>
-</div>
-
 <!-- ════════════════════ MOBILE BOTTOM NAV ════════════════════ -->
 <nav class="mobile-bottom-nav" id="mobile-bottom-nav" role="navigation" aria-label="Mobile navigation">
-  <button class="mobile-nav-item active" data-page="overview" aria-current="page">
+  <button class="mobile-nav-item active" data-page="overview" data-icon="&#x1F3E0;" aria-current="page">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span>Home</span>
   </button>
-  <button class="mobile-nav-item" data-page="uptime">
+  <button class="mobile-nav-item" data-page="uptime" data-icon="&#x1F5A5;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
     <span>Monitor</span>
   </button>
-  <button class="mobile-nav-item" data-page="documents">
+  <button class="mobile-nav-item" data-page="documents" data-icon="&#x1F4DD;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
     <span>Data</span>
   </button>
-  <button class="mobile-nav-item" data-page="search">
+  <button class="mobile-nav-item" data-page="search" data-icon="&#x1F50D;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <span>Search</span>
   </button>
-  <button class="mobile-nav-item" data-page="settings">
+  <button class="mobile-nav-item" data-page="settings" data-icon="&#x2699;&#xFE0F;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
     <span>Settings</span>
   </button>
@@ -1713,6 +1929,7 @@
 </div>
 
 <!-- ════════════════════ JS ════════════════════ -->
+  <script src="/js/lib/utils.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/lib/components.js"></script>
   <script src="/js/pages/overview.js"></script>
@@ -1738,86 +1955,6 @@
   <script src="/js/pages/access_requests.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <script src="/js/lib/dragdrop.js"></script>
-
-<!-- ════════════════════ SHORTCUT HELP OVERLAY ════════════════════ -->
-<div class="shortcut-overlay" id="shortcut-overlay">
-  <div class="shortcut-modal">
-    <div class="shortcut-modal-header">
-      <h3>Keyboard Shortcuts</h3>
-      <button class="shortcut-modal-close" onclick="closeShortcutHelp()">×</button>
-    </div>
-    <div class="shortcut-modal-body">
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Documents</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>d</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Events</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>e</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Settings</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>s</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Overview</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>o</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Uptime</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>u</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Feeds</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>f</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Wiki</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>w</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Hermes</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>h</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Agent Board</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>a</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Go to Notifications</span>
-        <span class="shortcut-keys"><kbd>g</kbd> <kbd>n</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Focus quick search</span>
-        <span class="shortcut-keys"><kbd>/</kbd></span>
-      </div>
-      <div class="shortcut-row">
-        <span class="shortcut-desc">Show this help</span>
-        <span class="shortcut-keys"><kbd>?</kbd></span>
-      </div>
-    </div>
-    <div class="shortcut-footer-hint">
-      Press <kbd>g</kbd> then another key to navigate. Press <kbd>?</kbd> anytime to see this help.
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════ AUTH MODAL ════════════════════ -->
-<div class="modal-overlay" id="auth-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>Connect to LamaDB</h3>
-    </div>
-    <div class="modal-body">
-      <p style="color:var(--fg-2);font-size:13px;margin-bottom:16px;">Enter your admin API key to access the dashboard.</p>
-      <input type="password" id="api-key-input" placeholder="lamadb_live_..." style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);font-family:var(--font-mono);" />
-      <p id="api-key-error" class="error" style="display:none;color:var(--danger);font-size:13px;margin-top:8px;"></p>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" id="api-key-submit" style="width:100%;">Connect</button>
-    </div>
-  </div>
-</div>
 
 <!-- ════════════════════ CREATE API KEY MODAL ════════════════════ -->
 <div class="modal-overlay" id="modal-apikey">
@@ -1914,6 +2051,178 @@
     </div>
   </div>
 </div>
+
+    </div><!-- /legacy-page -->
+
+    <!-- ════════════════════ COMMAND PALETTE ════════════════════ -->
+    <div class="modal-overlay" id="modal-palette">
+      <div class="palette-modal">
+        <div class="palette-input-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="palette-input" placeholder="Search pages, documents, or type a command…" autocomplete="off" spellcheck="false" />
+          <kbd class="palette-esc-hint">ESC</kbd>
+        </div>
+        <div class="palette-results" id="palette-results"></div>
+        <div class="palette-footer">
+          <span><kbd>↑↓</kbd> Navigate</span>
+          <span><kbd>↵</kbd> Open</span>
+          <span><kbd>⌘K</kbd> Toggle</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ SHORTCUT HELP OVERLAY ════════════════════ -->
+    <div class="shortcut-overlay" id="shortcut-overlay">
+      <div class="shortcut-modal">
+        <div class="shortcut-modal-header">
+          <h3>Keyboard Shortcuts</h3>
+          <button class="shortcut-modal-close" onclick="closeShortcutHelp()">×</button>
+        </div>
+        <div class="shortcut-modal-body">
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Documents</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>d</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Events</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>e</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Settings</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>s</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Overview</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>o</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Uptime</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>u</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Feeds</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>f</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Wiki</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>w</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Hermes</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>h</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Agent Board</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>a</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Notifications</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>n</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Focus quick search</span>
+            <span class="shortcut-keys"><kbd>/</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Show this help</span>
+            <span class="shortcut-keys"><kbd>?</kbd></span>
+          </div>
+        </div>
+        <div class="shortcut-footer-hint">
+          Press <kbd>g</kbd> then another key to navigate. Press <kbd>?</kbd> anytime to see this help.
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════ AUTH MODAL ════════════════════ -->
+    <div class="modal-overlay" id="auth-modal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Connect to LamaDB</h3>
+        </div>
+        <div class="modal-body">
+          <p style="color:var(--fg-2);font-size:13px;margin-bottom:16px;">Enter your admin API key to access the dashboard.</p>
+          <input type="password" id="api-key-input" placeholder="lamadb_live_..." style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--fg);font-family:var(--font-mono);" />
+          <p id="api-key-error" class="error" style="display:none;color:var(--danger);font-size:13px;margin-top:8px;"></p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="api-key-submit" style="width:100%;">Connect</button>
+        </div>
+      </div>
+    </div>
+
+    </main><!-- /app-main -->
+
+    <!-- ═══ SCROLL TO TOP BUTTON ═══ -->
+    <button id="scroll-top" class="scroll-top" onclick="window.scrollToTop()" aria-label="Scroll to top" title="Scroll to top">↑</button>
+  </div><!-- /app-body -->
+
+  <!-- ═══ MOBILE BOTTOM NAV ═══ -->
+  <nav class="mobile-nav">
+    <div class="nav-items">
+      <button class="nav-item active" data-page="home" data-icon="&#x1F3E0;" @click="go('home')">&#x1F3E0; Home</button>
+      <button class="nav-item" data-page="notifications" data-icon="&#x1F514;" @click="go('notifications')">&#x1F514; Notifications</button>
+      <button class="nav-item" data-icon="&#x2630;" @click="sheetOpen = true">&#x2630; More</button>
+    </div>
+  </nav>
+
+  <!-- ═══ MOBILE MORE SHEET ═══ -->
+  <div class="ll-sheet-overlay" :class="{ open: sheetOpen }" @click="sheetOpen = false"></div>
+  <div class="ll-sheet" :class="{ open: sheetOpen }">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+      <strong>All pages</strong>
+      <button class="ll-button ghost sm" @click="sheetOpen = false">Close</button>
+    </div>
+    <div class="ll-list">
+      <template x-for="p in morePages" :key="p.id">
+        <button class="ll-list-item" @click="go(p.id)">
+          <span class="content">
+            <span class="title" x-text="p.label"></span>
+            <span class="subtitle" x-text="p.section"></span>
+          </span>
+        </button>
+      </template>
+    </div>
+  </div>
+
+</div><!-- /app-root -->
+
+<!-- ═══ NOTIFICATION DETAIL MODAL ═══ -->
+<div id="notification-detail-modal" class="modal-overlay open" style="display:none;">
+  <div class="modal" style="max-width: 600px;">
+    <div class="modal-header">
+      <h3 id="notification-detail-title">Alert</h3>
+      <button class="modal-close" onclick="window.closeNotificationDetail()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="notification-detail-meta" id="notification-detail-meta"></div>
+      <pre id="notification-detail-body"></pre>
+      <div class="notification-detail-ids">
+        <span class="label">Event IDs:</span>
+        <span id="notification-detail-ids"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="window.dismissSelectedNotifications()">Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NEW SCRIPTS (Alpine.js + shell) ═══ -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+<script>
+  window.addEventListener('error', function(e) {
+    if (e.target && e.target.src && e.target.src.indexOf('alpinejs') !== -1) {
+      var s = document.createElement('script');
+      s.src = '/js/lib/alpine.min.js';
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+  }, true);
+</script>
+<script src="/js/shell.js"></script>
+<script src="/js/pages/home.js"></script>
+<script src="/js/pages/notifications.js"></script>
 
 </body>
 </html>

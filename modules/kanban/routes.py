@@ -97,6 +97,114 @@ async def agent_connect(
     }
 
 
+# ── My Tasks (scoped to current user) ─────────────────────────
+
+@router.get("/me/tasks")
+async def get_my_tasks(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    status: str | None = Query(None),
+    limit: int | None = Query(None),
+):
+    """Get tasks assigned to the current user, optionally filtered by status."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        query = """
+            SELECT t.*, u.name AS assignee_name, c.name AS column_name, c.status AS column_status
+            FROM kanban_tasks t
+            LEFT JOIN users u ON u.id = t.assignee_id
+            JOIN kanban_columns c ON c.id = t.column_id
+            WHERE t.assignee_id = $1
+        """
+        params = [user.user_id]
+        idx = 2
+
+        if status:
+            query += f" AND c.status = ${idx}"
+            params.append(status)
+            idx += 1
+
+        query += " ORDER BY t.priority DESC, t.created_at DESC"
+
+        if limit:
+            query += f" LIMIT ${idx}"
+            params.append(limit)
+            idx += 1
+
+        rows = await conn.fetch(query, *params)
+
+    return {"items": [
+        {
+            "id": str(r["id"]), "board_id": str(r["board_id"]), "column_id": str(r["column_id"]),
+            "task_number": r["task_number"], "title": r["title"], "description": r["description"],
+            "priority": r["priority"], "due_at": r["due_at"],
+            "assignee_id": str(r["assignee_id"]) if r["assignee_id"] else None,
+            "assignee_name": r["assignee_name"],
+            "column_name": r["column_name"], "column_status": r["column_status"],
+            "position": r["position"], "help_wanted": r["help_wanted"],
+            "help_wanted_message": r["help_wanted_message"], "estimate": r["estimate"],
+            "metadata": json.loads(r["metadata"]) if isinstance(r["metadata"], str) else (r["metadata"] or {}),
+            "completed_at": r["completed_at"],
+            "tags": list(r["tags"]) if r["tags"] else [],
+            "created_at": r["created_at"], "updated_at": r["updated_at"],
+        }
+        for r in rows
+    ]}
+
+
+# ── All Tasks (global, filtered) ──────────────────────────────
+
+@router.get("/tasks")
+async def get_all_tasks(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+    status: str | None = Query(None),
+    limit: int | None = Query(None),
+):
+    """Get all kanban tasks, optionally filtered by status."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        query = """
+            SELECT t.*, u.name AS assignee_name, c.name AS column_name, c.status AS column_status
+            FROM kanban_tasks t
+            LEFT JOIN users u ON u.id = t.assignee_id
+            JOIN kanban_columns c ON c.id = t.column_id
+            WHERE 1=1
+        """
+        params = []
+        idx = 1
+
+        if status:
+            query += f" AND c.status = ${idx}"
+            params.append(status)
+            idx += 1
+
+        query += " ORDER BY t.priority DESC, t.created_at DESC"
+
+        if limit:
+            query += f" LIMIT ${idx}"
+            params.append(limit)
+            idx += 1
+
+        rows = await conn.fetch(query, *params)
+
+    return {"items": [
+        {
+            "id": str(r["id"]), "board_id": str(r["board_id"]), "column_id": str(r["column_id"]),
+            "task_number": r["task_number"], "title": r["title"], "description": r["description"],
+            "priority": r["priority"], "due_at": r["due_at"],
+            "assignee_id": str(r["assignee_id"]) if r["assignee_id"] else None,
+            "assignee_name": r["assignee_name"],
+            "column_name": r["column_name"], "column_status": r["column_status"],
+            "position": r["position"], "help_wanted": r["help_wanted"],
+            "help_wanted_message": r["help_wanted_message"], "estimate": r["estimate"],
+            "metadata": json.loads(r["metadata"]) if isinstance(r["metadata"], str) else (r["metadata"] or {}),
+            "completed_at": r["completed_at"],
+            "tags": list(r["tags"]) if r["tags"] else [],
+            "created_at": r["created_at"], "updated_at": r["updated_at"],
+        }
+        for r in rows
+    ]}
+
+
 # ── Boards ────────────────────────────────────────────────────
 
 DEFAULT_COLUMNS_AGENTIC = [

@@ -22,13 +22,19 @@
   async function api(path, options) {
     options = options || {};
     var key = getApiKey();
+    if (!key) {
+      var err = new Error('Unauthorized');
+      err.noAuth = true;
+      throw err;
+    }
     var headers = { 'Content-Type': 'application/json' };
-    if (key) headers['Authorization'] = 'Bearer ' + key;
+    headers['Authorization'] = 'Bearer ' + key;
     Object.assign(headers, options.headers || {});
 
     var resp = await fetch(path, Object.assign({ headers: headers }, options));
     if (resp.status === 401) {
       clearApiKey();
+      document.body.classList.remove('authenticated');
       showAuthModal();
       throw new Error('Unauthorized');
     }
@@ -41,7 +47,46 @@
   }
   window.api = api;
 
+  // ─── Error banner ───────────────────────────────────────────────────────────
+  function showError(message) {
+    console.error('[LamaDB]', message);
+    if (!document.body.classList.contains('authenticated')) return;
+    var existing = document.querySelector('.error-banner');
+    if (existing) existing.remove();
+    var banner = document.createElement('div');
+    banner.className = 'error-banner';
+    var span = document.createElement('span');
+    span.textContent = '⚠ ' + message;
+    banner.appendChild(span);
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.onclick = function() { banner.remove(); };
+    banner.appendChild(closeBtn);
+    var mainContent = document.querySelector('.main-body');
+    if (mainContent) mainContent.prepend(banner);
+  }
+  window.showError = showError;
+
+  function clearErrorBanners() {
+    document.querySelectorAll('.error-banner').forEach(function(el) { el.remove(); });
+  }
+  window.clearErrorBanners = clearErrorBanners;
+
+  window.LlamaApp = {
+    getApiKey: getApiKey,
+    setApiKey: setApiKey,
+    clearApiKey: clearApiKey,
+    showAuthModal: showAuthModal,
+    hideAuthModal: hideAuthModal,
+    connectSSE: connectSSE,
+    applyTheme: applyTheme,
+    applyAccent: applyAccent,
+    fetchAndApplyTheme: fetchAndApplyTheme,
+    showError: showError
+  };
+
   function showAuthModal() {
+    document.body.classList.remove('authenticated');
     document.getElementById('auth-modal').style.display = 'flex';
     document.getElementById('api-key-input').value = '';
     document.getElementById('api-key-error').style.display = 'none';
@@ -56,11 +101,14 @@
     if (!key) return;
     setApiKey(key);
     try {
-      await api('/api/dashboard/overview');
+      await api('/api/dashboard/header');
+      document.body.classList.add('authenticated');
+      clearErrorBanners();
       hideAuthModal();
       connectSSE();
       fetchAndApplyTheme();
-      navigateTo(currentPage || 'overview');
+      window.dispatchEvent(new CustomEvent('lamadb:authenticated'));
+      navigateTo(currentPage || 'home', true);
     } catch (e) {
       document.getElementById('api-key-error').textContent = 'Invalid API key — access denied.';
       document.getElementById('api-key-error').style.display = 'block';
@@ -76,7 +124,21 @@
     if (!key) return;
     _sseSource = new EventSource('/api/dashboard/stream?key=' + encodeURIComponent(key));
     _sseSource.addEventListener('event_created', function(e) {
-      try { if (window.updateHeader) window.updateHeader(); } catch(ex) {}
+      try {
+        if (window.updateHeader) window.updateHeader();
+        // Pulse the home page activity LED and refresh feeds
+        var led = document.getElementById('activity-led');
+        if (led) {
+          led.classList.remove('pulse');
+          // Force reflow so the animation restarts
+          void led.offsetWidth;
+          led.classList.add('pulse');
+        }
+        dispatchSse('events', e.data ? JSON.parse(e.data) : {});
+        if (window.loadHomeRecentActivity) window.loadHomeRecentActivity();
+        if (window.loadHomeAttention) window.loadHomeAttention();
+        if (window.loadNotifications) window.loadNotifications();
+      } catch(ex) {}
     });
     _sseSource.addEventListener('task_update', function(e) {
       try {
@@ -137,12 +199,42 @@
         if (window._currentPage === 'access-requests' && window.loadAccessRequests) window.loadAccessRequests();
       } catch(ex) {}
     });
+    _sseSource.onopen = function() {
+      setSseStatus(true);
+    };
     _sseSource.onerror = function() {
+      setSseStatus(false);
       if (_sseSource && _sseSource.readyState === EventSource.CLOSED) {
         _sseSource = null;
       }
     };
   }
+
+  // ─── SSE status indicator ────────────────────────────────────────────────────
+  function setSseStatus(connected) {
+    var led = document.getElementById('sse-led');
+    var label = document.getElementById('sse-label');
+    if (!led || !label) return;
+    led.className = 'sse-led ' + (connected ? 'connected' : 'disconnected');
+    label.textContent = connected ? 'Connected' : 'Disconnected';
+  }
+  window.setSseStatus = setSseStatus;
+
+  // ─── Generic SSE channel dispatcher ──────────────────────────────────────────
+  function dispatchSse(channel, data) {
+    try {
+      if (window._sseCallbacks && window._sseCallbacks[channel]) {
+        window._sseCallbacks[channel](data);
+      }
+      // Auto-refresh home and notifications on the events channel
+      if (channel === 'events') {
+        if (window.loadHomeRecentActivity) window.loadHomeRecentActivity();
+        if (window.loadHomeAttention) window.loadHomeAttention();
+        if (window.loadNotifications) window.loadNotifications();
+      }
+    } catch(ex) {}
+  }
+  window.dispatchSse = dispatchSse;
 
   // ─── Theme system ──────────────────────────────────────────────────────────
   var _currentTheme = null;
@@ -170,9 +262,10 @@
   function initTheme() {
     var theme = getPreferredTheme();
     applyTheme(theme);
-    // Apply stored accent on init
-    var storedAccent = localStorage.getItem('lamadb_accent');
-    if (storedAccent) applyAccent(storedAccent);
+    var storedHue = localStorage.getItem('lamadb_accent_hue');
+    if (storedHue) applyAccentHue(storedHue);
+    // Clear legacy accent hex — CSS tokens derive from --accent-h
+    localStorage.removeItem('lamadb_accent');
     if (window.matchMedia) {
       window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
         var stored = localStorage.getItem('lamadb_theme');
@@ -190,6 +283,39 @@
   }
   window.applyAccent = applyAccent;
 
+  function applyAccentHue(hue) {
+    document.documentElement.style.setProperty('--accent-h', String(hue));
+    // Remove inline accent overrides so CSS HSL-derived values in tokens.css win
+    document.documentElement.style.removeProperty('--accent');
+    document.documentElement.style.removeProperty('--accent-dim');
+    document.documentElement.style.removeProperty('--accent-glow');
+    document.documentElement.style.removeProperty('--accent-text');
+  }
+  window.applyAccentHue = applyAccentHue;
+
+  var THEME_PRESETS = [
+    { id: 'emerald', hue: 152, label: 'Operator' },
+    { id: 'cyan',    hue: 190, label: 'Sysop' },
+    { id: 'amber',   hue: 38,  label: 'Console' },
+    { id: 'magenta', hue: 320, label: 'Neon' },
+    { id: 'indigo',  hue: 245, label: 'Lama' }
+  ];
+  window.THEME_PRESETS = THEME_PRESETS;
+
+  window.setThemePreset = function(presetId) {
+    var preset = THEME_PRESETS.find(function(p) { return p.id === presetId; });
+    if (!preset) return;
+    applyAccentHue(preset.hue);
+    localStorage.setItem('lamadb_accent_hue', String(preset.hue));
+    localStorage.setItem('lamadb_accent_preset', presetId);
+    localStorage.removeItem('lamadb_accent');
+    var scheme = _currentTheme;
+    api('/api/users/me/theme', {
+      method: 'PUT',
+      body: JSON.stringify({ scheme: scheme })
+    }).catch(function() {});
+  };
+
   async function fetchAndApplyTheme() {
     try {
       var theme = await api('/api/users/me/theme');
@@ -198,12 +324,14 @@
         localStorage.setItem('lamadb_theme', theme.scheme);
       }
       if (theme && theme.accent) {
-        applyAccent(theme.accent);
-        localStorage.setItem('lamadb_accent', theme.accent);
+        // Clear inline accent — CSS tokens derive from --accent-h
+        document.documentElement.style.removeProperty('--accent');
+        document.documentElement.style.removeProperty('--accent-dim');
+        document.documentElement.style.removeProperty('--accent-glow');
+        document.documentElement.style.removeProperty('--accent-text');
       }
     } catch (e) {
-      var storedAccent = localStorage.getItem('lamadb_accent');
-      if (storedAccent) applyAccent(storedAccent);
+      // Fallback: nothing to do, CSS defaults handle it
     }
   }
 
@@ -211,10 +339,9 @@
     var newTheme = _currentTheme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('lamadb_theme', newTheme);
     applyTheme(newTheme);
-    var accent = localStorage.getItem('lamadb_accent') || '#6366f1';
     api('/api/users/me/theme', {
       method: 'PUT',
-      body: JSON.stringify({ scheme: newTheme, accent: accent })
+      body: JSON.stringify({ scheme: newTheme })
     }).catch(function() {});
   };
 
@@ -271,6 +398,8 @@
     document.getElementById('modal-palette').classList.remove('open');
     _paletteOpen = false;
   }
+  window.openPalette = openPalette;
+  window.closePalette = closePalette;
 
   function renderPaletteResults(items) {
     var el = document.getElementById('palette-results');
@@ -364,29 +493,13 @@
   };
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
-  var pages = {
-    'overview':  document.getElementById('page-overview'),
-    'feeds':     document.getElementById('page-feeds'),
-    'uptime':    document.getElementById('page-uptime'),
-    'events':    document.getElementById('page-events'),
-    'wiki':      document.getElementById('page-wiki'),
-    'documents':  document.getElementById('page-documents'),
-    'ntfy':       document.getElementById('page-ntfy'),
-    'dozzle':     document.getElementById('page-dozzle'),
-    'freshrss':   document.getElementById('page-freshrss'),
-    'agentboard': document.getElementById('page-agentboard'),
-    'kanban':     document.getElementById('page-kanban'),
-    'notflix':    document.getElementById('page-notflix'),
-    'homeassistant': document.getElementById('page-homeassistant'),
-    'hermes':     document.getElementById('page-hermes'),
-    'settings':   document.getElementById('page-settings'),
-    'notifications': document.getElementById('page-notifications'),
-    'search':     document.getElementById('page-search'),
-    'secrets':    document.getElementById('page-secrets'),
-    'access-requests': document.getElementById('page-access-requests'),
-    'groups':     document.getElementById('page-groups')
-  };
+  var newPages = Array.from(document.querySelectorAll('.app-page')).reduce(function(acc, el) {
+    acc[el.dataset.page] = el;
+    return acc;
+  }, {});
+
   var titles = {
+    'home': 'Home',
     'overview': 'Overview',
     'feeds': 'Feeds',
     'uptime': 'Uptime',
@@ -408,29 +521,71 @@
     'access-requests': 'Access Requests',
     'groups': 'Groups'
   };
-  var currentPage = 'overview';
+  var currentPage = 'home';
 
-  window.navigateTo = function(pageId) {
-    if (pageId === currentPage) return;
+  function updateNavActiveState(pageId) {
+    document.querySelectorAll('.app-sidebar .nav-item, .mobile-nav .nav-item, .mobile-bottom-nav .mobile-nav-item').forEach(function(el) {
+      el.classList.toggle('active', el.dataset.page === pageId);
+    });
+  }
+  window.updateNavActiveState = updateNavActiveState;
+
+  // Handle browser back/forward
+  window.addEventListener('popstate', function(e) {
+    var pageId = (e.state && e.state.page) || location.hash.replace('#', '') || 'home';
+    window.navigateTo(pageId, true);
+  });
+
+  window.navigateTo = function(pageId, force) {
+    if (!pageId) return;
+    if (pageId === currentPage && !force) return;
     if (!getApiKey()) {
       showAuthModal();
       return;
     }
-    document.querySelectorAll('.nav-item').forEach(function(el) {
-      el.classList.toggle('active', el.dataset.page === pageId);
+    clearErrorBanners();
+    window.scrollToTop();
+
+    // Update nav active state
+    updateNavActiveState(pageId);
+
+    // New pages (app-page)
+    var isNewPage = pageId === 'home' || pageId === 'notifications';
+    Object.keys(newPages).forEach(function(key) {
+      newPages[key].classList.toggle('active', key === pageId);
     });
-    document.querySelectorAll('.mobile-nav-item').forEach(function(el) {
-      el.classList.toggle('active', el.dataset.page === pageId);
-    });
-    Object.keys(pages).forEach(function(key) {
-      if (pages[key]) pages[key].classList.toggle('page-active', key === pageId);
-    });
+
+    // Legacy pages (inside .legacy-page)
+    var legacyWrapper = document.querySelector('.legacy-page');
+    if (legacyWrapper) {
+      legacyWrapper.classList.toggle('active', !isNewPage);
+      legacyWrapper.querySelectorAll('.page').forEach(function(el) {
+        el.classList.remove('active');
+        el.classList.remove('page-active');
+        el.style.display = 'none';
+      });
+      if (!isNewPage) {
+        var target = document.getElementById('page-' + pageId);
+        if (target) {
+          target.style.display = 'block';
+          requestAnimationFrame(function() {
+            target.classList.add('active');
+            target.classList.add('page-active');
+          });
+        }
+      } else {
+        if (window.stopOverviewPolling) window.stopOverviewPolling();
+      }
+    }
+
     var titleEl = document.getElementById('page-title');
     if (titleEl) titleEl.textContent = titles[pageId] || pageId;
     currentPage = pageId;
     window._currentPage = pageId;
-    // Route to page loader
-    if (pageId === 'overview') window.loadOverview && window.loadOverview();
+
+    if (pageId === 'home') window.loadHome && window.loadHome();
+    else if (pageId === 'overview') window.loadOverview && window.loadOverview();
+    else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
     else if (pageId === 'feeds') window.loadFeeds && window.loadFeeds();
     else if (pageId === 'uptime') window.loadUptime && window.loadUptime();
     else if (pageId === 'events') window.loadEvents && window.loadEvents();
@@ -446,12 +601,14 @@
     else if (pageId === 'homeassistant') window.loadHomeAssistantPage && window.loadHomeAssistantPage();
     else if (pageId === 'settings') window.loadSettings && window.loadSettings();
     else if (pageId === 'search') window.loadSearch && window.loadSearch();
-    else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
     else if (pageId === 'secrets') window.loadSecrets && window.loadSecrets();
     else if (pageId === 'access-requests') window.loadAccessRequestsPage && window.loadAccessRequestsPage();
     else if (pageId === 'groups') window.loadGroups && window.loadGroups();
+
     window.updateSidebarBadges && window.updateSidebarBadges();
-    window.updateFooter && window.updateFooter();
+
+    history.pushState({ page: pageId }, '', pageId === 'home' ? '/' : '/#' + pageId);
+    window.dispatchEvent(new CustomEvent('pagechange', { detail: { page: pageId } }));
   };
 
   // ─── Modals ─────────────────────────────────────────────────────────────────
@@ -466,32 +623,16 @@
 
   // ─── Mobile bottom nav ──────────────────────────────────────────────────────
   function initMobileNav() {
-    document.querySelectorAll('.mobile-nav-item').forEach(function(el) {
+    document.querySelectorAll('.mobile-nav .nav-item').forEach(function(el) {
       el.addEventListener('click', function() {
         var pageId = this.dataset.page;
-        if (pageId === 'events') {
-          window.navigateTo('events');
-        } else {
-          window.navigateTo(pageId);
-        }
-        document.querySelectorAll('.mobile-nav-item').forEach(function(n) {
+        window.navigateTo(pageId);
+        document.querySelectorAll('.mobile-nav .nav-item').forEach(function(n) {
           n.classList.toggle('active', n.dataset.page === pageId);
         });
       });
     });
   }
-
-  // ─── Error banner ───────────────────────────────────────────────────────────
-  window.showError = function(message) {
-    console.error('[LamaDB]', message);
-    var existing = document.querySelector('.error-banner');
-    if (existing) existing.remove();
-    var banner = document.createElement('div');
-    banner.className = 'error-banner';
-    banner.innerHTML = '<span>⚠ ' + message + '</span><button onclick="this.parentElement.remove()">✕</button>';
-    var mainContent = document.querySelector('.main-body');
-    if (mainContent) mainContent.prepend(banner);
-  };
 
   // ─── Sidebar quick search ───────────────────────────────────────────────────
   window.handleSidebarSearch = function(e) {
@@ -655,6 +796,31 @@
     }
   });
 
+  // ─── Scroll-to-top button + visibility ─────────────────────────────────────
+  window.scrollToTop = function() {
+    var main = document.querySelector('.app-main');
+    if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  function updateScrollTopVisibility() {
+    var main = document.querySelector('.app-main');
+    var btn = document.getElementById('scroll-top');
+    if (!main || !btn) return;
+    if (main.scrollTop > 300) btn.classList.add('visible');
+    else btn.classList.remove('visible');
+  }
+
+  function initScrollToTop() {
+    var btn = document.getElementById('scroll-top');
+    if (!btn) return;
+    var main = document.querySelector('.app-main');
+    if (!main) return;
+    btn.addEventListener('click', window.scrollToTop);
+    main.addEventListener('scroll', window.throttle(updateScrollTopVisibility, 150), { passive: true });
+  }
+  window.initScrollToTop = initScrollToTop;
+  window.updateScrollTopVisibility = updateScrollTopVisibility;
+
   // ─── Bootstrap ──────────────────────────────────────────────────────────────
   function bootstrap() {
     // Theme init
@@ -662,6 +828,9 @@
 
     // Mobile nav
     initMobileNav();
+
+    // Scroll-to-top
+    initScrollToTop();
 
     // Nav items
     document.querySelectorAll('.nav-item').forEach(function(item) {
@@ -769,10 +938,13 @@
     if (!getApiKey()) {
       showAuthModal();
     } else {
-      api('/api/dashboard/overview').then(function() {
-        if (window.loadOverview) window.loadOverview();
+      api('/api/dashboard/header').then(function() {
+        document.body.classList.add('authenticated');
+        clearErrorBanners();
+        window.navigateTo('home', true);
         connectSSE();
         fetchAndApplyTheme();
+        window.dispatchEvent(new CustomEvent('lamadb:authenticated'));
       }).catch(function() {
         showAuthModal();
       });
