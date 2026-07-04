@@ -30,23 +30,28 @@ LamaDB replaces scattered JSONL files, Telegram notification channels, paper not
 - **OpenAI API key** (optional — for vector embeddings, falls back to pseudo-embeddings)
 - **Hermes Agent** (optional — for agent analytics, session tracking, cost monitoring)
 
-## Quick Start
+## Deployment
+
+LamaDB is deployed on a Proxmox LXC — **not** run locally via `docker compose up`.
+
+- **Host**: `192.168.68.26`
+- **SSH**: `ssh lamadb-dev`
+- **Repo path**: `/home/messhias/projects/lamadb` (on LXC)
+- **Branch**: `feat/life-os-frontend-phase1`
+- **Dashboard**: `http://192.168.68.26:8000`
+- **Swagger docs**: `http://192.168.68.26:8000/docs`
+- **MCP endpoint**: `http://192.168.68.26:8000/mcp`
+- **Admin key**: `lamadb_test_key_2026`
 
 ```bash
-# Clone and start
-git clone <repo-url> lamadb
-cd lamadb
-cp .env.example .env
-# Edit .env with your API keys and URLs
+# Deploy/rebuild on the LXC
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose up -d"
 
-docker compose up -d
-
-# Dashboard: http://localhost:8000
-# Swagger docs: http://localhost:8000/docs
-# MCP endpoint: http://localhost:8000/mcp
+# Or rebuild after code changes
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"
 ```
 
-Default API key for dashboard: `lamadb_test_key_2026` (admin, all scopes).
+For a rare isolated dev instance, Docker Compose is still available — `cp .env.example .env` on the LXC, then `ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose up -d"`.
 
 ## Architecture
 
@@ -137,27 +142,26 @@ See `.env.example` for all 25+ variables. Key ones:
 
 ## Development
 
-```bash
-# Start
-docker compose up -d
+All commands run on the LXC via `ssh lamadb-dev`.
 
+```bash
 # Rebuild after code changes
-docker compose build api && docker compose up -d api
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"
 
 # Run a specific test
-docker exec lamadb_api python3 -m pytest tests/test_feeds.py -q
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker exec lamadb_api python3 -m pytest tests/test_feeds.py -q"
 
 # Run benchmarks
-docker exec lamadb_api python3 benchmarks/bench_all_endpoints.py
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker exec lamadb_api python3 benchmarks/bench_all_endpoints.py"
 
 # Check logs
-docker logs lamadb_api --tail 20
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker logs lamadb_api --tail 20"
 
 # DB access
-docker exec lamadb_postgres psql -U lamadb -d lamadb
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker exec lamadb_postgres psql -U lamadb -d lamadb"
 
 # Swagger UI
-open http://localhost:8000/docs
+# Open http://192.168.68.26:8000/docs
 ```
 
 Static files are COPY'd into the Docker image — rebuild after any `static/`, `app/`, `modules/`, or `migrations/` changes.
