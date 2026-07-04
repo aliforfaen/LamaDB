@@ -504,6 +504,20 @@ ssh lamadb-dev "docker logs lamadb_api --tail 20"
 - [x] Feed pruning with configurable retention (`modules/feeds/cleanup.py`)
 - [x] Configurable `BASE_URL` for feed links
 
+### Phase 18: YouTube Module + Agent MCP Tools ✅ (2026-07-04)
+- [x] YouTube integration module (`modules/youtube/`)
+- [x] Polls Watch Later playlist(s) and channel uploads via YouTube Data API v3
+- [x] Stores videos as documents with unique (source_type, metadata->>video_id) index
+- [x] Routes: status, videos, health, force poll (`/api/youtube/*`)
+- [x] Background poller wired into `app/main.py` and force-poll registry
+- [x] Migration 032: partial unique index for YouTube upserts
+- [x] Added `agent_hermes`, `agent_feeds`, `agent_dashboard` consolidated MCP tools
+- [x] Handlers live in `modules/{hermes,feeds,dashboard}/mcp.py`
+- [x] Added LamaDB domain skills in `.agents/skills/lamadb-{kanban,agent,docs,admin}`
+- [x] Added `static/VISUAL_DESIGN_RESEARCH.md` for Life-OS dashboard redesign
+- [x] `HERMES_URL` and `DOZZLE_URL` are now env-configurable in `docker-compose.yml`
+- [x] `FEEDS_BASE_URL` and YouTube env vars wired through `docker-compose.yml` / `.env.example`
+
 ## Known Pitfalls
 
 | Pitfall | Fix |
