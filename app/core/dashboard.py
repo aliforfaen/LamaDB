@@ -842,6 +842,7 @@ FORCE_POLL_REGISTRY: dict[str, tuple[str, str]] = {
     "ntfy":     ("modules.ntfy.collector",     "collect"),
     "dozzle":   ("modules.dozzle.collector",   "collect"),
     "notflix":  ("modules.notflix.collector",  "collect"),
+    "youtube":  ("modules.youtube.collector",  "collect"),
     "uptime":   ("modules.uptime.poller",      "poll_kuma_registry"),
 }
 
@@ -853,7 +854,7 @@ async def force_poll_module(
 ):
     """Manually trigger a module's data collector immediately.
 
-    Supports: freshrss, hermes, ntfy, dozzle, notflix, uptime.
+    Supports: freshrss, hermes, ntfy, dozzle, notflix, youtube, uptime.
     Returns collector stats or 404 if the module has no poller.
     """
     entry = FORCE_POLL_REGISTRY.get(module_name)
@@ -996,7 +997,7 @@ async def cache_stats(key: str = Query(..., description="API key for query-param
 # ---------------------------------------------------------------------------
 
 DEFAULT_MODULE_ORDER = ["uptime", "hermes", "freshrss", "ntfy", "dozzle",
-                        "notflix", "wiki", "feeds", "notifications"]
+                        "notflix", "youtube", "wiki", "feeds", "notifications"]
 
 
 @router.get("/user-layout")

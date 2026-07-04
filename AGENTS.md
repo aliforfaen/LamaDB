@@ -2,24 +2,25 @@
 
 ## ⛔ DO NOT RUN LOCALLY
 
-This project is deployed on a Proxmox LXC — **not** on your local machine. Do NOT run `docker compose up`, `docker compose build`, `docker exec`, or any other command that targets the local Docker daemon.
+**LamaDB is deployed on a Proxmox LXC at `192.168.68.26`. The canonical development environment is the LXC, NOT your local machine.**
 
-**Canonical environment:**
-- **Host**: `192.168.68.26` (Proxmox LXC)
-- **SSH**: `ssh lamadb-dev`
-- **Repo path**: `/home/messhias/projects/lamadb` (on LXC)
-- **Branch**: `feat/life-os-frontend-phase1`
-- **Dashboard**: `http://192.168.68.26:8000`
-- **Swagger**: `http://192.168.68.26:8000/docs`
-- **Admin key**: `lamadb_test_key_2026`
+- **Do NOT run `docker compose up -d`, `docker compose build`, `docker exec`, or any local Docker commands.** The Docker Compose stack runs inside the LXC, not on your machine.
+- **Access the running instance remotely:**
+  - SSH into the LXC: `ssh lamadb-dev`
+  - Dashboard: `http://192.168.68.26:8000`
+  - Swagger docs: `http://192.168.68.26:8000/docs`
+  - Admin API key: `lamadb_test_key_2026`
+- **Code changes** should be made to the repo files **on disk** (edit locally or on the LXC at `/home/messhias/projects/lamadb`), then deployed/verified against the running LXC instance.
+- **Testing:** Run tests on the LXC via `ssh lamadb-dev`, NOT via `docker exec` locally.
+- **Deployment:** Code is synced to the LXC, rebuilt, and restarted on the LXC — never run a local Docker stack.
 
-**All commands MUST be run on the LXC via SSH:**
+**If you are reading this as an AI agent: your working directory is a local checkout of the repo. Do NOT attempt to start Docker. Connect to the already-running instance at `http://192.168.68.26:8000`.**
+
+For quick one-liner commands without interactive SSH:
 
 ```bash
 ssh lamadb-dev "cd /home/messhias/projects/lamadb && <command>"
 ```
-
-If a command would target the local machine instead of the LXC, **stop and ask** — do NOT execute it.
 
 ## What This Is
 
@@ -377,21 +378,25 @@ MCP tools are declared via `MODULE_MCP_TOOLS` list in `__init__.py` and auto-reg
 
 **This is a for-fun learning project. Keep it simple.**
 
+LamaDB runs on a Proxmox LXC at `192.168.68.26`. All development is done against that remote instance — never run Docker locally.
+
 ```bash
-# Rebuild after code changes (run on LXC)
-ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose restart api"
+# Deploy after code changes (run on the LXC):
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"
 
-# Swagger UI for manual testing
-# Open http://192.168.68.26:8000/docs in browser
+# Run a specific test on the LXC (only when needed):
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose exec api python3 -m pytest tests/test_feeds.py -q"
 
-# Run a specific test (only when needed, run on LXC)
-ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker exec lamadb_api python3 -m pytest tests/test_feeds.py -q"
+# Check logs on the LXC:
+ssh lamadb-dev "docker logs lamadb_api --tail 20"
 
-# Check logs (run on LXC)
-ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker logs lamadb_api --tail 20"
+# API testing (from your local machine):
+# Swagger UI:  http://192.168.68.26:8000/docs
+# Dashboard:   http://192.168.68.26:8000
+# Admin key:   lamadb_test_key_2026
 ```
 
-**Don't:** Run the full test suite after every change. Don't build elaborate test infrastructure. Don't spend more time testing than building.
+**Don't:** Run the full test suite after every change. Don't build elaborate test infrastructure. Don't spend more time testing than building. Don't run Docker locally — connect to the LXC.
 
 **Do:** Use Swagger UI (`http://192.168.68.26:8000/docs`) for manual testing. Write a test only when verifying something complex. Keep the fun ratio high.
 
@@ -499,6 +504,20 @@ ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker logs lamadb_api --ta
 - [x] Feed pruning with configurable retention (`modules/feeds/cleanup.py`)
 - [x] Configurable `BASE_URL` for feed links
 
+### Phase 18: YouTube Module + Agent MCP Tools ✅ (2026-07-04)
+- [x] YouTube integration module (`modules/youtube/`)
+- [x] Polls Watch Later playlist(s) and channel uploads via YouTube Data API v3
+- [x] Stores videos as documents with unique (source_type, metadata->>video_id) index
+- [x] Routes: status, videos, health, force poll (`/api/youtube/*`)
+- [x] Background poller wired into `app/main.py` and force-poll registry
+- [x] Migration 032: partial unique index for YouTube upserts
+- [x] Added `agent_hermes`, `agent_feeds`, `agent_dashboard` consolidated MCP tools
+- [x] Handlers live in `modules/{hermes,feeds,dashboard}/mcp.py`
+- [x] Added LamaDB domain skills in `.agents/skills/lamadb-{kanban,agent,docs,admin}`
+- [x] Added `static/VISUAL_DESIGN_RESEARCH.md` for Life-OS dashboard redesign
+- [x] `HERMES_URL` and `DOZZLE_URL` are now env-configurable in `docker-compose.yml`
+- [x] `FEEDS_BASE_URL` and YouTube env vars wired through `docker-compose.yml` / `.env.example`
+
 ## Known Pitfalls
 
 | Pitfall | Fix |
@@ -561,10 +580,12 @@ ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker logs lamadb_api --ta
 - The `/feeds/{slug}.xml` endpoint is PUBLIC (no auth). It's RSS — readers can't send API keys.
 - The `/api/uptime/webhook` endpoint is semi-public. We'll validate by source IP later, but for PoC it's open.
 - Module tables are created by module-specific migrations. The feeds and uptime tables are in 001_initial.sql for PoC simplicity.
+
 ```
+# Environment variables (set in .env on the LXC)
 DATABASE_URL=postgresql://lamadb:lamadb@postgres:5432/lamadb
 API_KEY_SALT=<random-string-for-hashing>
-CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+CORS_ORIGINS=http://192.168.68.26:8000,http://localhost:3000,http://localhost:8080
 # Local embeddings: see app/embeddings.py (no OpenAI key required)
 WIKI_COUCHDB_URL=http://valhalla:5984
 WIKI_COUCHDB_DB=obsidiannotes
@@ -577,15 +598,7 @@ UPTIME_KUMA_URL=...               # Uptime Kuma API URL
 DOZZLE_URL=...                    # Dozzle API URL
 SONARR_URL=... / RADARR_URL=... / TAUTULLI_URL=...
 ```
-API_KEY_SALT=<random-string-for-hashing>
-CORS_ORIGINS=http://localhost:3000,http://localhost:8080
-OPENAI_API_KEY=sk-...            # Optional — embeddings silently skipped if empty
-FRESHRSS_URL=http://valhalla:8780 # FreshRSS GReader API base URL
-HERMES_URL=http://dev-vm:9119     # Hermes Agent API
-UPTIME_KUMA_URL=...               # Uptime Kuma API URL
-DOZZLE_URL=...                    # Dozzle API URL
-SONARR_URL=... / RADARR_URL=... / TAUTULLI_URL=...
-```
+
 
 ## Known Pitfalls (Legacy — preserved from Phase 1-9)
 

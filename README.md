@@ -43,15 +43,14 @@ LamaDB is deployed on a Proxmox LXC — **not** run locally via `docker compose 
 - **MCP endpoint**: `http://192.168.68.26:8000/mcp`
 - **Admin key**: `lamadb_test_key_2026`
 
+**The canonical dev environment is a Proxmox LXC, not your local machine.** LamaDB is already running and accessible remotely.
+
 ```bash
 # Deploy/rebuild on the LXC
-ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose up -d"
-
-# Or rebuild after code changes
 ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"
 ```
 
-For a rare isolated dev instance, Docker Compose is still available — `cp .env.example .env` on the LXC, then `ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose up -d"`.
+For local editing / code review: clone the repo, edit files, then deploy changes via `ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"`.
 
 ## Architecture
 
@@ -149,22 +148,23 @@ All commands run on the LXC via `ssh lamadb-dev`.
 ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose build api && docker compose up -d api"
 
 # Run a specific test
-ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker exec lamadb_api python3 -m pytest tests/test_feeds.py -q"
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose exec api python3 -m pytest tests/test_feeds.py -q"
 
 # Run benchmarks
-ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker exec lamadb_api python3 benchmarks/bench_all_endpoints.py"
+ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker compose exec api python3 benchmarks/bench_all_endpoints.py"
 
 # Check logs
-ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker logs lamadb_api --tail 20"
+ssh lamadb-dev "docker logs lamadb_api --tail 20"
 
 # DB access
-ssh lamadb-dev "cd /home/messhias/projects/lamadb && docker exec lamadb_postgres psql -U lamadb -d lamadb"
+ssh lamadb-dev "docker exec lamadb_postgres psql -U lamadb -d lamadb"
 
 # Swagger UI
 # Open http://192.168.68.26:8000/docs
 ```
+```
 
-Static files are COPY'd into the Docker image — rebuild after any `static/`, `app/`, `modules/`, or `migrations/` changes.
+Static files are COPY'd into the Docker image — rebuild on the LXC after any `static/`, `app/`, `modules/`, or `migrations/` changes.
 
 ## MCP Server
 

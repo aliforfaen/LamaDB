@@ -74,9 +74,9 @@
 .ll-list-item:hover { background: var(--surface-3); }
 
 .ll-list-item .leading { flex-shrink: 0; color: var(--muted); }
-.ll-list-item .content { flex: 1; min-width: 0; }
-.ll-list-item .title { font-weight: 500; color: var(--fg); }
-.ll-list-item .subtitle { font-size: var(--text-xs); color: var(--muted); }
+.ll-list-item .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ll-list-item .title { font-weight: 500; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ll-list-item .subtitle { font-size: var(--text-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ll-list-item .trailing { flex-shrink: 0; }
 
 /* ─── Badges ─── */

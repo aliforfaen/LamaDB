@@ -45,12 +45,10 @@ window.closeNotificationDetail = function() {
 window.dismissSelectedNotifications = async function() {
   if (!_selectedNotificationIds.length) return;
   try {
-    await Promise.all(_selectedNotificationIds.map(function(id) {
-      return window.api('/api/events/' + id, {
-        method: 'PATCH',
-        body: JSON.stringify({ processed: true })
-      });
-    }));
+    await window.api('/api/events/bulk-dismiss', {
+      method: 'POST',
+      body: JSON.stringify({ event_ids: _selectedNotificationIds })
+    });
     window.closeNotificationDetail();
     if (window.loadNotifications) window.loadNotifications();
   } catch (e) {
@@ -150,12 +148,10 @@ document.addEventListener('alpine:init', function() {
       async dismissGroup(group, event) {
         if (event) event.stopPropagation();
         try {
-          for (var i = 0; i < group.event_ids.length; i++) {
-            await window.api('/api/events/' + group.event_ids[i], {
-              method: 'PATCH',
-              body: JSON.stringify({ processed: true })
-            });
-          }
+          await window.api('/api/events/bulk-dismiss', {
+            method: 'POST',
+            body: JSON.stringify({ event_ids: group.event_ids })
+          });
           this.groups = this.groups.filter(function(g) { return g !== group; });
         } catch (e) {
           safeShowError('Failed to dismiss notification group');

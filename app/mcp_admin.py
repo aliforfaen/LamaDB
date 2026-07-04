@@ -9,9 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.auth import get_current_user, AuthUser
+from app.db import get_pool
 from app.mcp_registry import (
     get_all_tools_with_metadata,
-    toggle_tool,
+    set_tool_enabled,
 )
 from app.mcp_tracker import get_stats, reset_stats
 
@@ -97,7 +98,7 @@ async def list_tools_endpoint(user: AdminUser) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Toggle
+# Toggle (persisted)
 # ---------------------------------------------------------------------------
 class ToggleRequest(BaseModel):
     enabled: bool
@@ -107,8 +108,10 @@ class ToggleRequest(BaseModel):
 async def toggle_tool_endpoint(
     tool_name: str, body: ToggleRequest, user: AdminUser,
 ) -> dict:
-    """Enable or disable a tool."""
-    ok = toggle_tool(tool_name, body.enabled)
+    """Enable or disable a tool. Persists the change to `mcp_tool_config`."""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        ok = await set_tool_enabled(conn, tool_name, body.enabled)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
