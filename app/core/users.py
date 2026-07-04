@@ -7,13 +7,32 @@ from typing import Annotated
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth import AuthUser, get_current_user
+from app.auth import AuthUser, _authenticate, get_current_user
 from app.core.dashboard import require_admin
 from app.db import get_pool
 from app.config import settings
 
 router = APIRouter(tags=["users"])
+
+# Local HTTPBearer with auto_error=False so missing/invalid bearer keys
+# surface as a 401 (the standard "unauthenticated" code) rather than the
+# 403 that FastAPI's default HTTPBearer raises.
+_bearer_strict = HTTPBearer(auto_error=False)
+
+
+async def _require_user_401(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_strict)],
+) -> AuthUser:
+    """Auth dependency that always returns 401 on missing/invalid bearer."""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return await _authenticate(credentials.credentials)
 
 DEFAULT_THEME = {"scheme": "dark", "accent": "#6366f1"}
 
@@ -116,6 +135,49 @@ async def create_user(
         "user": {"id": str(user_id), "name": name, "type": user_type, "status": "active"},
         "api_key": raw_key,
         "api_key_id": str(key_id),
+    }
+
+
+@router.get("/users/me")
+async def get_me(
+    user: Annotated[AuthUser, Depends(_require_user_401)],
+):
+    """Get the authenticated user's own profile via the 'me' shortcut.
+
+    Resolves to the user linked to the bearer key's `user_id`. Returns 401
+    when the key has no user identity (legacy unlinked key) — there is no
+    profile to return.
+    """
+    if not user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No user identity linked to this API key",
+        )
+
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT u.*,
+                   (SELECT key_hash FROM api_keys WHERE user_id = u.id AND active = true LIMIT 1) AS active_key_hash,
+                   (SELECT id FROM api_keys WHERE user_id = u.id AND active = true LIMIT 1) AS active_key_id,
+                   (SELECT count(*) FROM kanban_tasks WHERE assignee_id = u.id AND completed_at IS NULL) AS open_tasks,
+                   (SELECT count(*) FROM kanban_tasks WHERE assignee_id = u.id AND completed_at IS NOT NULL) AS completed_tasks
+            FROM users u WHERE u.id = $1""",
+            user.user_id,
+        )
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    key_masked = USER_KEY_PREFIX + "****" if row["active_key_hash"] else None
+
+    return {
+        "id": str(row["id"]), "name": row["name"], "type": row["type"],
+        "status": row["status"], "instructions": row["instructions"],
+        "last_active_at": row["last_active_at"],
+        "api_key_masked": key_masked,
+        "api_key_id": str(row["active_key_id"]) if row["active_key_id"] else None,
+        "open_tasks": row["open_tasks"], "completed_tasks": row["completed_tasks"],
+        "created_at": row["created_at"],
     }
 
 

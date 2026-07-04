@@ -338,8 +338,8 @@ async def bulk_dismiss_events(
 
     pool = get_pool()
     async with pool.acquire() as conn:
-        await conn.execute(
-            "UPDATE events SET processed = true WHERE id = ANY($1)",
+        rows = await conn.fetch(
+            "UPDATE events SET processed = true WHERE id = ANY($1) RETURNING id",
             body.event_ids,
         )
-        return {"dismissed": len(body.event_ids)}
+        return {"dismissed": len(rows)}

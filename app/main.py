@@ -29,7 +29,13 @@ MIGRATIONS_DIR = Path(__file__).parent.parent / "migrations"
 
 
 async def run_migrations(pool) -> None:
-    """Execute pending migration files, tracking each in migration_history."""
+    """Execute pending migration files, tracking each in migration_history.
+
+    Each migration is only recorded in `migration_history` after every
+    statement in the file has executed without a non-idempotent error.
+    If any statement raises a real error, the file is left unmarked so the
+    next startup will retry it.
+    """
     migration_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
 
     async with pool.acquire() as conn:
@@ -62,6 +68,7 @@ async def run_migrations(pool) -> None:
         statements = _split_sql(clean)
 
         t0 = time.monotonic()
+        had_error = False
         async with pool.acquire() as conn:
             for stmt in statements:
                 try:
@@ -71,9 +78,20 @@ async def run_migrations(pool) -> None:
                     if "already exists" in msg or "duplicate" in msg:
                         logger.info(f"  Statement skipped (idempotent): {e}")
                     else:
+                        had_error = True
                         logger.warning(f"  Statement error: {e}")
 
             elapsed_ms = int((time.monotonic() - t0) * 1000)
+
+            if had_error:
+                # Don't record this file — leave it pending so the next
+                # startup retries it after the underlying issue is fixed.
+                logger.warning(
+                    f"  Skipping migration_history insert for {fname}: "
+                    f"{elapsed_ms}ms, had non-idempotent error(s)"
+                )
+                continue
+
             await conn.execute(
                 "INSERT INTO migration_history (filename, checksum, execution_ms) VALUES ($1, $2, $3)",
                 fname, checksum, elapsed_ms
