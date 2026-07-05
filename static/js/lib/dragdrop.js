@@ -53,7 +53,7 @@
       var data = await window.api('/api/dashboard/user-layout?page=overview');
       return data.layout.module_order || [];
     } catch (e) {
-      return ['uptime', 'hermes', 'freshrss', 'ntfy', 'dozzle', 'notflix', 'wiki', 'feeds', 'notifications'];
+      return ['uptime', 'hermes', 'freshrss', 'ntfy', 'dozzle', 'notflix', 'audiobookshelf', 'wiki', 'feeds', 'notifications'];
     }
   };
 })();

@@ -72,6 +72,12 @@ class Settings(BaseSettings):
     youtube_watch_later_playlist_id: str = ""
     youtube_poll_interval: int = 3600
 
+    # Audiobookshelf — self-hosted audiobook + podcast server
+    audiobookshelf_url: str = ""
+    audiobookshelf_token: str = ""
+    audiobookshelf_poll_interval: int = 1800
+    audiobookshelf_max_books_per_library: int = 50
+
 
     # Wiki — CouchDB-backed LiveSync collector
     wiki_couchdb_url: str = ""

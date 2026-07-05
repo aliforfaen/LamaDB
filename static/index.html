@@ -75,6 +75,7 @@
           <button class="nav-item" data-page="freshrss" data-icon="&#x1F4D1;" @click="go('freshrss')">&#x1F4D1; FreshRSS</button>
           <button class="nav-item" data-page="ntfy" data-icon="&#x1F514;" @click="go('ntfy')">&#x1F514; Ntfy</button>
           <button class="nav-item" data-page="notflix" data-icon="&#x1F3AC;" @click="go('notflix')">&#x1F3AC; Notflix</button>
+          <button class="nav-item" data-page="audiobookshelf" data-icon="&#x1F3A7;" @click="go('audiobookshelf')">&#x1F3A7; Audiobooks</button>
           <button class="nav-item" data-page="wiki" data-icon="&#x1F4DA;" @click="go('wiki')">&#x1F4DA; Wiki</button>
           <button class="nav-item" data-page="homeassistant" data-icon="&#x1F3E0;" @click="go('homeassistant')">&#x1F3E0; Home Assistant</button>
           <button class="nav-item" data-page="settings" data-icon="&#x2699;&#xFE0F;" @click="go('settings')">&#x2699;&#xFE0F; Settings</button>
@@ -399,6 +400,10 @@
           <button class="nav-item" data-page="notflix">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
             <span>Notflix</span><span id="notflix-tab-count" class="tab-badge"></span>
+          </button>
+          <button class="nav-item" data-page="audiobookshelf">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+            <span>Audiobooks</span><span id="audiobookshelf-tab-count" class="tab-badge"></span>
           </button>
           <button class="nav-item" data-page="wiki">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
@@ -1390,6 +1395,41 @@
       </section>
 
 
+      <!-- ════════════════════ AUDIOBOOKSHELF PAGE ════════════════════ -->
+      <section id="page-audiobookshelf" class="page" aria-label="Audiobookshelf">
+        <div class="filter-bar" style="margin-bottom:12px;">
+          <span style="flex:1;"></span>
+          <span id="audiobookshelf-status" style="font-size:12px;color:var(--muted);"></span>
+          <button class="btn btn-sm btn-secondary" onclick="window.loadAudiobookshelfPage()">↻ Refresh</button>
+        </div>
+
+        <!-- Snapshot Summary -->
+        <h3>Library Snapshot</h3>
+        <div id="audiobookshelf-stats" class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:16px;">
+          <p class="loading">Loading…</p>
+        </div>
+
+        <!-- Libraries -->
+        <h3 style="margin-top:20px;">Libraries</h3>
+        <div id="audiobookshelf-libraries" class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:16px;">
+          <p class="loading">Loading…</p>
+        </div>
+
+        <!-- Recent books table -->
+        <h3 style="margin-top:20px;">Recent Books</h3>
+        <div id="audiobookshelf-books" class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Title</th><th>Author</th><th>Library</th><th>Progress</th><th>Updated</th></tr>
+            </thead>
+            <tbody id="audiobookshelf-tbody">
+              <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
       <!-- ════════════════════ HOME ASSISTANT PAGE ════════════════════ -->
       <section id="page-homeassistant" class="page" aria-label="Home Assistant">
         <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
@@ -1971,6 +2011,7 @@
   <script src="/js/pages/ntfy.js"></script>
   <script src="/js/pages/dozzle.js"></script>
   <script src="/js/pages/notflix.js"></script>
+  <script src="/js/pages/audiobookshelf.js"></script>
   <script src="/js/pages/homeassistant.js"></script>
   <script src="/js/pages/wiki.js"></script>
   <script src="/js/pages/agent_board.js"></script>
