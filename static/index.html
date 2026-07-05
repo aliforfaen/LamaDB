@@ -71,6 +71,7 @@
           <button class="nav-item" data-page="agentboard" data-icon="&#x1F916;" @click="go('agentboard')">&#x1F916; Agent Board</button>
           <button class="nav-item" data-page="kanban" data-icon="&#x1F4CB;" @click="go('kanban')">&#x1F4CB; Kanban</button>
           <button class="nav-item" data-page="feeds" data-icon="&#x1F4F0;" @click="go('feeds')">&#x1F4F0; Feeds</button>
+          <button class="nav-item" data-page="briefing" data-icon="&#x2615;" @click="go('briefing')">&#x2615; Briefing</button>
           <button class="nav-item" data-page="freshrss" data-icon="&#x1F4D1;" @click="go('freshrss')">&#x1F4D1; FreshRSS</button>
           <button class="nav-item" data-page="ntfy" data-icon="&#x1F514;" @click="go('ntfy')">&#x1F514; Ntfy</button>
           <button class="nav-item" data-page="notflix" data-icon="&#x1F3AC;" @click="go('notflix')">&#x1F3AC; Notflix</button>
@@ -1452,6 +1453,15 @@
         </div>
       </section>
 
+      <!-- ════════════════════ BRIEFING PAGE ════════════════════ -->
+      <section id="page-briefing" class="page" aria-label="Briefing">
+        <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h2 style="font-size:15px;font-weight:600;color:var(--fg);margin:0;">Briefing</h2>
+          <span id="briefing-status" style="font-size:12px;color:var(--muted);"></span>
+        </div>
+        <div id="briefing-content"><p class="loading">Loading feeds…</p></div>
+      </section>
+
       <!-- ════════════════════ SETTINGS PAGE ════════════════════ -->
       <section id="page-settings" class="page" aria-label="Settings">
 
@@ -1894,6 +1904,23 @@
   </div>
 </div>
 
+<!-- ════════════════════ BRIEFING DETAIL MODAL ════════════════════ -->
+<div class="modal-overlay" id="modal-brief-detail" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <h3 id="brief-detail-title">Brief Detail</h3>
+      <button class="modal-close" onclick="document.getElementById('modal-brief-detail').classList.remove('open')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="brief-detail-date" style="font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-bottom:12px;"></div>
+      <div id="brief-detail-content" class="detail-content"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-brief-detail').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════════════════════ CREATE LINK MODAL ════════════════════ -->
 <div class="modal-overlay" id="modal-doc-link">
   <div class="modal" style="max-width:480px;">
@@ -1936,6 +1963,7 @@
   <script src="/js/pages/documents.js"></script>
   <script src="/js/pages/events.js"></script>
   <script src="/js/pages/feeds.js"></script>
+  <script src="/js/pages/briefing.js"></script>
   <script src="/js/pages/uptime.js"></script>
   <script src="/js/pages/search.js"></script>
   <script src="/js/pages/hermes.js"></script>
@@ -2102,6 +2130,10 @@
           <div class="shortcut-row">
             <span class="shortcut-desc">Go to Feeds</span>
             <span class="shortcut-keys"><kbd>g</kbd> <kbd>f</kbd></span>
+          </div>
+          <div class="shortcut-row">
+            <span class="shortcut-desc">Go to Briefing</span>
+            <span class="shortcut-keys"><kbd>g</kbd> <kbd>b</kbd></span>
           </div>
           <div class="shortcut-row">
             <span class="shortcut-desc">Go to Wiki</span>

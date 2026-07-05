@@ -15,6 +15,7 @@ document.addEventListener('alpine:init', function() {
         { id: 'agentboard', label: 'Agent Board', section: 'Monitoring' },
         { id: 'kanban', label: 'Kanban', section: 'Monitoring' },
         { id: 'feeds', label: 'Feeds', section: 'Data Sources' },
+        { id: 'briefing', label: 'Briefing', section: 'Data Sources' },
         { id: 'freshrss', label: 'FreshRSS', section: 'Data Sources' },
         { id: 'ntfy', label: 'Ntfy', section: 'Data Sources' },
         { id: 'notflix', label: 'Notflix', section: 'Data Sources' },

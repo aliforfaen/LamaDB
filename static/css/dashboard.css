@@ -3602,3 +3602,175 @@ table td.nowrap { white-space: nowrap; }
   .mcp-tool-row { grid-template-columns: 1fr auto; gap: 4px; }
   .mcp-tool-calls, .mcp-tool-errors, .mcp-tool-last, .mcp-tool-avg { display: none; }
 }
+
+/* ─── BRIEFING PAGE ─── */
+.brief-card {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.brief-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.brief-card-empty { border-left-color: var(--muted); cursor: default; }
+.brief-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.brief-card-icon { font-size: 18px; }
+.brief-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.brief-card-date {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: auto;
+}
+.brief-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 10px;
+}
+.brief-card-body {
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+.brief-card-body code {
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.brief-card-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.brief-section-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.brief-section-heading {
+  color: var(--fg-2);
+  font-weight: 500;
+}
+.brief-section-count {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+/* ─── BRIEFING FILTER BAR ─── */
+.briefing-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.briefing-entry-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ─── FEED GROUP ─── */
+.feed-group {
+  margin-bottom: 16px;
+}
+.feed-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding: 0 4px;
+}
+.feed-group-count {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+.feed-source-tag {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--source-color, var(--accent));
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--source-color, var(--accent)) 12%, transparent);
+  border-radius: 4px;
+}
+
+/* ─── FEED ENTRY ─── */
+.feed-entry {
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  border-radius: var(--radius-sm);
+}
+.feed-entry:last-child { border-bottom: none; }
+.feed-entry:hover { background: var(--surface-2); }
+.feed-entry-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+.feed-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.feed-entry-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ─── BRIEF DETAIL MODAL ─── */
+.brief-detail-section {
+  margin-bottom: 16px;
+}
+.brief-detail-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0 0 6px;
+}
+.brief-detail-list {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+.brief-detail-list li {
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.6;
+  margin-bottom: 2px;
+}
+
+@media (max-width: 768px) {
+  .brief-card { padding: 12px; }
+  .brief-card-preview { flex-direction: column; }
+  .feed-entry-title { font-size: 12px; }
+}
