@@ -1,3 +1,8 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
 # Environment
 .env
 .env.*
@@ -7,7 +12,6 @@
 __pycache__/
 *.py[cod]
 *.pyo
-*.egg
 *.egg-info/
 dist/
 build/
@@ -16,56 +20,43 @@ build/
 htmlcov/
 .tox/
 .nox/
-coverage.xml
 
 # Virtual environments
 .venv/
 venv/
 env/
-.python-version
 
 # Databases
 postgres_data/
-*.db
-*.sqlite
-*.sqlite3
 
 # IDE / Editor
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 .DS_Store
-Thumbs.db
 
-# Runtime state & config
+# Runtime state
 settings.json
 modules/feeds/.state
 
-# Dogfooding / test artifacts
+# Dogfooding
 dogfood-output/
 dogfood-screenshots/
 
-# Project workspace files
+# Project workspace
 entities.json
 mempalace.yaml
 .superpowers/
 raw/
-
-# Git worktrees
 .worktrees/
 
-# Backup files
+# Logs & backups
+*.log
 *.bak
 *.orig
 
-# Logs
-*.log
-
-# Certificates (safety)
-*.pem
-*.key
-*.crt
-
-
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
