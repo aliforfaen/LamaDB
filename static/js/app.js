@@ -96,10 +96,7 @@
     document.getElementById('auth-modal').style.display = 'none';
   }
 
-  async function submitApiKey() {
-    var key = document.getElementById('api-key-input').value.trim();
-    if (!key) return;
-    setApiKey(key);
+  async function bootstrapAuthenticated() {
     try {
       await api('/api/dashboard/header');
       document.body.classList.add('authenticated');
@@ -109,6 +106,17 @@
       fetchAndApplyTheme();
       window.dispatchEvent(new CustomEvent('lamadb:authenticated'));
       navigateTo(currentPage || 'home', true);
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  async function submitApiKey() {
+    var key = document.getElementById('api-key-input').value.trim();
+    if (!key) return;
+    setApiKey(key);
+    try {
+      await bootstrapAuthenticated();
     } catch (e) {
       document.getElementById('api-key-error').textContent = 'Invalid API key — access denied.';
       document.getElementById('api-key-error').style.display = 'block';
@@ -349,8 +357,17 @@
   window.setAuthToken = function(token) {
     if (!token || typeof token !== 'string') return;
     setApiKey(token);
-    // Reload so the dashboard bootstraps with the new key.
-    window.location.reload();
+    // If the dashboard is already authenticated, just refresh theme/SSE. Otherwise
+    // bootstrap without a full reload so the Android app doesn't flash/reload.
+    if (document.body.classList.contains('authenticated')) {
+      connectSSE();
+      fetchAndApplyTheme();
+    } else {
+      bootstrapAuthenticated().catch(function() {
+        clearApiKey();
+        showAuthModal();
+      });
+    }
   };
 
   window.setTheme = function(darkMode) {
@@ -979,14 +996,7 @@
     if (!getApiKey()) {
       showAuthModal();
     } else {
-      api('/api/dashboard/header').then(function() {
-        document.body.classList.add('authenticated');
-        clearErrorBanners();
-        window.navigateTo('home', true);
-        connectSSE();
-        fetchAndApplyTheme();
-        window.dispatchEvent(new CustomEvent('lamadb:authenticated'));
-      }).catch(function() {
+      bootstrapAuthenticated().catch(function() {
         showAuthModal();
       });
     }
