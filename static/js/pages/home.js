@@ -19,6 +19,7 @@ document.addEventListener('alpine:init', function() {
 
       async init() {
         var self = this;
+        console.log('[home] init start');
         this.setGreeting();
         this.today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
@@ -28,11 +29,16 @@ document.addEventListener('alpine:init', function() {
         window.loadHomeRecentActivity = function() { return self.loadRecentActivity(); };
 
         if (window.LlamaApp && window.LlamaApp.getApiKey && window.LlamaApp.getApiKey()) {
+          console.log('[home] api key present, loading');
           await this.load();
+        } else {
+          console.log('[home] no api key yet, waiting for auth event');
         }
         window.addEventListener('lamadb:authenticated', function() {
+          console.log('[home] authenticated event');
           self.load();
         }, { once: true });
+        console.log('[home] init done');
       },
 
       setGreeting() {
@@ -43,6 +49,7 @@ document.addEventListener('alpine:init', function() {
       },
 
       async load() {
+        console.log('[home] load start');
         this.loading = true;
         try {
           // Fetch briefing (keep existing behavior)
@@ -57,7 +64,9 @@ document.addEventListener('alpine:init', function() {
             this.loadAttention(),
             this.loadRecentActivity()
           ]);
+          console.log('[home] load success, attentionNotes:', this.attentionNotes.length, 'activityItems:', this.activityItems.length);
         } catch (e) {
+          console.error('[home] load error', e);
           safeShowError('Failed to load home data');
         } finally {
           this.loading = false;

@@ -19,6 +19,21 @@
   // Global key holder for key-created modal
   window._pendingKey = null;
 
+  // Track whether Alpine has finished its first initialization pass so the
+  // Android bridge can safely bootstrap after the page components exist.
+  window._alpineReady = false;
+  window.addEventListener('alpine:initialized', function() {
+    window._alpineReady = true;
+  }, { once: true });
+
+  function whenAlpineReady(callback) {
+    if (window._alpineReady) {
+      callback();
+    } else {
+      window.addEventListener('alpine:initialized', callback, { once: true });
+    }
+  }
+
   async function api(path, options) {
     options = options || {};
     var key = getApiKey();
@@ -97,6 +112,7 @@
   }
 
   async function bootstrapAuthenticated() {
+    console.log('[app] bootstrapAuthenticated start');
     try {
       await api('/api/dashboard/header');
       document.body.classList.add('authenticated');
@@ -104,9 +120,13 @@
       hideAuthModal();
       connectSSE();
       fetchAndApplyTheme();
+      console.log('[app] dispatching authenticated event');
       window.dispatchEvent(new CustomEvent('lamadb:authenticated'));
+      console.log('[app] navigating to', currentPage || 'home');
       navigateTo(currentPage || 'home', true);
+      console.log('[app] bootstrapAuthenticated done');
     } catch (e) {
+      console.error('[app] bootstrapAuthenticated error', e);
       throw e;
     }
   }
@@ -357,17 +377,26 @@
   window.setAuthToken = function(token) {
     if (!token || typeof token !== 'string') return;
     setApiKey(token);
-    // If the dashboard is already authenticated, just refresh theme/SSE. Otherwise
-    // bootstrap without a full reload so the Android app doesn't flash/reload.
-    if (document.body.classList.contains('authenticated')) {
-      connectSSE();
-      fetchAndApplyTheme();
-    } else {
-      bootstrapAuthenticated().catch(function() {
-        clearApiKey();
-        showAuthModal();
-      });
+
+    function doBootstrap() {
+      // If the dashboard is already authenticated, just refresh theme/SSE. Otherwise
+      // bootstrap without a full reload so the Android app doesn't flash/reload.
+      if (document.body.classList.contains('authenticated')) {
+        connectSSE();
+        fetchAndApplyTheme();
+      } else {
+        bootstrapAuthenticated().catch(function() {
+          clearApiKey();
+          showAuthModal();
+        });
+      }
     }
+
+    // The Android WebView calls this from onPageFinished, which can race Alpine's
+    // deferred initialization. Wait until Alpine components are live so
+    // navigateTo('home') can actually trigger window.loadHome and the auth event
+    // listeners have been registered.
+    whenAlpineReady(doBootstrap);
   };
 
   window.setTheme = function(darkMode) {
@@ -638,7 +667,10 @@
     currentPage = pageId;
     window._currentPage = pageId;
 
-    if (pageId === 'home') window.loadHome && window.loadHome();
+    if (pageId === 'home') {
+      console.log('[app] navigateTo home, loadHome exists:', typeof window.loadHome);
+      window.loadHome && window.loadHome();
+    }
     else if (pageId === 'overview') window.loadOverview && window.loadOverview();
     else if (pageId === 'notifications') window.loadNotificationsPage && window.loadNotificationsPage();
     else if (pageId === 'feeds') window.loadFeeds && window.loadFeeds();
