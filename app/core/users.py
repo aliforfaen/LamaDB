@@ -44,6 +44,25 @@ async def _hash_key(raw_key: str) -> str:
     )
 
 
+@router.get("/me")
+async def get_current_me(
+    user: Annotated[AuthUser, Depends(get_current_user)],
+):
+    """Return the currently authenticated user's profile.
+
+    Used by the Android app to validate an API key and discover the
+    linked user id. Legacy unlinked keys fall back to the key id/name.
+    """
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT id, name FROM users WHERE id = $1", user.user_id) if user.user_id else None
+
+    if row:
+        return {"id": str(row["id"]), "name": row["name"], "email": None}
+
+    return {"id": user.key_id, "name": user.name, "email": None}
+
+
 @router.get("/users")
 async def list_users(
     user: Annotated[AuthUser, Depends(require_admin)],
