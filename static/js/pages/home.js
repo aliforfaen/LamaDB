@@ -22,7 +22,8 @@ document.addEventListener('alpine:init', function() {
         this.setGreeting();
         this.today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
-        // Expose refresh functions on window so SSE handlers can call them
+        // Expose refresh functions on window so SSE handlers and navigateTo can call them
+        window.loadHome = function() { return self.load(); };
         window.loadHomeAttention = function() { return self.loadAttention(); };
         window.loadHomeRecentActivity = function() { return self.loadRecentActivity(); };
 
