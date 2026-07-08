@@ -345,6 +345,40 @@
     }).catch(function() {});
   };
 
+  // ─── Android WebView bridge hooks ───────────────────────────────────────────
+  window.setAuthToken = function(token) {
+    if (!token || typeof token !== 'string') return;
+    setApiKey(token);
+    // Reload so the dashboard bootstraps with the new key.
+    window.location.reload();
+  };
+
+  window.setTheme = function(darkMode) {
+    if (typeof darkMode !== 'boolean') return;
+    applyTheme(darkMode ? 'dark' : 'light');
+  };
+
+  window.setPresence = function(state) {
+    if (!state || typeof state !== 'object') return;
+    var presenceState = state.state;
+    if (presenceState !== 'home' && presenceState !== 'away' && presenceState !== 'unknown') return;
+    updateAndroidPresenceIndicator(presenceState);
+  };
+
+  function updateAndroidPresenceIndicator(state) {
+    var container = document.getElementById('android-presence-indicator');
+    if (!container) {
+      container = document.createElement('span');
+      container.id = 'android-presence-indicator';
+      container.className = 'header-led';
+      var headerLeds = document.querySelector('.header-leds');
+      if (headerLeds) headerLeds.appendChild(container);
+    }
+    var color = state === 'home' ? 'var(--accent)' : state === 'away' ? 'var(--danger)' : 'var(--muted)';
+    var label = state === 'home' ? 'Home' : state === 'away' ? 'Away' : 'Presence';
+    container.innerHTML = '<span class="led-dot" style="background:' + color + ';box-shadow:0 0 4px ' + color + ';"></span> Android: <strong>' + label + '</strong>';
+  }
+
   // ─── Command Palette ────────────────────────────────────────────────────────
   var _paletteItems = [];
   var _paletteHighlightIdx = -1;
